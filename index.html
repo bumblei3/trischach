@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TriSchach – 3-Fraktionen Schach mit Schere-Stein-Papier</title>
+  <meta name="description" content="TriSchach: Ein strategisches Schachspiel für 3 Spieler auf einem Dreieck-Hexfeld mit Schere-Stein-Papier Kampfmechanik.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <h1>⚔️ TriSchach</h1>
+      <p class="subtitle">3 Fraktionen · Schere-Stein-Papier · Hexagon-Schach</p>
+    </header>
+
+    <main id="main">
+      <aside id="sidebar-left" class="sidebar">
+        <div id="panel-nature" class="faction-panel nature">
+          <h2>🌿 Natur</h2>
+          <div class="rps-hint">schlägt 🌊</div>
+        </div>
+        <div id="rps-info" class="rps-diagram">
+          <div class="rps-cycle">
+            <span class="rps-item fire">🔥</span>
+            <span class="rps-arrow">→</span>
+            <span class="rps-item nature">🌿</span>
+            <span class="rps-arrow">→</span>
+            <span class="rps-item water">🌊</span>
+            <span class="rps-arrow">→</span>
+            <span class="rps-item fire">🔥</span>
+          </div>
+        </div>
+      </aside>
+
+      <section id="board-container">
+        <div id="turn-bar">
+          <span>Am Zug: </span>
+          <span id="turn-indicator">Feuer 🔥</span>
+          <span> · </span>
+          <span id="status">Wähle eine Figur</span>
+        </div>
+        <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="controls">
+          <button id="restart-btn">🔄 Neues Spiel</button>
+          <button id="auto-battle-btn">🤖 Auto Battle</button>
+        </div>
+      </section>
+
+      <aside id="sidebar-right" class="sidebar">
+        <div id="panel-water" class="faction-panel water">
+          <h2>🌊 Wasser</h2>
+          <div class="rps-hint">schlägt 🔥</div>
+        </div>
+        <div id="panel-fire" class="faction-panel fire">
+          <h2>🔥 Feuer</h2>
+          <div class="rps-hint">schlägt 🌿</div>
+        </div>
+      </aside>
+    </main>
+
+    <div id="combat-overlay"></div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
