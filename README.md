@@ -1,5 +1,7 @@
 # ⚔️ TriSchach
 
+**[👉 Spiele die Live-Demo hier!](https://bumblei3.github.io/trischach/)**
+
 **TriSchach** ist ein einzigartiges Schachspiel für 3 Spieler auf einem hexagonalen Dreieck-Spielfeld, kombiniert mit einer taktischen Schere-Stein-Papier-Mechanik.
 
 ## 🌟 Features
