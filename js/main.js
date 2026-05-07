@@ -12,6 +12,7 @@ const restartBtn = document.getElementById('restart-btn');
 const autoBattleBtn = document.getElementById('auto-battle-btn');
 const rpsToggle = document.getElementById('rps-toggle');
 const soundToggle = document.getElementById('sound-toggle');
+const rotateBtn = document.getElementById('rotate-btn');
 const moveLogEl = document.getElementById('move-log');
 
 const renderer = new BoardRenderer(svg);
@@ -227,6 +228,12 @@ rpsToggle.addEventListener('change', (e) => {
 
 soundToggle.addEventListener('change', (e) => {
   sounds.toggle(e.target.checked);
+});
+
+let currentBoardRotation = 0;
+rotateBtn.addEventListener('click', () => {
+  currentBoardRotation += 120;
+  renderer.setRotation(currentBoardRotation);
 });
 
 restartBtn.addEventListener('click', () => {

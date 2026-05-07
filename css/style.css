@@ -365,7 +365,7 @@ input:checked + .slider:before {
 
 /* Important: only the box should block clicks, the background should allow them */
 #combat-overlay.visible { pointer-events: none; }
-.combat-box { pointer-events: auto; }
+#combat-overlay.visible .combat-box { pointer-events: auto; }
 
 .combat-box {
   background: var(--surface);

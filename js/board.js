@@ -62,6 +62,7 @@ export class BoardRenderer {
     this.pieceElements = new Map();
     this.onCellClick = null;
     this._ox = 0; this._oy = 0;
+    this.currentRotation = 0;
   }
 
   _calcBounds() {
@@ -107,7 +108,6 @@ export class BoardRenderer {
   }
 
   highlightCells(hexes, cls='highlight-move') {
-    this.clearHighlights();
     for (const h of hexes) {
       const e = this.hexElements.get(h.key);
       if (e) e.polygon.classList.add(cls);
@@ -142,6 +142,9 @@ export class BoardRenderer {
     txt.setAttribute('font-size', `${this.hexSize*0.48}px`);
     txt.classList.add('piece-symbol');
     txt.textContent = piece.symbol;
+    txt.style.transform = `rotate(${-this.currentRotation}deg)`;
+    txt.style.transformOrigin = '0 0'; // SVG origin is already at the piece's center due to group translation
+    txt.style.transition = 'transform 0.5s ease';
     g.appendChild(txt);
     document.getElementById('board-group').appendChild(g);
     this.pieceElements.set(piece.id, g);
@@ -150,6 +153,17 @@ export class BoardRenderer {
   removePiece(id) {
     const e = this.pieceElements.get(id);
     if (e) { e.remove(); this.pieceElements.delete(id); }
+  }
+
+  setRotation(deg) {
+    this.currentRotation = deg;
+    this.svg.style.transform = `rotate(${this.currentRotation}deg)`;
+    this.svg.style.transition = 'transform 0.5s ease';
+    
+    // counter-rotate piece symbols
+    document.querySelectorAll('.piece-symbol').forEach(txt => {
+      txt.style.transform = `rotate(${-this.currentRotation}deg)`;
+    });
   }
 
   async animateMove(piece, from, to) {
