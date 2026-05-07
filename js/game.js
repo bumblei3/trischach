@@ -123,14 +123,14 @@ export class Game {
         this.capturedPieces[this.selectedPiece.faction].push(defender);
         result.winner = this.selectedPiece;
         result.loser = defender;
-        result.notation = `${this.selectedPiece.symbol}x${defender.symbol}`;
+        result.notation = `${this.selectedPiece.symbol}x${defender.symbol}${hex.q},${hex.r}`;
       } else {
         // Disadvantage – attacker dies!
         this.selectedPiece.alive = false;
         this.capturedPieces[defender.faction].push(this.selectedPiece);
         result.winner = defender;
         result.loser = this.selectedPiece;
-        result.notation = `${this.selectedPiece.symbol}⚔️${defender.symbol} (Loss)`;
+        result.notation = `${this.selectedPiece.symbol}⚔️${defender.symbol}${hex.q},${hex.r} (Loss)`;
       }
 
       // Check for king elimination
