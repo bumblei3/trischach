@@ -17,7 +17,7 @@
 
 ## 🎲 Spielregeln
 
-Jede Fraktion startet mit 13 Figuren (1 König, 1 Königin, 2 Türme, 2 Läufer, 2 Springer, 5 Bauern). Die Bewegungsregeln basieren auf dem klassischen Schach, adaptiert auf das Hexagon-Raster.
+Jede Fraktion startet mit 15 Figuren (1 König, 1 Königin, 2 Türme, 2 Läufer, 2 Springer, 7 Bauern). Die Bewegungsregeln basieren auf dem klassischen Schach, adaptiert auf das Hexagon-Raster.
 
 ### Das RPS-Prinzip
 Das Herzstück von TriSchach:
