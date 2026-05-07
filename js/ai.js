@@ -15,7 +15,7 @@ export function calculateBestMove(game, faction) {
     // Evaluate attacks
     for (const target of attacks) {
       const defender = game.getPieceAt(target);
-      const rps = getRPSResult(faction, defender.faction);
+      const rps = game.rpsEnabled ? getRPSResult(faction, defender.faction) : 'advantage';
       let score = 0;
       
       if (rps === 'advantage') {

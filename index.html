@@ -19,8 +19,11 @@
     <main id="main">
       <aside id="sidebar-left" class="sidebar">
         <div id="panel-nature" class="faction-panel nature">
-          <h2>🌿 Natur</h2>
-          <div class="rps-hint">schlägt 🌊</div>
+          <div class="faction-header">
+            <h2>🌿 Natur</h2>
+            <div class="rps-hint">schlägt 🌊</div>
+          </div>
+          <div id="captures-nature" class="captured-pieces"></div>
         </div>
         <div id="rps-info" class="rps-diagram">
           <div class="rps-cycle">
@@ -44,6 +47,20 @@
         </div>
         <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
         <div class="controls">
+          <div class="rps-toggle-container">
+            <span class="toggle-label">RPS</span>
+            <label class="switch">
+              <input type="checkbox" id="rps-toggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <div class="rps-toggle-container">
+            <span class="toggle-label">Sound</span>
+            <label class="switch">
+              <input type="checkbox" id="sound-toggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
           <button id="restart-btn">🔄 Neues Spiel</button>
           <button id="auto-battle-btn">🤖 Auto Battle</button>
         </div>
@@ -51,12 +68,23 @@
 
       <aside id="sidebar-right" class="sidebar">
         <div id="panel-water" class="faction-panel water">
-          <h2>🌊 Wasser</h2>
-          <div class="rps-hint">schlägt 🔥</div>
+          <div class="faction-header">
+            <h2>🌊 Wasser</h2>
+            <div class="rps-hint">schlägt 🔥</div>
+          </div>
+          <div id="captures-water" class="captured-pieces"></div>
         </div>
         <div id="panel-fire" class="faction-panel fire">
-          <h2>🔥 Feuer</h2>
-          <div class="rps-hint">schlägt 🌿</div>
+          <div class="faction-header">
+            <h2>🔥 Feuer</h2>
+            <div class="rps-hint">schlägt 🌿</div>
+          </div>
+          <div id="captures-fire" class="captured-pieces"></div>
+        </div>
+
+        <div id="move-history-container" class="history-panel">
+          <h3>📜 Verlauf</h3>
+          <div id="move-log"></div>
         </div>
       </aside>
     </main>

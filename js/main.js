@@ -1,6 +1,7 @@
 import { BoardRenderer, FACTION_COLORS, FACTION, getRPSResult } from './board.js';
 import { Game, GAME_STATE } from './game.js';
 import { calculateBestMove } from './ai.js';
+import { sounds } from './sounds.js';
 
 const svg = document.getElementById('board-svg');
 const statusEl = document.getElementById('status');
@@ -9,6 +10,9 @@ const rpsInfoEl = document.getElementById('rps-info');
 const combatOverlay = document.getElementById('combat-overlay');
 const restartBtn = document.getElementById('restart-btn');
 const autoBattleBtn = document.getElementById('auto-battle-btn');
+const rpsToggle = document.getElementById('rps-toggle');
+const soundToggle = document.getElementById('sound-toggle');
+const moveLogEl = document.getElementById('move-log');
 
 const renderer = new BoardRenderer(svg);
 const game = new Game();
@@ -19,6 +23,11 @@ let autoBattleTimer = null;
 function init() {
   renderer.render();
   game.init(renderer.cells);
+  // Add tooltips to hex cells
+  for (const [key, cell] of renderer.hexElements) {
+    const c = game.boardCells.get(key);
+    cell.polygon.setAttribute('title', `Coord: ${c.hex.q},${c.hex.r}`);
+  }
   // Render all pieces
   for (const p of game.getAlivePieces()) renderer.renderPiece(p);
   updateUI();
@@ -37,6 +46,32 @@ function updateUI() {
     const el = document.getElementById(`panel-${fac}`);
     if (el && game.eliminatedFactions.has(fac)) el.classList.add('eliminated');
   }
+  // Update RPS visual state
+  if (game.rpsEnabled) {
+    rpsInfoEl.classList.remove('rps-inactive');
+    document.querySelectorAll('.rps-hint').forEach(el => el.classList.remove('hidden'));
+  } else {
+    rpsInfoEl.classList.add('rps-inactive');
+    document.querySelectorAll('.rps-hint').forEach(el => el.classList.add('hidden'));
+  }
+  // Update Captures
+  for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+    const capEl = document.getElementById(`captures-${fac}`);
+    if (capEl) {
+      capEl.innerHTML = game.capturedPieces[fac].map(p => `<span class="captured-piece">${p.symbol}</span>`).join('');
+    }
+  }
+}
+
+function addToLog(result) {
+  const entry = document.createElement('div');
+  entry.className = `move-entry ${result.piece.faction}`;
+  entry.innerHTML = `
+    <span class="move-piece">${result.piece.symbol}</span>
+    <span class="move-coords">${result.notation}</span>
+  `;
+  moveLogEl.appendChild(entry);
+  moveLogEl.scrollTop = moveLogEl.scrollHeight;
 }
 
 renderer.onCellClick = (hex, cell) => {
@@ -47,15 +82,19 @@ renderer.onCellClick = (hex, cell) => {
   renderer.clearSelection();
 
   if (result.action === 'select') {
+    sounds.playSelect();
     renderer.selectCell(hex);
     renderer.highlightCells(result.moves, 'highlight-move');
     renderer.highlightCells(result.attacks, 'highlight-attack');
   } else if (result.action === 'deselect') {
     // nothing
   } else if (result.action === 'move') {
+    sounds.playMove();
+    addToLog(result);
     renderer.renderPiece(result.piece);
     updateUI();
   } else if (result.action === 'combat') {
+    addToLog(result);
     showCombat(result);
   }
   if (result.action === 'select' || result.action === 'deselect') updateUI();
@@ -104,6 +143,8 @@ function showCombat(result) {
   const defColor = FACTION_COLORS[result.defender.faction];
   const rps = result.rpsResult;
 
+  sounds.playCombat();
+
   combatOverlay.innerHTML = `
     <div class="combat-box">
       <div class="combat-fighters">
@@ -136,7 +177,10 @@ function showCombat(result) {
     renderer.pieceElements.clear();
     for (const p of game.getAlivePieces()) renderer.renderPiece(p);
     updateUI();
+    if (result.elimination) sounds.playElimination();
+    
     if (result.gameOver) {
+      sounds.playWin();
       statusEl.textContent = `🏆 ${FACTION_COLORS[result.winner_faction].name} hat gewonnen!`;
       autoBattleActive = false;
       autoBattleBtn.textContent = '🤖 Auto Battle';
@@ -160,6 +204,15 @@ autoBattleBtn.addEventListener('click', () => {
     clearTimeout(autoBattleTimer);
   }
 });
+ 
+rpsToggle.addEventListener('change', (e) => {
+  game.rpsEnabled = e.target.checked;
+  updateUI();
+});
+
+soundToggle.addEventListener('change', (e) => {
+  sounds.toggle(e.target.checked);
+});
 
 restartBtn.addEventListener('click', () => {
   combatOverlay.classList.remove('visible');
@@ -167,6 +220,7 @@ restartBtn.addEventListener('click', () => {
   boardGroup.querySelectorAll('.piece').forEach(el => el.remove());
   renderer.pieceElements.clear();
   game.init(renderer.cells);
+  moveLogEl.innerHTML = '';
   for (const p of game.getAlivePieces()) renderer.renderPiece(p);
   for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
     const el = document.getElementById(`panel-${fac}`);

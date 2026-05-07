@@ -24,6 +24,8 @@ export class Game {
     this.onGameOver = null;
     this.onElimination = null;
     this.boardCells = null;
+    this.rpsEnabled = true;
+    this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
   }
 
   get currentFaction() {
@@ -42,6 +44,7 @@ export class Game {
     this.eliminatedFactions.clear();
     this.moveHistory = [];
     this.selectedPiece = null;
+    this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
   }
 
   getAlivePieces() {
@@ -97,11 +100,17 @@ export class Game {
       return { action: 'deselect' };
     }
 
-    const result = { action: 'move', piece: this.selectedPiece, from: this.selectedPiece.pos, to: hex };
+    const result = { 
+      action: 'move', 
+      piece: this.selectedPiece, 
+      from: this.selectedPiece.pos, 
+      to: hex,
+      notation: `${this.selectedPiece.symbol}${hex.q},${hex.r}`
+    };
 
     if (isAttack) {
       const defender = this.getPieceAt(hex);
-      const rps = getRPSResult(this.selectedPiece.faction, defender.faction);
+      const rps = this.rpsEnabled ? getRPSResult(this.selectedPiece.faction, defender.faction) : 'advantage';
       result.action = 'combat';
       result.defender = defender;
       result.rpsResult = rps;
@@ -111,13 +120,17 @@ export class Game {
         defender.alive = false;
         this.selectedPiece.pos = hex;
         this.selectedPiece.hasMoved = true;
+        this.capturedPieces[this.selectedPiece.faction].push(defender);
         result.winner = this.selectedPiece;
         result.loser = defender;
+        result.notation = `${this.selectedPiece.symbol}x${defender.symbol}`;
       } else {
         // Disadvantage – attacker dies!
         this.selectedPiece.alive = false;
+        this.capturedPieces[defender.faction].push(this.selectedPiece);
         result.winner = defender;
         result.loser = this.selectedPiece;
+        result.notation = `${this.selectedPiece.symbol}⚔️${defender.symbol} (Loss)`;
       }
 
       // Check for king elimination
