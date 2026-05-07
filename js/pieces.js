@@ -1,4 +1,4 @@
-import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexLine, hexKnightMoves } from './hex.js';
+import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from './hex.js';
 import { FACTION } from './board.js';
 
 export const PIECE_TYPE = {

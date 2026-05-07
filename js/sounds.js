@@ -54,7 +54,6 @@ class SoundManager {
   }
 
   playElimination() {
-    const now = this.ctx ? this.ctx.currentTime : 0;
     this._playTone(300, 'square', 0.5, 0.1, -150);
     setTimeout(() => this._playTone(200, 'square', 0.6, 0.1, -100), 200);
   }

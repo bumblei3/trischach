@@ -1,4 +1,4 @@
-import { BoardRenderer, FACTION_COLORS, FACTION, getRPSResult } from './board.js';
+import { BoardRenderer, FACTION_COLORS, FACTION } from './board.js';
 import { Game, GAME_STATE } from './game.js';
 import { calculateBestMove } from './ai.js';
 import { sounds } from './sounds.js';
@@ -74,7 +74,7 @@ function addToLog(result) {
   moveLogEl.scrollTop = moveLogEl.scrollHeight;
 }
 
-renderer.onCellClick = (hex, cell) => {
+renderer.onCellClick = (hex) => {
   const result = game.handleCellClick(hex);
   if (!result) return;
 
