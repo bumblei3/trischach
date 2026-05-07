@@ -7,30 +7,35 @@
 ## 🌟 Features
 
 - **3 Fraktionen:** 🔥 Feuer, 🌊 Wasser und 🌿 Natur.
-- **Symmetrisches Spielfeld:** Ein perfektes Hexagon-Dreieck mit 3 angedockten Startzonen, gebaut aus Cube-Koordinaten.
-- **Auto Battle Modus:** Lehn dich zurück und schau zu, wie eine KI die Fraktionen automatisch gegeneinander antreten lässt.
-- **Keine Frameworks:** Zu 100% in Vanilla HTML, CSS und JavaScript geschrieben. Das Spielfeld wird performant als SVG gerendert.
-- **Dark Mode UI:** Modernes "Glassmorphism"-Design mit leuchtenden Neon-Farben.
+- **Symmetrisches Spielfeld:** Ein perfektes Hexagon-Dreieck mit 3 angedockten Startzonen, basierend auf Cube-Koordinaten.
+- **Auto Battle Modus:** Eine KI mit Greedy-Heuristik lässt die Fraktionen automatisch gegeneinander antreten.
+- **Schere-Stein-Papier (RPS) Kampf:** Eine zusätzliche taktische Ebene, die klassisches Schach auf den Kopf stellt.
+- **Auditives Feedback:** Dynamische Soundeffekte für Züge, Schläge und Spielereignisse.
+- **📜 Spielverlauf:** Ein detailliertes Log aller vergangenen Züge zur besseren Übersicht.
+- **Modernes UI:** Glassmorphism-Design mit Neon-Farben, optimiert für Dark Mode.
+- **Pure Vanilla Power:** 100% HTML, CSS und JavaScript. Keine Frameworks, kein Overhead. Performantes SVG-Rendering.
 
 ## 🎲 Spielregeln
 
-Jede Fraktion hat 13 Figuren (1 König, 1 Königin, 2 Türme, 2 Läufer, 2 Springer, 5 Bauern). Die Bewegungsregeln basieren auf dem klassischen Schach, wurden aber logisch auf das 6-Eck-Raster (Hex-Grid) übertragen.
+Jede Fraktion startet mit 13 Figuren (1 König, 1 Königin, 2 Türme, 2 Läufer, 2 Springer, 5 Bauern). Die Bewegungsregeln basieren auf dem klassischen Schach, adaptiert auf das Hexagon-Raster.
 
-Das Kernstück des Spiels ist das **Schere-Stein-Papier-Prinzip (RPS)**:
+### Das RPS-Prinzip
+Das Herzstück von TriSchach:
 - 🔥 **Feuer** schlägt 🌿 **Natur**
 - 🌿 **Natur** schlägt 🌊 **Wasser**
 - 🌊 **Wasser** schlägt 🔥 **Feuer**
 
 **Die Kampfmechanik:**
-- **Vorteil (z.B. Feuer greift Natur an):** Normaler Schlag. Der Angreifer besiegt den Verteidiger. Ein Feuer-Bauer kann problemlos eine Natur-Königin schlagen!
-- **Nachteil (z.B. Feuer greift Wasser an):** Selbstmord-Angriff! Der Verteidiger wehrt den Angriff ab und der **Angreifer stirbt**. 
+- **Vorteil (z.B. Feuer → Natur):** Normaler Schlag. Der Angreifer besiegt den Verteidiger.
+- **Nachteil (z.B. Feuer → Wasser):** Konter-Schlag! Der Verteidiger bleibt stehen und der **Angreifer wird geschlagen**.
+- **Neutral (Gleiche Fraktion oder RPS deaktiviert):** Klassischer Schach-Schlag.
 
-**Siegbedingung:**
-Fällt der König einer Fraktion, scheidet diese sofort aus und all ihre restlichen Figuren verschwinden vom Feld. Wer als Letzter noch einen König hat, gewinnt!
+### Siegbedingung
+Fällt ein König, scheidet die gesamte Fraktion sofort aus. Wer als Letzter noch einen König auf dem Feld hat, gewinnt die Schlacht.
 
 ## 🚀 Installation & Start
 
-Da TriSchach komplett im Browser läuft und keine Build-Tools benötigt, ist der Start extrem simpel:
+Lokal lässt sich TriSchach in Sekunden starten:
 
 1. Repository klonen:
    ```bash
@@ -38,24 +43,33 @@ Da TriSchach komplett im Browser läuft und keine Build-Tools benötigt, ist der
    cd trischach
    ```
 
-2. Einen lokalen Webserver starten (z.B. mit Python):
+2. Lokalen Webserver starten:
    ```bash
+   # Mit Python
    python3 -m http.server 8080
+   # Oder mit Node.js (falls installiert)
+   npx serve .
    ```
 
-3. Im Browser öffnen:
-   Gehe zu `http://localhost:8080/`
+3. Öffne `http://localhost:8080/` im Browser.
 
 ## 🛠️ Architektur
 
-- `index.html`: Struktur und Layout
-- `css/style.css`: Design System, Animationen und SVG-Styling
-- `js/hex.js`: Mathematische Bibliothek für Cube-Koordinaten auf dem Hex-Grid (nach der Referenz von Red Blob Games)
-- `js/board.js`: SVG-Rendering und Layout des dreieckigen Spielfelds
-- `js/pieces.js`: Figuren-Definitionen und hex-spezifische Bewegungslogik
-- `js/game.js`: Zentrale State-Machine, Spielzüge und RPS-Auswertung
-- `js/ai.js`: Die "Auto Battle" KI mit Greedy-Heuristik
-- `js/main.js`: Einstiegspunkt, Event-Listener und UI-Updates
+Die Codebase ist modular und ohne Build-Step aufgebaut:
+
+- `index.html`: Struktur und UI-Layout.
+- `css/style.css`: Design-System, Glassmorphism-Effekte und Animationen.
+- `js/hex.js`: Mathematische Basis für das Hex-Grid (Cube-Koordinaten).
+- `js/board.js`: Logik für das SVG-Board und die Spielfeld-Generierung.
+- `js/pieces.js`: Figuren-Eigenschaften und hex-basierte Zugmuster.
+- `js/game.js`: Zentrale State-Machine, Spielregeln und RPS-Logik.
+- `js/ai.js`: Die "Auto Battle" KI mit Greedy-Entscheidungen.
+- `js/sounds.js`: Audio-Engine für auditives Feedback.
+- `js/main.js`: Einstiegspunkt, UI-Integration und Event-Handling.
+
+## 🤖 CI/CD
+Dieses Projekt nutzt **GitHub Actions**, um bei jedem Push in den `main` Branch automatisch die neueste Version auf **GitHub Pages** zu deployen.
 
 ## 📜 Lizenz
-MIT License
+MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
+
