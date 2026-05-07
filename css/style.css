@@ -351,8 +351,8 @@ input:checked + .slider:before {
 #combat-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.75);
-  backdrop-filter: blur(8px);
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -362,6 +362,10 @@ input:checked + .slider:before {
   transition: opacity 0.3s ease;
 }
 #combat-overlay.visible { opacity: 1; pointer-events: auto; }
+
+/* Important: only the box should block clicks, the background should allow them */
+#combat-overlay.visible { pointer-events: none; }
+.combat-box { pointer-events: auto; }
 
 .combat-box {
   background: var(--surface);
@@ -405,6 +409,24 @@ input:checked + .slider:before {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 800;
+}
+
+.combat-stop-btn {
+  margin-top: 1.5rem;
+  padding: 0.8rem 1.5rem;
+  background: rgba(255, 69, 0, 0.1);
+  border: 1px solid var(--fire);
+  color: var(--fire);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.combat-stop-btn:hover {
+  background: var(--fire);
+  color: #fff;
+  transform: translateY(-2px);
 }
 
 @keyframes combat-appear {

@@ -168,9 +168,21 @@ function showCombat(result) {
       </div>
       ${result.elimination ? `<div class="combat-elimination">💀 ${FACTION_COLORS[result.elimination].name} ist eliminiert!</div>` : ''}
       ${result.gameOver ? `<div class="combat-winner">🏆 ${FACTION_COLORS[result.winner_faction].name} gewinnt!</div>` : ''}
+      ${autoBattleActive && !result.gameOver ? `<button id="stop-auto-combat" class="combat-stop-btn">⏹ Auto Battle Stoppen</button>` : ''}
     </div>
   `;
   combatOverlay.classList.add('visible');
+
+  const stopBtn = document.getElementById('stop-auto-combat');
+  if (stopBtn) {
+    stopBtn.onclick = () => {
+      autoBattleActive = false;
+      autoBattleBtn.textContent = '🤖 Auto Battle';
+      autoBattleBtn.classList.remove('active');
+      clearTimeout(autoBattleTimer);
+      stopBtn.remove();
+    };
+  }
 
   setTimeout(() => {
     combatOverlay.classList.remove('visible');
