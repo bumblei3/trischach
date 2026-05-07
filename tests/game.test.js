@@ -162,6 +162,46 @@ describe('Game logic', () => {
     expect(waterPiece.pos.equals(new Hex(0, 1))).toBe(true);
   });
 
+  test('RPS combat resolution: Attacker dies (Disadvantage)', () => {
+    game.rpsEnabled = true;
+    const firePawn = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN);
+    const waterQueen = game.getAlivePieces().find(p => p.faction === FACTION.WATER && p.type === PIECE_TYPE.QUEEN);
+    
+    firePawn.pos = new Hex(0, 2);
+    waterQueen.pos = new Hex(1, 1); // Diagonal forward for Fire (moving towards r=0)
+    
+    game.handleCellClick(firePawn.pos);
+    const result = game.handleCellClick(waterQueen.pos);
+    
+    expect(result.action).toBe('combat');
+    expect(result.rpsResult).toBe('disadvantage');
+    expect(firePawn.alive).toBe(false);
+    expect(waterQueen.alive).toBe(true);
+    expect(game.capturedPieces[FACTION.WATER]).toContain(firePawn);
+  });
+
+  test('nextTurn skips eliminated factions', () => {
+    game.eliminatedFactions.add(FACTION.WATER);
+    // FIRE -> (WATER skipped) -> NATURE
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    game.pieces = []; // Clear board so we can move
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [firePawn];
+    
+    game.handleCellClick(firePawn.pos);
+    game.handleCellClick(new Hex(0, 4));
+    
+    expect(game.currentFaction).toBe(FACTION.NATURE);
+  });
+
+  test('handleCellClick returns null in invalid state or game over', () => {
+    game.state = GAME_STATE.GAME_OVER;
+    expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
+    
+    game.state = 'invalid_state';
+    expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
+  });
+
   test('king elimination eliminates faction', () => {
     game.rpsEnabled = true;
     

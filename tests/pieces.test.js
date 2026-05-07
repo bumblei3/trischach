@@ -116,6 +116,22 @@ describe('Piece movements', () => {
     // Bishop moves in 6 diagonal directions. Board bounds limit some.
     // At center, max distance for diagonals is bounded by hex grid.
     expect(moves.length).toBeGreaterThan(0);
+    // Diagonals from (0,0) include (2,-1), (1,-2), (-1,-1), (-2,1), (-1,2), (1,1)
+    expect(moves.some(m => m.equals(new Hex(2, -1)))).toBe(true);
+  });
+
+  test('Queen movement', () => {
+    const queen = { 
+      type: PIECE_TYPE.QUEEN, 
+      faction: FACTION.FIRE, 
+      pos: new Hex(0, 0),
+      hasMoved: true
+    };
+    
+    const { moves } = getValidMoves(queen, mockCells, []);
+    
+    // Queen moves in all 6 directions AND all 6 diagonal directions
+    expect(moves.length).toBeGreaterThan(30); 
   });
 
   test('King movement', () => {
