@@ -24,6 +24,9 @@ jobs:
       - run: npm run lint
 
   deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     needs: lint
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
