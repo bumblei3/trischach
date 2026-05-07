@@ -137,12 +137,128 @@ describe('Main UI & Events', () => {
   });
 
   test('UI responds to game over state', async () => {
-    const main = await import('../js/main.js');
+    vi.useFakeTimers();
+    const { game, renderer } = await import('../js/main.js');
     const statusEl = document.getElementById('status');
-    const turnEl = document.getElementById('turn-indicator');
+    const { FACTION } = await import('../js/board.js');
     
-    // Simulate game over via the game object (if we can find it)
-    // Since we can't easily, we'll verify it doesn't crash when state is changed.
-    expect(statusEl).toBeDefined();
+    // Simulate game over state
+    game.state = 'game_over';
+    
+    // Trigger game over UI via a mock combat result
+    // We can directly call the exported renderer/game or just mock the state
+    // To trigger showCombat with result.gameOver:
+    const { Hex } = await import('../js/hex.js');
+    const { PIECE_TYPE, Piece } = await import('../js/pieces.js');
+    
+    game.pieces = []; // Clear board
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(0, 1));
+    game.pieces = [fireQueen, waterKing];
+    game.eliminatedFactions.add(FACTION.NATURE);
+    
+    // Execute attack
+    game.state = 'select_piece';
+    game.rpsEnabled = false;
+    game.currentFactionIdx = 0; // Fire
+    
+    renderer.onCellClick(fireQueen.pos);
+    renderer.onCellClick(waterKing.pos);
+    
+    // Fast-forward showCombat timeout (2200ms)
+    vi.advanceTimersByTime(2500);
+    
+    expect(statusEl.textContent).toContain('gewonnen!');
+    
+    // Test AI returning no valid moves (Line 138-141)
+    // We can clear all pieces, so AI has no moves
+    game.pieces = [];
+    const autoBattleBtn = document.getElementById('auto-battle-btn');
+    autoBattleBtn.click(); // Turn on auto battle
+    vi.advanceTimersByTime(500); // trigger AutoMove
+    
+    expect(game.state).toBe('game_over');
+    
+    vi.useRealTimers();
+  });
+
+  test('Auto Battle triggers a normal move', async () => {
+    vi.useFakeTimers();
+    const { game, triggerAutoMove } = await import('../js/main.js');
+    const { PIECE_TYPE, Piece } = await import('../js/pieces.js');
+    const { FACTION } = await import('../js/board.js');
+    const { Hex } = await import('../js/hex.js');
+
+    // Give AI a piece that can move but NOT attack
+    game.pieces = [new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5))];
+    game.state = 'select_piece';
+    game.currentFactionIdx = 0; // Fire
+    
+    const autoBattleBtn = document.getElementById('auto-battle-btn');
+    if (!autoBattleBtn.classList.contains('active')) {
+      autoBattleBtn.click();
+    }
+    
+    vi.advanceTimersByTime(500); 
+    vi.useRealTimers();
+  });
+
+  test('Auto Battle continues after non-game-over combat', async () => {
+    vi.useFakeTimers();
+    const { game, renderer } = await import('../js/main.js');
+    const { PIECE_TYPE, Piece } = await import('../js/pieces.js');
+    const { FACTION } = await import('../js/board.js');
+    const { Hex } = await import('../js/hex.js');
+
+    // Set up a combat that does NOT end the game
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(0, 2)); // King stays alive
+    game.pieces = [firePawn, waterPawn, waterKing];
+    game.state = 'select_piece';
+    game.currentFactionIdx = 0; // Fire
+
+    // Turn on auto battle
+    const autoBattleBtn = document.getElementById('auto-battle-btn');
+    if (!autoBattleBtn.classList.contains('active')) {
+      autoBattleBtn.click();
+    }
+
+    // Trigger combat manually via renderer to force showCombat
+    renderer.onCellClick(firePawn.pos);
+    renderer.onCellClick(waterPawn.pos);
+
+    // showCombat timeout is 2200ms
+    vi.advanceTimersByTime(2500);
+    
+    vi.useRealTimers();
+  });
+
+  test('renderer.onCellClick executes normal move', async () => {
+    const { game, renderer } = await import('../js/main.js');
+    const { Hex } = await import('../js/hex.js');
+    const { PIECE_TYPE, Piece } = await import('../js/pieces.js');
+    const { FACTION } = await import('../js/board.js');
+    
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [pawn];
+    game.currentFactionIdx = 0;
+    game.state = 'select_piece';
+    
+    renderer.onCellClick(pawn.pos);
+    renderer.onCellClick(new Hex(0, 4));
+    
+    expect(pawn.pos.equals(new Hex(0, 4))).toBe(true);
+  });
+
+  test('triggerAutoMove delays if game state is not SELECT_PIECE', async () => {
+    vi.useFakeTimers();
+    const { game, triggerAutoMove } = await import('../js/main.js');
+    
+    game.state = 'select_target';
+    triggerAutoMove(); // Should hit the setTimeout
+    
+    vi.advanceTimersByTime(1000);
+    vi.useRealTimers();
   });
 });

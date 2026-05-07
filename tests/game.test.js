@@ -252,4 +252,29 @@ describe('Game logic', () => {
     expect(gameOverWinner).toBe(FACTION.FIRE);
     // onUpdate is not called on the final turn that triggers game over, it returns result directly
   });
+
+  test('winner_faction is null if all factions eliminated', () => {
+    game.eliminatedFactions.add(FACTION.FIRE);
+    game.eliminatedFactions.add(FACTION.WATER);
+    // Fire attacks Nature, killing Nature king. All factions eliminated.
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(1, 1));
+    game.pieces = [firePawn, natureKing];
+    
+    game.handleCellClick(firePawn.pos);
+    const result = game.handleCellClick(natureKing.pos);
+    
+    expect(result.gameOver).toBe(true);
+    expect(result.winner_faction).toBeNull();
+  });
+
+  test('onUpdate is safely skipped if not set', () => {
+    game.onUpdate = null;
+    game.currentFactionIdx = 0; // FIRE
+    const piece = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [piece];
+    game.handleCellClick(piece.pos);
+    const result = game.handleCellClick(new Hex(0, 4));
+    expect(result.action).toBe('move');
+  });
 });
