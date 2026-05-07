@@ -1,6 +1,6 @@
 import { expect, test, describe } from 'vitest';
 import { Game } from '../js/game.js';
-import { generateBoard, FACTION } from '../js/board.js';
+import { generateBoard } from '../js/board.js';
 import { calculateBestMove } from '../js/ai.js';
 
 describe('AI Simulation (Integration)', () => {

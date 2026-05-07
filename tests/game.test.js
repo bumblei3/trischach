@@ -186,11 +186,9 @@ describe('Game logic', () => {
   test('triggers callbacks and ends game when only one faction remains', () => {
     let gameOverWinner = null;
     let eliminatedFaction = null;
-    let updateCalled = false;
     
     game.onGameOver = (winner) => { gameOverWinner = winner; };
     game.onElimination = (faction) => { eliminatedFaction = faction; };
-    game.onUpdate = () => { updateCalled = true; };
     
     game.rpsEnabled = false; // Disable RPS to ensure the attack succeeds
     

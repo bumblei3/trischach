@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 
 // Read index.html to inject into JSDOM
+// eslint-disable-next-line no-undef
 const htmlPath = path.resolve(__dirname, '../index.html');
 const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
 const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
@@ -16,7 +17,7 @@ describe('Main UI & Events', () => {
     vi.resetModules(); // Ensure main.js runs cleanly each time
     
     // Mock AudioContext
-    global.AudioContext = vi.fn().mockImplementation(() => ({
+    globalThis.AudioContext = vi.fn().mockImplementation(() => ({
       createOscillator: () => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'sine' }),
       createGain: () => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() } }),
       destination: {},
@@ -94,7 +95,6 @@ describe('Main UI & Events', () => {
   test('Simulate gameplay clicks (move and combat)', async () => {
     vi.useFakeTimers();
     await import('../js/main.js');
-    const svg = document.getElementById('board-svg');
     const pieces = document.querySelectorAll('.piece');
     expect(pieces.length).toBeGreaterThan(0);
     

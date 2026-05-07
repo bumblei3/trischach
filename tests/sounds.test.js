@@ -23,7 +23,7 @@ describe('Sound System', () => {
       }
     };
     
-    global.AudioContext = vi.fn().mockImplementation(() => ({
+    globalThis.AudioContext = vi.fn().mockImplementation(() => ({
       createOscillator: () => mockOsc,
       createGain: () => mockGain,
       destination: {},
@@ -44,18 +44,18 @@ describe('Sound System', () => {
 
   test('playSelect creates sound nodes', () => {
     sounds.playSelect();
-    expect(global.AudioContext).toHaveBeenCalled();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
   });
 
   test('playMove creates sound nodes', () => {
     sounds.playMove();
-    expect(global.AudioContext).toHaveBeenCalled();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
   });
 
   test('resumes AudioContext if suspended', () => {
     // Modify mock for this test
     const mockResume = vi.fn();
-    global.AudioContext = vi.fn().mockImplementation(() => ({
+    globalThis.AudioContext = vi.fn().mockImplementation(() => ({
       createOscillator: () => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'sine' }),
       createGain: () => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() } }),
       destination: {},
@@ -71,19 +71,19 @@ describe('Sound System', () => {
 
   test('playCombat creates sound nodes', () => {
     sounds.playCombat();
-    expect(global.AudioContext).toHaveBeenCalled();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
   });
 
   test('playElimination creates sound nodes', () => {
     sounds.playElimination();
-    expect(global.AudioContext).toHaveBeenCalled();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
   });
 
   test('playWin creates sound nodes', () => {
     vi.useFakeTimers();
     sounds.playWin();
     vi.runAllTimers();
-    expect(global.AudioContext).toHaveBeenCalled();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
     vi.useRealTimers();
   });
 });
