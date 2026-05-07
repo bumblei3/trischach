@@ -123,10 +123,13 @@ function triggerAutoMove() {
       renderer.clearSelection();
       
       if (result && result.action === 'move') {
+        sounds.playMove();
+        addToLog(result);
         renderer.renderPiece(result.piece);
         updateUI();
         triggerAutoMove(); // Queue next move
       } else if (result && result.action === 'combat') {
+        addToLog(result);
         showCombat(result);
         // showCombat will trigger the next auto move after animation
       }
