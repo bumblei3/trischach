@@ -78,6 +78,12 @@ export class BoardRenderer {
     this._ox = -minX+pad; this._oy = -minY+pad;
     const w = maxX-minX+pad*2, h = maxY-minY+pad*2;
     this.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    
+    // Set rotation origin to the geometric center of the board
+    // The central triangle is perfectly symmetrical around (0, 5 * hexSize)
+    const cx = this._ox;
+    const cy = 5 * this.hexSize + this._oy;
+    this.svg.style.transformOrigin = `${(cx / w) * 100}% ${(cy / h) * 100}%`;
   }
 
   render() {
