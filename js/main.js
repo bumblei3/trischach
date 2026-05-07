@@ -258,3 +258,5 @@ restartBtn.addEventListener('click', () => {
 });
 
 init();
+
+export { game, renderer, triggerAutoMove };
