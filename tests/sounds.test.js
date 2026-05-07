@@ -42,9 +42,31 @@ describe('Sound System', () => {
     expect(sounds.enabled).toBe(false);
   });
 
+  test('playSelect creates sound nodes', () => {
+    sounds.playSelect();
+    expect(global.AudioContext).toHaveBeenCalled();
+  });
+
   test('playMove creates sound nodes', () => {
     sounds.playMove();
     expect(global.AudioContext).toHaveBeenCalled();
+  });
+
+  test('resumes AudioContext if suspended', () => {
+    // Modify mock for this test
+    const mockResume = vi.fn();
+    global.AudioContext = vi.fn().mockImplementation(() => ({
+      createOscillator: () => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'sine' }),
+      createGain: () => ({ connect: vi.fn(), gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() } }),
+      destination: {},
+      currentTime: 100,
+      state: 'suspended',
+      resume: mockResume
+    }));
+    
+    sounds.ctx = null; // force re-init
+    sounds.playSelect();
+    expect(mockResume).toHaveBeenCalled();
   });
 
   test('playCombat creates sound nodes', () => {

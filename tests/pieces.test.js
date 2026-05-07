@@ -132,4 +132,21 @@ describe('Piece movements', () => {
     expect(moves.length).toBe(6);
     expect(moves.some(m => m.equals(new Hex(1, 0)))).toBe(true);
   });
+
+  test('Knight blocked by friendly piece', () => {
+    const boardCells = generateBoard();
+    const knight = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
+    // One of the knight moves from 0,0 is (1, -2) (which is in bounds)
+    const friendly = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, -2));
+    const { moves } = getValidMoves(knight, boardCells, [friendly]);
+    expect(moves.some(m => m.equals(new Hex(1, -2)))).toBe(false);
+  });
+
+  test('Pawn with unknown faction falls back to empty arrays', () => {
+    const boardCells = generateBoard();
+    const alienPawn = new Piece(PIECE_TYPE.PAWN, 'alien', new Hex(0, 0));
+    const { moves, attacks } = getValidMoves(alienPawn, boardCells, []);
+    expect(moves.length).toBe(0);
+    expect(attacks.length).toBe(0);
+  });
 });

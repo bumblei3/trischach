@@ -78,5 +78,48 @@ describe('BoardRenderer (DOM)', () => {
     // Ensure text rotation matches board counter-rotation
     const textEl = pieceEl.querySelector('.piece-symbol');
     expect(textEl.style.transform).toBe('rotate(0deg)');
+    
+    // Removing the piece should remove it from DOM
+    renderer.removePiece(mockPiece.id);
+    expect(document.querySelectorAll('.piece').length).toBe(0);
+    expect(renderer.pieceElements.has(mockPiece.id)).toBe(false);
+  });
+
+  test('highlightCells and clearHighlights', () => {
+    renderer.render();
+    const cells = Array.from(renderer.cells.values());
+    
+    renderer.highlightCells([cells[0].hex]); // default arg test
+    const el = renderer.hexElements.get(cells[0].hex.key);
+    expect(el.polygon.classList.contains('highlight-move')).toBe(true);
+    
+    renderer.clearHighlights();
+    expect(el.polygon.classList.contains('highlight-move')).toBe(false);
+  });
+
+  test('selectCell clears previous selection and selects new', () => {
+    renderer.render();
+    const cells = Array.from(renderer.cells.values());
+    
+    renderer.selectCell(cells[0].hex);
+    expect(renderer.hexElements.get(cells[0].hex.key).polygon.classList.contains('selected')).toBe(true);
+    
+    renderer.selectCell(cells[1].hex);
+    expect(renderer.hexElements.get(cells[0].hex.key).polygon.classList.contains('selected')).toBe(false);
+    expect(renderer.hexElements.get(cells[1].hex.key).polygon.classList.contains('selected')).toBe(true);
+  });
+
+  test('animateMove transforms piece element', async () => {
+    renderer.render();
+    const piece = { id: 'test_piece', faction: FACTION.FIRE, pos: new Hex(0, 0), symbol: 'P' };
+    renderer.renderPiece(piece);
+    
+    const p1 = renderer.animateMove(piece, new Hex(0,0), new Hex(1,1));
+    expect(p1).toBeInstanceOf(Promise);
+    await p1;
+    
+    // test unknown piece
+    const p2 = await renderer.animateMove({id: 'unknown'}, new Hex(0,0), new Hex(1,1));
+    expect(p2).toBeUndefined();
   });
 });
