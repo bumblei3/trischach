@@ -106,9 +106,21 @@ export class BoardRenderer {
       poly.classList.add('hex-polygon', `zone-${cell.zone}`);
       if (cell.faction) poly.classList.add(`faction-${cell.faction}`);
       cg.appendChild(poly);
+      
+      const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+      label.setAttribute('x', px.x);
+      label.setAttribute('y', px.y + this.hexSize * 0.70);
+      label.setAttribute('text-anchor', 'middle');
+      label.classList.add('hex-label');
+      label.textContent = `${cell.hex.q},${cell.hex.r}`;
+      label.style.transform = `rotate(${-this.currentRotation}deg)`;
+      label.style.transformOrigin = `${px.x}px ${px.y + this.hexSize * 0.70}px`;
+      label.style.transition = 'transform 0.5s ease';
+      cg.appendChild(label);
+      
       cg.addEventListener('click', () => this.onCellClick && this.onCellClick(cell.hex, cell));
       g.appendChild(cg);
-      this.hexElements.set(key, { group: cg, polygon: poly });
+      this.hexElements.set(key, { group: cg, polygon: poly, label: label });
     }
     this.svg.appendChild(g);
   }
@@ -165,9 +177,8 @@ export class BoardRenderer {
     this.currentRotation = deg;
     this.svg.style.transform = `rotate(${this.currentRotation}deg)`;
     this.svg.style.transition = 'transform 0.5s ease';
-    
-    // counter-rotate piece symbols
-    document.querySelectorAll('.piece-symbol').forEach(txt => {
+    // counter-rotate piece symbols and hex labels
+    document.querySelectorAll('.piece-symbol, .hex-label').forEach(txt => {
       txt.style.transform = `rotate(${-this.currentRotation}deg)`;
     });
   }
