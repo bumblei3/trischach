@@ -89,4 +89,46 @@ describe('AI Decision Making', () => {
     
     Math.random = originalRandom;
   });
+
+  test('handles tied attack scores', () => {
+    const originalRandom = Math.random;
+    Math.random = () => 0;
+    
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    // Two nature pawns at same distance
+    const n1 = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+    const n2 = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 1));
+    game.pieces = [fireQueen, n1, n2];
+    
+    const action = calculateBestMove(game, FACTION.FIRE);
+    expect(action.type).toBe('attack');
+    
+    Math.random = originalRandom;
+  });
+
+  test('handles pieces with no valid attacks', () => {
+    // Pawn with no enemies in front
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    game.pieces = [firePawn];
+    
+    const action = calculateBestMove(game, FACTION.FIRE);
+    expect(action.type).toBe('move');
+  });
+
+  test('handles missing defender in attack loop (branch coverage)', () => {
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const naturePawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+    game.pieces = [fireQueen, naturePawn];
+    
+    // Mock getPieceAt to return null ONLY for the specific attack target
+    const originalGetPieceAt = game.getPieceAt.bind(game);
+    game.getPieceAt = (hex) => {
+      if (hex.equals(new Hex(1, 0))) return null;
+      return originalGetPieceAt(hex);
+    };
+    
+    const action = calculateBestMove(game, FACTION.FIRE);
+    // Since the only target has "no defender", it should move instead of attacking
+    expect(action.type).toBe('move');
+  });
 });

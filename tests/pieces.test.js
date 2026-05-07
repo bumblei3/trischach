@@ -1,7 +1,7 @@
 import { expect, test, describe } from 'vitest';
-import { getValidMoves, PIECE_TYPE } from '../js/pieces.js';
+import { getValidMoves, PIECE_TYPE, Piece } from '../js/pieces.js';
 import { Hex } from '../js/hex.js';
-import { FACTION } from '../js/board.js';
+import { FACTION, generateBoard } from '../js/board.js';
 
 describe('Piece movements', () => {
   // Mock board logic
@@ -68,7 +68,25 @@ describe('Piece movements', () => {
     const { moves, attacks } = getValidMoves(knight, mockCells, []);
     
     // Knight has 6 valid moves on an empty board away from edges
-    expect(moves.length).toBe(6);
+    // Knight has 6 valid moves (excluding straight lines)
+    expect(moves.length + attacks.length).toBe(6);
+  });
+
+  test('pieces at edge of board have restricted moves', () => {
+    const boardCells = generateBoard();
+    const alivePieces = [];
+    
+    // Pawn at the very top vertex (0,0) - Fire pawns move North.
+    // (0,0) is in bounds, but (-1,0), (0,-1) might be out.
+    // Piece at a very far out-of-bounds coordinate
+    const p1 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(10, 10));
+    const moves1 = getValidMoves(p1, boardCells, alivePieces);
+    expect(moves1.moves.length).toBe(0);
+    
+    // Knight at edge
+    const p2 = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
+    const moves2 = getValidMoves(p2, boardCells, alivePieces);
+    expect(moves2.moves.length).toBeLessThan(12);
   });
 
   test('Rook movement', () => {

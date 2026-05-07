@@ -1,7 +1,7 @@
 import { expect, test, describe, beforeEach } from 'vitest';
 import { Game, GAME_STATE } from '../js/game.js';
 import { FACTION, generateBoard } from '../js/board.js';
-import { PIECE_TYPE } from '../js/pieces.js';
+import { Piece, PIECE_TYPE } from '../js/pieces.js';
 import { Hex } from '../js/hex.js';
 
 describe('Game logic', () => {
@@ -20,6 +20,33 @@ describe('Game logic', () => {
     expect(game.getAlivePieces().length).toBeGreaterThan(0);
     // 3 factions, 15 pieces each (8 backrow + 7 pawns)
     expect(game.getAlivePieces().length).toBe(45);
+    expect(game.currentFactionName).toBeDefined();
+  });
+
+  test('executes a normal move correctly', () => {
+    game.pieces = []; // Clear board
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [firePawn];
+    const target = new Hex(0, 4);
+    game.handleCellClick(firePawn.pos);
+    const result = game.handleCellClick(target);
+    
+    expect(result.action).toBe('move');
+    expect(firePawn.pos.equals(target)).toBe(true);
+    expect(firePawn.hasMoved).toBe(true);
+  });
+
+  test('reselects another own piece correctly', () => {
+    const firePieces = game.getAlivePieces().filter(p => p.faction === FACTION.FIRE);
+    const p1 = firePieces[0];
+    const p2 = firePieces[1];
+    
+    game.handleCellClick(p1.pos); // Select p1
+    expect(game.selectedPiece).toBe(p1);
+    
+    const result = game.handleCellClick(p2.pos); // Click p2
+    expect(result.action).toBe('select');
+    expect(game.selectedPiece).toBe(p2);
   });
 
   test('init fails with invalid data', () => {
@@ -60,6 +87,17 @@ describe('Game logic', () => {
     expect(result.action).toBe('deselect');
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
     expect(game.selectedPiece).toBeNull();
+  });
+
+  test('getPieceAt returns undefined for empty hex', () => {
+    expect(game.getPieceAt(new Hex(0, 0))).toBeUndefined();
+  });
+
+  test('returns deselect when selecting enemy piece directly in SELECT_PIECE state', () => {
+    // Current faction is FIRE. Try to select WATER piece.
+    const waterPiece = game.getAlivePieces().find(p => p.faction === FACTION.WATER);
+    const result = game.handleCellClick(waterPiece.pos);
+    expect(result.action).toBe('deselect');
   });
 
   test('deselecting piece returns to select state', () => {
