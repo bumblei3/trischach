@@ -184,7 +184,7 @@ describe('Main UI & Events', () => {
 
   test('Auto Battle triggers a normal move', async () => {
     vi.useFakeTimers();
-    const { game, triggerAutoMove } = await import('../js/main.js');
+    const { game } = await import('../js/main.js');
     const { PIECE_TYPE, Piece } = await import('../js/pieces.js');
     const { FACTION } = await import('../js/board.js');
     const { Hex } = await import('../js/hex.js');
