@@ -92,13 +92,6 @@ export class Game {
     return { action: 'select', piece, moves, attacks };
   }
 
-  _rebuildOccupiedMap() {
-    this._occupiedMap = new Map();
-    for (const p of this.pieces) {
-      if (p.alive) this._occupiedMap.set(p.pos.key, p);
-    }
-  }
-
   _selectTarget(hex) {
     // Check if clicking own piece (reselect)
     const clickedPiece = this.getPieceAt(hex);
