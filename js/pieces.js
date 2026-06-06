@@ -39,15 +39,11 @@ const PAWN_FORWARD = {
 const PAWN_ATTACK = PAWN_FORWARD;
 
 /**
- * Get valid moves for a piece, given the board and all pieces.
+ * Get valid moves for a piece, given the board and occupied map.
  */
-export function getValidMoves(piece, boardCells, allPieces) {
+export function getValidMoves(piece, boardCells, occupied) {
   const moves = [];
   const attacks = [];
-  const occupied = new Map();
-  for (const p of allPieces) {
-    if (p.alive) occupied.set(p.pos.key, p);
-  }
   const isOnBoard = (h) => boardCells.has(h.key);
   const isBlocked = (h) => occupied.has(h.key);
   const isEnemy = (h) => {

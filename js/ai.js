@@ -6,20 +6,21 @@ import { getRPSResult } from './board.js';
  */
 export function calculateBestMove(game, faction) {
   const pieces = game.getAlivePieces().filter(p => p.faction === faction);
+  const occupied = game._occupiedMap;
   let bestActions = [];
   let bestScore = -Infinity;
 
   for (const piece of pieces) {
-    const { moves, attacks } = getValidMoves(piece, game.boardCells, game.getAlivePieces());
+    const { moves, attacks } = getValidMoves(piece, game.boardCells, occupied);
     
     // Evaluate attacks
     for (const target of attacks) {
-      const defender = game.getPieceAt(target);
+      const defender = occupied.get(target.key);
       if (!defender) continue;
       const rps = game.rpsEnabled ? getRPSResult(faction, defender.faction) : 'advantage';
       let score = 0;
       
-      if (rps === 'advantage') {
+      if (rps === 'advantage' || rps === 'neutral') {
         // High priority to capture valuable pieces
         score = 100 + PIECE_STRENGTH[defender.type];
         // Bonus if our piece is cheap (e.g. Pawn taking a Queen)

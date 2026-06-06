@@ -24,9 +24,9 @@ describe('Game logic', () => {
   });
 
   test('executes a normal move correctly', () => {
-    game.pieces = []; // Clear board
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [firePawn];
+    game._rebuildOccupiedMap();
     const target = new Hex(0, 4);
     game.handleCellClick(firePawn.pos);
     const result = game.handleCellClick(target);
@@ -89,8 +89,8 @@ describe('Game logic', () => {
     expect(game.selectedPiece).toBeNull();
   });
 
-  test('getPieceAt returns undefined for empty hex', () => {
-    expect(game.getPieceAt(new Hex(0, 0))).toBeUndefined();
+  test('getPieceAt returns null for empty hex', () => {
+    expect(game.getPieceAt(new Hex(0, 0))).toBeNull();
   });
 
   test('returns deselect when selecting enemy piece directly in SELECT_PIECE state', () => {
@@ -128,6 +128,7 @@ describe('Game logic', () => {
     // Force pieces next to each other in the empty center zone
     firePiece.pos = new Hex(0, 0);
     naturePiece.pos = new Hex(0, 1);
+    game._rebuildOccupiedMap();
     
     // Select fire piece
     game.handleCellClick(firePiece.pos);
@@ -150,6 +151,7 @@ describe('Game logic', () => {
     
     firePiece.pos = new Hex(0, 0);
     waterPiece.pos = new Hex(0, 1);
+    game._rebuildOccupiedMap();
     
     game.handleCellClick(firePiece.pos);
     const result = game.handleCellClick(waterPiece.pos);
@@ -169,6 +171,7 @@ describe('Game logic', () => {
     
     firePawn.pos = new Hex(0, 2);
     waterQueen.pos = new Hex(1, 1); // Diagonal forward for Fire (moving towards r=0)
+    game._rebuildOccupiedMap();
     
     game.handleCellClick(firePawn.pos);
     const result = game.handleCellClick(waterQueen.pos);
@@ -184,9 +187,9 @@ describe('Game logic', () => {
     game.eliminatedFactions.add(FACTION.WATER);
     // FIRE -> (WATER skipped) -> NATURE
     expect(game.currentFaction).toBe(FACTION.FIRE);
-    game.pieces = []; // Clear board so we can move
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [firePawn];
+    game._rebuildOccupiedMap();
     
     game.handleCellClick(firePawn.pos);
     game.handleCellClick(new Hex(0, 4));
@@ -210,6 +213,7 @@ describe('Game logic', () => {
     
     fireQueen.pos = new Hex(0, 0);
     natureKing.pos = new Hex(0, 1);
+    game._rebuildOccupiedMap();
     
     game.handleCellClick(fireQueen.pos);
     const result = game.handleCellClick(natureKing.pos);
@@ -241,6 +245,7 @@ describe('Game logic', () => {
     
     fireQueen.pos = new Hex(0, 0);
     waterKing.pos = new Hex(0, 1);
+    game._rebuildOccupiedMap();
     
     game.handleCellClick(fireQueen.pos);
     const result = game.handleCellClick(waterKing.pos);
@@ -260,6 +265,7 @@ describe('Game logic', () => {
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
     const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(1, 1));
     game.pieces = [firePawn, natureKing];
+    game._rebuildOccupiedMap();
     
     game.handleCellClick(firePawn.pos);
     const result = game.handleCellClick(natureKing.pos);
@@ -273,6 +279,7 @@ describe('Game logic', () => {
     game.currentFactionIdx = 0; // FIRE
     const piece = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [piece];
+    game._rebuildOccupiedMap();
     game.handleCellClick(piece.pos);
     const result = game.handleCellClick(new Hex(0, 4));
     expect(result.action).toBe('move');

@@ -10,6 +10,7 @@ export const FACTION_COLORS = {
 export const RPS = { fire: 'nature', nature: 'water', water: 'fire' };
 
 export function getRPSResult(attacker, defender) {
+  if (attacker === defender) return 'neutral';
   return RPS[attacker] === defender ? 'advantage' : 'disadvantage';
 }
 

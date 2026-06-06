@@ -13,6 +13,7 @@ describe('AI Decision Making', () => {
     game.init(generateBoard());
     // Clear board of all pieces for precise testing
     game.pieces = [];
+    game._rebuildOccupiedMap();
     game.rpsEnabled = true;
   });
 
@@ -29,6 +30,7 @@ describe('AI Decision Making', () => {
     firePawn.pos = new Hex(0, 1);
     naturePawn.pos = new Hex(0, 0);
     game.pieces = [firePawn, naturePawn];
+    game._rebuildOccupiedMap();
 
     const action = calculateBestMove(game, FACTION.FIRE);
     
@@ -44,6 +46,7 @@ describe('AI Decision Making', () => {
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
     const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 0));
     game.pieces = [firePawn, waterPawn];
+    game._rebuildOccupiedMap();
 
     const action = calculateBestMove(game, FACTION.FIRE);
     
@@ -58,6 +61,7 @@ describe('AI Decision Making', () => {
     // Knight at distance 4 from center
     const fireKnight = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 4));
     game.pieces = [fireKnight];
+    game._rebuildOccupiedMap();
 
     const action = calculateBestMove(game, FACTION.FIRE);
     
@@ -79,6 +83,7 @@ describe('AI Decision Making', () => {
     // Give King multiple valid moves that are exactly same distance from center (radius 1 circle around origin)
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
     game.pieces = [fireKing];
+    game._rebuildOccupiedMap();
     
     const action = calculateBestMove(game, FACTION.FIRE);
     
@@ -99,6 +104,7 @@ describe('AI Decision Making', () => {
     const n1 = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
     const n2 = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 1));
     game.pieces = [fireQueen, n1, n2];
+    game._rebuildOccupiedMap();
     
     const action = calculateBestMove(game, FACTION.FIRE);
     expect(action.type).toBe('attack');
@@ -110,6 +116,7 @@ describe('AI Decision Making', () => {
     // Pawn with no enemies in front
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
     game.pieces = [firePawn];
+    game._rebuildOccupiedMap();
     
     const action = calculateBestMove(game, FACTION.FIRE);
     expect(action.type).toBe('move');
@@ -119,13 +126,10 @@ describe('AI Decision Making', () => {
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
     const naturePawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
     game.pieces = [fireQueen, naturePawn];
+    game._rebuildOccupiedMap();
     
-    // Mock getPieceAt to return null ONLY for the specific attack target
-    const originalGetPieceAt = game.getPieceAt.bind(game);
-    game.getPieceAt = (hex) => {
-      if (hex.equals(new Hex(1, 0))) return null;
-      return originalGetPieceAt(hex);
-    };
+    // Remove defender from occupied map to simulate missing defender
+    game._occupiedMap.delete(new Hex(1, 0).key);
     
     const action = calculateBestMove(game, FACTION.FIRE);
     // Since the only target has "no defender", it should move instead of attacking

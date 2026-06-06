@@ -155,6 +155,7 @@ describe('Main UI & Events', () => {
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(0, 1));
     game.pieces = [fireQueen, waterKing];
+    game._rebuildOccupiedMap();
     game.eliminatedFactions.add(FACTION.NATURE);
     
     // Execute attack
@@ -173,6 +174,7 @@ describe('Main UI & Events', () => {
     // Test AI returning no valid moves (Line 138-141)
     // We can clear all pieces, so AI has no moves
     game.pieces = [];
+    game._rebuildOccupiedMap();
     const autoBattleBtn = document.getElementById('auto-battle-btn');
     autoBattleBtn.click(); // Turn on auto battle
     vi.advanceTimersByTime(500); // trigger AutoMove
@@ -191,6 +193,7 @@ describe('Main UI & Events', () => {
 
     // Give AI a piece that can move but NOT attack
     game.pieces = [new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5))];
+    game._rebuildOccupiedMap();
     game.state = 'select_piece';
     game.currentFactionIdx = 0; // Fire
     
@@ -215,6 +218,7 @@ describe('Main UI & Events', () => {
     const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(0, 2)); // King stays alive
     game.pieces = [firePawn, waterPawn, waterKing];
+    game._rebuildOccupiedMap();
     game.state = 'select_piece';
     game.currentFactionIdx = 0; // Fire
 
@@ -242,6 +246,7 @@ describe('Main UI & Events', () => {
     
     const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [pawn];
+    game._rebuildOccupiedMap();
     game.currentFactionIdx = 0;
     game.state = 'select_piece';
     

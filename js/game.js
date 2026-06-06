@@ -45,6 +45,7 @@ export class Game {
     this.moveHistory = [];
     this.selectedPiece = null;
     this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
+    this._rebuildOccupiedMap();
   }
 
   getAlivePieces() {
@@ -52,7 +53,14 @@ export class Game {
   }
 
   getPieceAt(hex) {
-    return this.getAlivePieces().find(p => p.pos.equals(hex));
+    return this._occupiedMap?.get(hex.key) || null;
+  }
+
+  _rebuildOccupiedMap() {
+    this._occupiedMap = new Map();
+    for (const p of this.pieces) {
+      if (p.alive) this._occupiedMap.set(p.pos.key, p);
+    }
   }
 
   handleCellClick(hex) {
@@ -76,11 +84,19 @@ export class Game {
     }
 
     this.selectedPiece = piece;
-    const { moves, attacks } = getValidMoves(piece, this.boardCells, this.getAlivePieces());
+    this._rebuildOccupiedMap();
+    const { moves, attacks } = getValidMoves(piece, this.boardCells, this._occupiedMap);
     this.validMoves = moves;
     this.validAttacks = attacks;
     this.state = GAME_STATE.SELECT_TARGET;
     return { action: 'select', piece, moves, attacks };
+  }
+
+  _rebuildOccupiedMap() {
+    this._occupiedMap = new Map();
+    for (const p of this.pieces) {
+      if (p.alive) this._occupiedMap.set(p.pos.key, p);
+    }
   }
 
   _selectTarget(hex) {
@@ -115,7 +131,7 @@ export class Game {
       result.defender = defender;
       result.rpsResult = rps;
 
-      if (rps === 'advantage') {
+      if (rps === 'advantage' || rps === 'neutral') {
         // Attacker wins – normal capture
         defender.alive = false;
         this.selectedPiece.pos = hex;
@@ -150,6 +166,7 @@ export class Game {
     }
 
     this.moveHistory.push(result);
+    this._rebuildOccupiedMap();
 
     // Check game over
     const alive = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
