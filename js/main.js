@@ -40,9 +40,30 @@ function updateUI() {
   const fc = FACTION_COLORS[f];
   turnEl.textContent = fc.name;
   turnEl.style.color = fc.primary;
-  statusEl.textContent = game.state === GAME_STATE.SELECT_PIECE
-    ? 'Wähle eine Figur'
-    : 'Wähle ein Ziel';
+
+  // Status text: show check state
+  if (game.state === GAME_STATE.GAME_OVER) {
+    // keep existing game over text
+  } else if (game.isKingInCheck(f)) {
+    statusEl.textContent = '⚠️ Schach!';
+    statusEl.style.color = '#ff4444';
+  } else {
+    statusEl.textContent = game.state === GAME_STATE.SELECT_PIECE
+      ? 'Wähle eine Figur'
+      : 'Wähle ein Ziel';
+    statusEl.style.color = '';
+  }
+
+  // Highlight king hex when in check
+  clearCheckHighlight();
+  if (game.isKingInCheck(f)) {
+    const king = game.pieces.find(p => p.faction === f && p.type === 'king' && p.alive);
+    if (king) {
+      const el = renderer.hexElements.get(king.pos.key);
+      if (el) el.polygon.classList.add('highlight-check');
+    }
+  }
+
   // Update eliminated indicators
   for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
     const el = document.getElementById(`panel-${fac}`);
@@ -63,6 +84,10 @@ function updateUI() {
       capEl.innerHTML = game.capturedPieces[fac].map(p => `<span class="captured-piece">${p.symbol}</span>`).join('');
     }
   }
+}
+
+function clearCheckHighlight() {
+  document.querySelectorAll('.highlight-check').forEach(el => el.classList.remove('highlight-check'));
 }
 
 function addToLog(result) {
@@ -87,23 +112,30 @@ renderer.onCellClick = (hex) => {
     sounds.playSelect();
     renderer.selectCell(hex);
     renderer.highlightCells(result.moves, 'highlight-move');
-    renderer.highlightCells(result.attacks, 'highlight-attack');
+    // Color-code attacks by RPS result
+    if (game.rpsEnabled && result.rpsAttacks) {
+      renderer.highlightCells(result.rpsAttacks.advantage, 'highlight-attack-advantage');
+      renderer.highlightCells(result.rpsAttacks.disadvantage, 'highlight-attack-disadvantage');
+      renderer.highlightCells(result.rpsAttacks.neutral, 'highlight-attack');
+    } else {
+      renderer.highlightCells(result.attacks, 'highlight-attack');
+    }
   } else if (result.action === 'deselect') {
     // nothing
   } else if (result.action === 'move') {
     sounds.playMove();
     addToLog(result);
     renderer.renderPiece(result.piece);
-    updateUI();
+    if (result.promotion) {
+      showPromotion(game.pendingPromotion);
+    } else {
+      updateUI();
+    }
   } else if (result.action === 'combat') {
     addToLog(result);
     showCombat(result);
-  } else if (result.action === 'move' && result.promotion) {
-    sounds.playMove();
-    addToLog(result);
-    renderer.renderPiece(result.piece);
-    showPromotion(game.pendingPromotion);
   }
+
   if (result.action === 'select' || result.action === 'deselect') updateUI();
 };
 
@@ -174,6 +206,9 @@ function showCombat(result) {
           : `${defColor.name} wehrt ab! ${attColor.name} verliert!`}
       </div>
       ${result.elimination ? `<div class="combat-elimination">💀 ${FACTION_COLORS[result.elimination].name} ist eliminiert!</div>` : ''}
+      ${result.checkmate ? `<div class="combat-checkmate">♚ Schachmatt! ${FACTION_COLORS[result.checkmate].name} ist eliminiert!</div>` : ''}
+      ${result.stalemate ? `<div class="combat-stalemate">🤖 Patt! ${FACTION_COLORS[result.stalemate].name} ist eliminiert!</div>` : ''}
+      ${result.inCheck && !result.checkmate ? `<div class="combat-check">⚠️ Schach!</div>` : ''}
       ${result.gameOver ? `<div class="combat-winner">🏆 ${FACTION_COLORS[result.winner_faction].name} gewinnt!</div>` : ''}
       ${autoBattleActive && !result.gameOver ? `<button id="stop-auto-combat" class="combat-stop-btn">⏹ Auto Battle Stoppen</button>` : ''}
     </div>

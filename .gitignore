@@ -11,4 +11,9 @@ coverage/
 *.ntvs*
 *.njsproj
 *.sln
+
 *.sw?
+
+# Accidental artifacts
+trischach
+trischach.pub

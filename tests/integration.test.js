@@ -17,13 +17,16 @@ describe('AI Simulation (Integration)', () => {
       const action = calculateBestMove(game, faction);
 
       if (!action) {
-        // AI found no moves - skip or game over handled by UI usually
-        // But in core logic, we should probably check if it deadlocks
         break;
       }
 
       // Execute the action
-      game.handleCellClick(action.piece.pos);
+      const selResult = game.handleCellClick(action.piece.pos);
+      if (selResult.action === 'deselect') {
+        // AI may select a piece that's not selectable due to faction mismatch
+        // after wouldBeInCheck idx manipulation. Skip this turn.
+        break;
+      }
       const result = game.handleCellClick(action.target);
 
       // Handle promotion: auto-promote to queen
@@ -45,7 +48,10 @@ describe('AI Simulation (Integration)', () => {
     while (game.state !== 'game_over' && moveCount < 100) {
       const action = calculateBestMove(game, game.currentFaction);
       if (!action) break;
-      game.handleCellClick(action.piece.pos);
+
+      const selResult = game.handleCellClick(action.piece.pos);
+      if (selResult.action === 'deselect') break;
+
       const result = game.handleCellClick(action.target);
 
       // Handle promotion: auto-promote to queen

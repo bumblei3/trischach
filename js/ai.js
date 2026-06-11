@@ -1,6 +1,5 @@
 import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
-import { Hex } from './hex.js';
 
 // ─── Heuristic Evaluation ───────────────────────────────────────────
 
@@ -125,20 +124,20 @@ function evaluateBoard(game, faction) {
 
 // ─── Minimax with Alpha-Beta Pruning ───────────────────────────────
 
-const MAX_DEPTH = 2; // Configurable: 2=fast, 3=stronger but slower
+let MAX_DEPTH = 2; // Configurable: 2=fast, 3=stronger but slower
 
 /**
  * Get all possible actions for a faction.
  */
 function getAllActions(game, faction) {
   const pieces = game.getAlivePieces().filter(p => p.faction === faction);
-  const occupied = game._occupiedMap;
   const actions = [];
 
   for (const piece of pieces) {
-    const { moves, attacks } = getValidMoves(piece, game.boardCells, occupied);
+    // Use getLegalMoves (checks for king safety) instead of raw getValidMoves
+    const { moves, attacks } = game.getLegalMoves(piece);
     for (const target of attacks) {
-      const defender = occupied.get(target.key);
+      const defender = game.getPieceAt(target);
       if (!defender) continue;
       const rps = game.rpsEnabled ? getRPSResult(faction, defender.faction) : 'advantage';
       actions.push({ piece, target, type: 'attack', rps });

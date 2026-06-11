@@ -138,7 +138,7 @@ export class BoardRenderer {
     if (e) e.polygon.classList.add('selected');
   }
   clearHighlights() {
-    for (const [,e] of this.hexElements) e.polygon.classList.remove('highlight-move','highlight-attack','highlight-danger');
+    for (const [,e] of this.hexElements) e.polygon.classList.remove('highlight-move','highlight-attack','highlight-attack-advantage','highlight-attack-disadvantage','highlight-check','highlight-danger');
   }
   clearSelection() {
     for (const [,e] of this.hexElements) e.polygon.classList.remove('selected');

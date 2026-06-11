@@ -2,6 +2,8 @@ import { FACTION, getRPSResult, FACTION_COLORS } from './board.js';
 import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.js';
 import { Hex } from './hex.js';
 
+// ─── Check / Checkmate Detection ─────────────────────────────────────
+
 export const GAME_STATE = {
   SELECT_PIECE: 'select_piece',
   SELECT_TARGET: 'select_target',
@@ -76,6 +78,92 @@ export class Game {
   }
 
   /**
+   * Check if the king of `faction` is currently in check.
+   * Returns true if any enemy piece can attack the king's position.
+   */
+  isKingInCheck(faction) {
+    const king = this.pieces.find(p => p.faction === faction && p.type === PIECE_TYPE.KING && p.alive);
+    if (!king) return false; // King already captured (shouldn't happen normally)
+
+    const enemies = this.pieces.filter(p => p.faction !== faction && p.alive);
+    for (const enemy of enemies) {
+      const { attacks } = getValidMoves(enemy, this.boardCells, this._occupiedMap);
+      if (attacks.some(a => a.equals(king.pos))) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if making a move would leave `faction`'s king in check.
+   * Simulates the move, checks, then undoes.
+   */
+  wouldBeInCheck(piece, target, faction) {
+    const savedIdx = this.currentFactionIdx;
+    const undo = this.simulateMove(piece, target);
+    // simulateMove advances the turn via _nextTurn, so check with original idx
+    this.currentFactionIdx = undo.prevFactionIdx;
+    this._rebuildOccupiedMap();
+    const inCheck = this.isKingInCheck(faction);
+    this.currentFactionIdx = savedIdx;
+    this._rebuildOccupiedMap();
+    this.undoMove(undo);
+    this.currentFactionIdx = savedIdx;
+    this._rebuildOccupiedMap();
+    return inCheck;
+  }
+
+  /**
+   * Get all legal moves for a piece (excluding moves that leave own king in check).
+   */
+  getLegalMoves(piece) {
+    const { moves, attacks } = getValidMoves(piece, this.boardCells, this._occupiedMap);
+    const legalMoves = [];
+    const legalAttacks = [];
+
+    for (const target of moves) {
+      if (!this.wouldBeInCheck(piece, target, piece.faction)) {
+        legalMoves.push(target);
+      }
+    }
+    for (const target of attacks) {
+      if (!this.wouldBeInCheck(piece, target, piece.faction)) {
+        legalAttacks.push(target);
+      }
+    }
+    return { moves: legalMoves, attacks: legalAttacks };
+  }
+
+  /**
+   * Check if `faction` is in checkmate.
+   * Conditions: in check + no legal moves for any piece.
+   */
+  isCheckmate(faction) {
+    if (!this.isKingInCheck(faction)) return false;
+    return !this._hasLegalMoves(faction);
+  }
+
+  /**
+   * Check if `faction` is in stalemate.
+   * Conditions: NOT in check + no legal moves for any piece.
+   */
+  isStalemate(faction) {
+    if (this.isKingInCheck(faction)) return false;
+    return !this._hasLegalMoves(faction);
+  }
+
+  /**
+   * Check if `faction` has any legal moves at all.
+   */
+  _hasLegalMoves(faction) {
+    const myPieces = this.pieces.filter(p => p.faction === faction && p.alive);
+    for (const piece of myPieces) {
+      const { moves, attacks } = this.getLegalMoves(piece);
+      if (moves.length > 0 || attacks.length > 0) return true;
+    }
+    return false;
+  }
+
+  /**
    * Check if a pawn move to target triggers promotion.
    * Rule: pawn promotes when reaching r <= 0 (upper half of central triangle).
    */
@@ -147,11 +235,14 @@ export class Game {
 
     this.selectedPiece = piece;
     this._rebuildOccupiedMap();
-    const { moves, attacks } = getValidMoves(piece, this.boardCells, this._occupiedMap);
+    const { moves, attacks } = this.getLegalMoves(piece);
     this.validMoves = moves;
     this.validAttacks = attacks;
     this.state = GAME_STATE.SELECT_TARGET;
-    return { action: 'select', piece, moves, attacks };
+
+    // Categorize attacks by RPS result for UI color-coding
+    const rpsAttacks = this.rpsEnabled ? categorizeAttacks(piece, attacks, this) : null;
+    return { action: 'select', piece, moves, attacks, rpsAttacks };
   }
 
   _selectTarget(hex) {
@@ -247,6 +338,39 @@ export class Game {
     this._nextTurn();
     this.selectedPiece = null;
     this.state = GAME_STATE.SELECT_PIECE;
+
+    // Check if next player is checkmated or stalemated
+    const nextFaction = this.currentFaction;
+    if (this.isCheckmate(nextFaction) || this.isStalemate(nextFaction)) {
+      // In a 3-player game, checkmate/stalemate eliminates the stuck faction
+      if (this.isCheckmate(nextFaction)) {
+        result.checkmate = nextFaction;
+      } else {
+        result.stalemate = nextFaction;
+      }
+      this.eliminatedFactions.add(nextFaction);
+      for (const p of this.pieces) {
+        if (p.faction === nextFaction) p.alive = false;
+      }
+      result.elimination = nextFaction;
+      if (this.onElimination) this.onElimination(nextFaction);
+
+      // Check game over after elimination
+      const aliveAfter = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
+      if (aliveAfter.length <= 1) {
+        this.state = GAME_STATE.GAME_OVER;
+        result.gameOver = true;
+        result.winner_faction = aliveAfter[0] || null;
+        result.inCheck = this.isKingInCheck(this.currentFaction);
+        if (this.onGameOver) this.onGameOver(aliveAfter[0]);
+        return result;
+      }
+      // Continue to next faction after elimination
+      this._nextTurn();
+    }
+
+    result.inCheck = this.isKingInCheck(this.currentFaction);
+
     if (this.onUpdate) this.onUpdate();
     return result;
   }
@@ -376,4 +500,23 @@ export class Game {
 
     this._rebuildOccupiedMap();
   }
+}
+
+// ─── RPS Attack Categorization ─────────────────────────────────────────
+
+/**
+ * Categorize attack targets by RPS result for UI color-coding.
+ * Returns { advantage: Hex[], disadvantage: Hex[], neutral: Hex[] }
+ */
+function categorizeAttacks(piece, attacks, game) {
+  const result = { advantage: [], disadvantage: [], neutral: [] };
+  for (const target of attacks) {
+    const defender = game.getPieceAt(target);
+    if (!defender) continue;
+    const rps = getRPSResult(piece.faction, defender.faction);
+    if (rps === 'advantage') result.advantage.push(target);
+    else if (rps === 'disadvantage') result.disadvantage.push(target);
+    else result.neutral.push(target);
+  }
+  return result;
 }

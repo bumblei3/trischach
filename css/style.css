@@ -327,6 +327,28 @@ input:checked + .slider:before {
   filter: url(#glow);
   animation: pulse-attack 0.8s ease-in-out infinite;
 }
+/* RPS color-coded attacks */
+.highlight-attack-advantage {
+  fill: rgba(34, 204, 68, 0.3) !important;
+  stroke: rgba(34, 204, 68, 0.8) !important;
+  stroke-width: 2.5 !important;
+  filter: url(#glow);
+  animation: pulse-attack 0.8s ease-in-out infinite;
+}
+.highlight-attack-disadvantage {
+  fill: rgba(255, 20, 20, 0.35) !important;
+  stroke: rgba(255, 20, 20, 0.9) !important;
+  stroke-width: 2.5 !important;
+  filter: url(#glow);
+  animation: pulse-danger 0.6s ease-in-out infinite;
+}
+.highlight-check {
+  fill: rgba(255, 0, 0, 0.3) !important;
+  stroke: rgba(255, 0, 0, 0.9) !important;
+  stroke-width: 3 !important;
+  filter: url(#glow);
+  animation: pulse-danger 0.6s ease-in-out infinite;
+}
 .selected {
   fill: rgba(255, 255, 100, 0.15) !important;
   stroke: rgba(255, 255, 100, 0.7) !important;
@@ -341,6 +363,10 @@ input:checked + .slider:before {
 @keyframes pulse-attack {
   0%, 100% { fill-opacity: 0.25; }
   50% { fill-opacity: 0.45; }
+}
+@keyframes pulse-danger {
+  0%, 100% { fill-opacity: 0.3; stroke-width: 2.5; }
+  50% { fill-opacity: 0.5; stroke-width: 3.5; }
 }
 
 /* Pieces */
@@ -411,6 +437,24 @@ input:checked + .slider:before {
   margin-top: 0.8rem;
   color: #ff5555;
   font-weight: 800;
+}
+.combat-checkmate {
+  font-size: 1.3rem;
+  margin-top: 0.8rem;
+  color: #ff4444;
+  font-weight: 800;
+}
+.combat-stalemate {
+  font-size: 1.2rem;
+  margin-top: 0.8rem;
+  color: #aa88ff;
+  font-weight: 800;
+}
+.combat-check {
+  font-size: 1.1rem;
+  margin-top: 0.5rem;
+  color: #ffaa00;
+  font-weight: 600;
 }
 .combat-winner {
   font-size: 1.5rem;
