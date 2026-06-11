@@ -1,4 +1,4 @@
-name: Lint and Deploy
+name: CI
 
 on:
   push:
@@ -6,37 +6,37 @@ on:
   pull_request:
     branches: [ main ]
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
-  lint:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Use Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm install
+          cache: 'npm'
+      - run: npm ci
       - run: npm run lint
+      - run: npm test
+      - run: npm run build --if-present
 
   deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: lint
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build --if-present
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
