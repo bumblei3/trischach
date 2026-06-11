@@ -39,10 +39,7 @@ export class Game {
     this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
     this.pendingPromotion = null;
     this.onPromotion = null;
-  }
-
-  get currentFaction() {
-    return TURN_ORDER[this.currentFactionIdx];
+    this._undoStack = [];
   }
 
   get currentFactionName() {
@@ -175,6 +172,7 @@ export class Game {
    * Complete a pending promotion by transforming the pawn into the chosen type.
    */
   completePromotion(newType) {
+    this._undoStack.push(this.snapshot());
     const piece = this.pendingPromotion;
     if (!piece) return null;
 
@@ -246,6 +244,7 @@ export class Game {
   }
 
   _selectTarget(hex) {
+    this._undoStack.push(this.snapshot());
     // Check if clicking own piece (reselect)
     const clickedPiece = this.getPieceAt(hex);
     if (clickedPiece && clickedPiece.faction === this.currentFaction) {
@@ -500,6 +499,84 @@ export class Game {
 
     this._rebuildOccupiedMap();
   }
+
+  /**
+   * Create a snapshot of the game state for undo functionality.
+   * @returns {{pieces: Array, currentFactionIdx: number, eliminatedFactions: Set, capturedPieces: Object, moveHistoryLength: number}}
+   */
+  snapshot() {
+    return {
+      pieces: this.pieces.map(p => ({
+        id: p.id,
+        faction: p.faction,
+        type: p.type,
+        pos: { q: p.pos.q, r: p.pos.r },
+        alive: p.alive,
+        hasMoved: p.hasMoved
+      })),
+      currentFactionIdx: this.currentFactionIdx,
+      eliminatedFactions: new Set(this.eliminatedFactions),
+      capturedPieces: {
+        fire: this.capturedPieces[FACTION.FIRE].map(p => p.id),
+        water: this.capturedPieces[FACTION.WATER].map(p => p.id),
+        nature: this.capturedPieces[FACTION.NATURE].map(p => p.id)
+      },
+      moveHistoryLength: this.moveHistory.length
+    };
+  }
+
+  /**
+   * Restore game state from a snapshot.
+   * @param {Object} snap - The snapshot object
+   */
+  restore(snap) {
+    // Restore pieces
+    this.pieces.forEach(p => {
+      const sp = snap.pieces.find(sp => sp.id === p.id);
+      if (sp) {
+        p.faction = sp.faction;
+        p.type = sp.type;
+        p.pos = new Hex(sp.pos.q, sp.pos.r);
+        p.alive = sp.alive;
+        p.hasMoved = sp.hasMoved;
+      }
+    });
+    this.currentFactionIdx = snap.currentFactionIdx;
+    this.eliminatedFactions = new Set(snap.eliminatedFactions);
+    // restore capturedPieces
+    for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+      this.capturedPieces[fac] = [];
+    }
+    for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+      const ids = snap.capturedPieces[fac.toLowerCase()];
+      for (const id of ids) {
+        const piece = this.pieces.find(p => p.id === id);
+        if (piece) this.capturedPieces[fac].push(piece);
+      }
+    }
+    // truncate moveHistory
+    this.moveHistory.length = snap.moveHistoryLength;
+    this._rebuildOccupiedMap();
+    // clear selection
+    this.selectedPiece = null;
+    this.state = GAME_STATE.SELECT_PIECE;
+    this.pendingPromotion = null;
+    this.onPromotion = null;
+  }
+
+  /**
+   * Undo the last move, returning the snapshot restored.
+   * @returns {Object|null} The snapshot that was restored, or null if nothing to undo
+   */
+  undo() {
+    if (this._undoStack.length === 0) return null;
+    const snap = this._undoStack.pop();
+    this.restore(snap);
+    if (this.onUpdate) this.onUpdate();
+    return snap;
+  }
+
+
 }
 
 // ─── RPS Attack Categorization ─────────────────────────────────────────

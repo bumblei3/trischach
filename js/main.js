@@ -25,7 +25,8 @@ let autoBattleTimer = null;
 function init() {
   renderer.render();
   game.init(renderer.cells);
-  // Add tooltips to hex cells
+    game._undoStack = [];
+    // Add tooltips to hex cells
   for (const [key, cell] of renderer.hexElements) {
     const c = game.boardCells.get(key);
     cell.polygon.setAttribute('title', `Coord: ${c.hex.q},${c.hex.r}`);
@@ -300,6 +301,14 @@ autoBattleBtn.addEventListener('click', () => {
     clearTimeout(autoBattleTimer);
   }
 });
+
+const undoBtn = document.getElementById('undo-btn');
+undoBtn.addEventListener('click', () => {
+  const snap = game.undo();
+  if (snap) {
+    updateUI();
+  }
+});
  
 rpsToggle.addEventListener('change', (e) => {
   game.rpsEnabled = e.target.checked;
@@ -323,6 +332,7 @@ restartBtn.addEventListener('click', () => {
   boardGroup.querySelectorAll('.piece').forEach(el => el.remove());
   renderer.pieceElements.clear();
   game.init(renderer.cells);
+  game._undoStack = [];
   moveLogEl.innerHTML = '';
   for (const p of game.getAlivePieces()) renderer.renderPiece(p);
   for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
