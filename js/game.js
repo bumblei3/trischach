@@ -1,5 +1,6 @@
 import { FACTION, getRPSResult, FACTION_COLORS } from './board.js';
 import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.js';
+import { Hex } from './hex.js';
 
 export const GAME_STATE = {
   SELECT_PIECE: 'select_piece',
@@ -183,5 +184,119 @@ export class Game {
     do {
       this.currentFactionIdx = (this.currentFactionIdx + 1) % 3;
     } while (this.eliminatedFactions.has(this.currentFaction));
+  }
+
+  /**
+   * Simulate a move without side effects (for AI lookahead).
+   * Returns an undo object that can be passed to undoMove().
+   * Does NOT call callbacks, does NOT push to moveHistory.
+   */
+  simulateMove(piece, target) {
+    const undo = {
+      piece,
+      from: new Hex(piece.pos.q, piece.pos.r),
+      pieceHasMoved: piece.hasMoved,
+      wasAttack: false,
+      defender: null,
+      defenderWasKilled: false,
+      attackerDied: false,
+      eliminatedFaction: null,
+      prevFactionIdx: this.currentFactionIdx,
+    };
+
+    const defender = this.getPieceAt(target);
+
+    if (defender) {
+      undo.wasAttack = true;
+      undo.defender = defender;
+
+      const rps = this.rpsEnabled ? getRPSResult(piece.faction, defender.faction) : 'advantage';
+
+      if (rps === 'advantage' || rps === 'neutral') {
+        // Attacker wins
+        defender.alive = false;
+        undo.defenderWasKilled = true;
+        piece.pos = target;
+        piece.hasMoved = true;
+        this.capturedPieces[piece.faction].push(defender);
+
+        // King elimination
+        if (defender.type === PIECE_TYPE.KING) {
+          undo.eliminatedFaction = defender.faction;
+          this.eliminatedFactions.add(defender.faction);
+          for (const p of this.pieces) {
+            if (p.faction === defender.faction) p.alive = false;
+          }
+        }
+      } else {
+        // Attacker dies (disadvantage)
+        piece.alive = false;
+        undo.attackerDied = true;
+        this.capturedPieces[defender.faction].push(piece);
+
+        if (piece.type === PIECE_TYPE.KING) {
+          undo.eliminatedFaction = piece.faction;
+          this.eliminatedFactions.add(piece.faction);
+          for (const p of this.pieces) {
+            if (p.faction === piece.faction) p.alive = false;
+          }
+        }
+      }
+    } else {
+      // Normal move
+      piece.pos = target;
+      piece.hasMoved = true;
+    }
+
+    this._rebuildOccupiedMap();
+    this._nextTurn();
+    return undo;
+  }
+
+  /**
+   * Undo a simulated move using the undo object from simulateMove().
+   */
+  undoMove(undo) {
+    // Restore turn
+    this.currentFactionIdx = undo.prevFactionIdx;
+
+    // Undo elimination
+    if (undo.eliminatedFaction) {
+      this.eliminatedFactions.delete(undo.eliminatedFaction);
+      for (const p of this.pieces) {
+        if (p.faction === undo.eliminatedFaction) p.alive = true;
+      }
+    }
+
+    if (undo.wasAttack) {
+      // Restore defender if it was killed
+      if (undo.defenderWasKilled && undo.defender) {
+        undo.defender.alive = true;
+        const capList = this.capturedPieces[undo.piece.faction];
+        const idx = capList.indexOf(undo.defender);
+        if (idx !== -1) capList.splice(idx, 1);
+      }
+
+      // Restore attacker if it died (disadvantage)
+      if (undo.attackerDied) {
+        undo.piece.alive = true;
+        // Attacker was pushed to defender's captured list
+        // We need to find which faction captured it
+        for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+          const capList = this.capturedPieces[fac];
+          const idx = capList.indexOf(undo.piece);
+          if (idx !== -1) {
+            capList.splice(idx, 1);
+            break;
+          }
+        }
+      }
+    }
+
+    // Restore piece position and state
+    undo.piece.pos = undo.from;
+    undo.piece.hasMoved = undo.pieceHasMoved;
+
+    this._rebuildOccupiedMap();
   }
 }
