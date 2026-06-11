@@ -109,6 +109,17 @@ function evaluateBoard(game, faction) {
     }
   }
 
+  // 6. Pawn advancement bonus: pawns closer to promotion (r <= 0) are more valuable
+  for (const p of pieces) {
+    if (p.type !== 'pawn') continue;
+    const pv = p.faction === faction ? 1 : -1;
+    if (p.r <= 0) {
+      score += pv * 15; // About to promote!
+    } else if (p.r <= 2) {
+      score += pv * 5;  // Getting close
+    }
+  }
+
   return score;
 }
 
@@ -181,11 +192,14 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
       const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, nextFaction);
       game.undoMove(undo);
 
-      if (result.score > maxScore) {
-        maxScore = result.score;
+      // Boost score for promotion moves
+      const adjustedScore = result.score + (undo.promoted ? 50 * (result.score >= 0 ? 1 : -1) : 0);
+
+      if (adjustedScore > maxScore) {
+        maxScore = adjustedScore;
         bestAction = action;
       }
-      alpha = Math.max(alpha, result.score);
+      alpha = Math.max(alpha, adjustedScore);
       if (beta <= alpha) break; // Beta cutoff
     }
     return { score: maxScore, action: bestAction };
@@ -202,11 +216,14 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
       const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, nextFaction);
       game.undoMove(undo);
 
-      if (result.score < minScore) {
-        minScore = result.score;
+      // Penalize for letting opponent promote
+      const adjustedScore = result.score - (undo.promoted ? 50 * (result.score >= 0 ? 1 : -1) : 0);
+
+      if (adjustedScore < minScore) {
+        minScore = adjustedScore;
         bestAction = action;
       }
-      beta = Math.min(beta, result.score);
+      beta = Math.min(beta, adjustedScore);
       if (beta <= alpha) break; // Alpha cutoff
     }
     return { score: minScore, action: bestAction };

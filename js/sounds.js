@@ -65,6 +65,13 @@ class SoundManager {
     });
   }
 
+  playPromotion() {
+    const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 – shorter triumphant arpeggio
+    notes.forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 'sine', 0.3, 0.12), i * 100);
+    });
+  }
+
   toggle(val) {
     this.enabled = val;
   }

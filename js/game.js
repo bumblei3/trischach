@@ -5,10 +5,18 @@ import { Hex } from './hex.js';
 export const GAME_STATE = {
   SELECT_PIECE: 'select_piece',
   SELECT_TARGET: 'select_target',
+  PROMOTION: 'promotion',
   GAME_OVER: 'game_over',
 };
 
 const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
+
+// Promotion: piece types a pawn can promote to (excluding king and pawn)
+const PROMOTION_CHOICES = [
+  PIECE_TYPE.QUEEN, PIECE_TYPE.ROOK, PIECE_TYPE.BISHOP, PIECE_TYPE.KNIGHT
+];
+
+export { PROMOTION_CHOICES };
 
 export class Game {
   constructor() {
@@ -27,6 +35,8 @@ export class Game {
     this.boardCells = null;
     this.rpsEnabled = true;
     this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
+    this.pendingPromotion = null;
+    this.onPromotion = null;
   }
 
   get currentFaction() {
@@ -46,6 +56,7 @@ export class Game {
     this.moveHistory = [];
     this.selectedPiece = null;
     this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
+    this.pendingPromotion = null;
     this._rebuildOccupiedMap();
   }
 
@@ -64,8 +75,58 @@ export class Game {
     }
   }
 
+  /**
+   * Check if a pawn move to target triggers promotion.
+   * Rule: pawn promotes when reaching r <= 0 (upper half of central triangle).
+   */
+  isPromotion(piece, target) {
+    return piece.type === PIECE_TYPE.PAWN && target.r <= 0;
+  }
+
+  /**
+   * Complete a pending promotion by transforming the pawn into the chosen type.
+   */
+  completePromotion(newType) {
+    const piece = this.pendingPromotion;
+    if (!piece) return null;
+
+    const oldSymbol = piece.symbol;
+    piece.type = newType;
+    piece.symbol = { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' }[newType];
+
+    const result = {
+      action: 'promotion',
+      piece,
+      from: oldSymbol,
+      to: piece.symbol,
+      type: newType,
+      notation: `${piece.pos.q},${piece.pos.r} ♟→${piece.symbol}`,
+    };
+
+    this.pendingPromotion = null;
+    this.moveHistory.push(result);
+    this._rebuildOccupiedMap();
+
+    // Check game over after promotion
+    const alive = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
+    if (alive.length <= 1) {
+      this.state = GAME_STATE.GAME_OVER;
+      result.gameOver = true;
+      result.winner_faction = alive[0] || null;
+      if (this.onGameOver) this.onGameOver(alive[0]);
+      return result;
+    }
+
+    this._nextTurn();
+    this.selectedPiece = null;
+    this.state = GAME_STATE.SELECT_PIECE;
+    if (this.onUpdate) this.onUpdate();
+    return result;
+  }
+
   handleCellClick(hex) {
     if (this.state === GAME_STATE.GAME_OVER) return null;
+    if (this.state === GAME_STATE.PROMOTION) return null; // UI must call completePromotion()
 
     if (this.state === GAME_STATE.SELECT_PIECE) {
       return this._selectPiece(hex);
@@ -162,6 +223,16 @@ export class Game {
     this.moveHistory.push(result);
     this._rebuildOccupiedMap();
 
+    // Check for pawn promotion
+    if (this.isPromotion(this.selectedPiece, hex)) {
+      this.pendingPromotion = this.selectedPiece;
+      this.state = GAME_STATE.PROMOTION;
+      result.promotion = true;
+      result.notation = `${this.selectedPiece.pos.q},${this.selectedPiece.pos.r} ♟→?`;
+      if (this.onPromotion) this.onPromotion(this.selectedPiece);
+      return result;
+    }
+
     // Check game over
     const alive = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
     if (alive.length <= 1) {
@@ -246,6 +317,12 @@ export class Game {
       // Normal move
       piece.pos = target;
       piece.hasMoved = true;
+    }
+
+    // Check for pawn promotion (for AI evaluation)
+    // Only if the pawn is still alive (didn't die from disadvantage)
+    if (piece.alive && piece.type === PIECE_TYPE.PAWN && target.r <= 0) {
+      undo.promoted = true;
     }
 
     this._rebuildOccupiedMap();

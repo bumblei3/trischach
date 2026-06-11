@@ -86,4 +86,12 @@ describe('Sound System', () => {
     expect(globalThis.AudioContext).toHaveBeenCalled();
     vi.useRealTimers();
   });
+
+  test('playPromotion creates sound nodes', () => {
+    vi.useFakeTimers();
+    sounds.playPromotion();
+    vi.runAllTimers();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

@@ -1,5 +1,5 @@
 import { BoardRenderer, FACTION_COLORS, FACTION } from './board.js';
-import { Game, GAME_STATE } from './game.js';
+import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
 import { calculateBestMove } from './ai.js';
 import { sounds } from './sounds.js';
 
@@ -8,6 +8,7 @@ const statusEl = document.getElementById('status');
 const turnEl = document.getElementById('turn-indicator');
 const rpsInfoEl = document.getElementById('rps-info');
 const combatOverlay = document.getElementById('combat-overlay');
+const promotionOverlay = document.getElementById('promotion-overlay');
 const restartBtn = document.getElementById('restart-btn');
 const autoBattleBtn = document.getElementById('auto-battle-btn');
 const rpsToggle = document.getElementById('rps-toggle');
@@ -97,6 +98,11 @@ renderer.onCellClick = (hex) => {
   } else if (result.action === 'combat') {
     addToLog(result);
     showCombat(result);
+  } else if (result.action === 'move' && result.promotion) {
+    sounds.playMove();
+    addToLog(result);
+    renderer.renderPiece(result.piece);
+    showPromotion(game.pendingPromotion);
   }
   if (result.action === 'select' || result.action === 'deselect') updateUI();
 };
@@ -207,6 +213,45 @@ function showCombat(result) {
   }, 2200);
 }
 
+function showPromotion(piece) {
+  const color = FACTION_COLORS[piece.faction];
+  const names = { queen: 'Dame', rook: 'Turm', bishop: 'Läufer', knight: 'Springer' };
+  const symbols = { queen: '♛', rook: '♜', bishop: '♝', knight: '♞' };
+
+  promotionOverlay.innerHTML = `
+    <div class="promotion-box">
+      <div class="promotion-title" style="color:${color.primary}">
+        Bauer promoviert! Wähle eine Figur:
+      </div>
+      <div class="promotion-choices">
+        ${PROMOTION_CHOICES.map(type => `
+          <button class="promotion-choice" data-type="${type}" style="border-color:${color.primary}">
+            <span class="choice-symbol">${symbols[type]}</span>
+            <span class="choice-name">${names[type]}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  promotionOverlay.classList.add('visible');
+
+  promotionOverlay.querySelectorAll('.promotion-choice').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const newType = btn.dataset.type;
+      promotionOverlay.classList.remove('visible');
+      const result = game.completePromotion(newType);
+      if (result) {
+        addToLog(result);
+        // Re-render the promoted piece
+        renderer.removePiece(piece.id);
+        renderer.renderPiece(piece);
+        updateUI();
+        sounds.playPromotion();
+      }
+    });
+  });
+}
+
 autoBattleBtn.addEventListener('click', () => {
   if (game.state === GAME_STATE.GAME_OVER) return;
   autoBattleActive = !autoBattleActive;
@@ -238,6 +283,7 @@ rotateBtn.addEventListener('click', () => {
 
 restartBtn.addEventListener('click', () => {
   combatOverlay.classList.remove('visible');
+  promotionOverlay.classList.remove('visible');
   const boardGroup = document.getElementById('board-group');
   boardGroup.querySelectorAll('.piece').forEach(el => el.remove());
   renderer.pieceElements.clear();
