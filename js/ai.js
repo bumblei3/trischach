@@ -2,6 +2,7 @@ import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
 import { Hex } from './hex.js';
 import { isKingdomCheck } from './game-check.js';
+import { pickBookMove, buildOpeningBook, inBook } from './opening-book.js';
 
 const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
@@ -613,12 +614,34 @@ function greedyBestMove(game, faction, actions) {
 
 // ─── Public API ─────────────────────────────────────────────────────
 
+let _bookBuilt = false;
+
 /**
  * Calculates the best move for a given faction using iterative deepening
  * minimax with alpha-beta pruning and transposition table.
  */
 export function calculateBestMove(game, faction) {
+  // Build opening book on first call (fallback for direct API usage)
+  if (!_bookBuilt) {
+    buildOpeningBook(game.constructor);
+    _bookBuilt = true;
+  }
+  
   game._rebuildOccupiedMap();
+  
+  // Check opening book first
+  const bookMove = pickBookMove(game);
+  if (bookMove) {
+    // Verify the book move is actually legal
+    const actions = getAllActions(game, faction);
+    const isLegal = actions.some(a => 
+      a.piece.id === bookMove.piece.id && a.target.equals(bookMove.target)
+    );
+    if (isLegal) {
+      console.log(`Opening book: ${bookMove.piece.id} -> ${bookMove.target.q},${bookMove.target.r}`);
+      return { piece: bookMove.piece, target: bookMove.target, type: 'move', rps: 'neutral' };
+    }
+  }
 
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;

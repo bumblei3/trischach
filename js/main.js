@@ -2,6 +2,7 @@ import { BoardRenderer, FACTION_COLORS, FACTION } from './board.js';
 import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
 import { calculateBestMove, evaluateBoard, setAIDepth } from './ai.js';
 import { sounds } from './sounds.js';
+import { buildOpeningBook } from './opening-book.js';
 
 const svg = document.getElementById('board-svg');
 const statusEl = document.getElementById('status');
@@ -26,7 +27,9 @@ function init() {
   renderer.render();
   game.init(renderer.cells);
     game._undoStack = [];
-    // Add tooltips to hex cells
+  // Build opening book (first time only)
+  buildOpeningBook(Game);
+  // Add tooltips to hex cells
   for (const [key, cell] of renderer.hexElements) {
     const c = game.boardCells.get(key);
     cell.polygon.setAttribute('title', `Coord: ${c.hex.q},${c.hex.r}`);
