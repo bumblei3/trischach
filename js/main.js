@@ -142,41 +142,75 @@ renderer.onCellClick = (hex) => {
 
 function triggerAutoMove() {
   if (!autoBattleActive || game.state === GAME_STATE.GAME_OVER) return;
-  
+
   clearTimeout(autoBattleTimer);
   autoBattleTimer = setTimeout(() => {
     if (!autoBattleActive || game.state === GAME_STATE.GAME_OVER) return;
-    
+
     // Safety check: if game is somehow expecting a target but AI just calculates fresh move, reset selection
     if (game.state === GAME_STATE.SELECT_TARGET) {
       game.handleCellClick(game.selectedPiece.pos); // Deselect
     }
 
+    // Safety: skip eliminated factions
+    if (game.eliminatedFactions.has(game.currentFaction)) {
+      game._nextTurn();
+      triggerAutoMove();
+      return;
+    }
+
     const action = calculateBestMove(game, game.currentFaction);
-    
+
     if (action) {
       // Execute the action programmatically
       game.handleCellClick(action.piece.pos); // Select piece
       const result = game.handleCellClick(action.target); // Execute move/attack
-      
+
       renderer.clearHighlights();
       renderer.clearSelection();
-      
+
       if (result && result.action === 'move') {
         sounds.playMove();
         addToLog(result);
         renderer.renderPiece(result.piece);
-        updateUI();
-        triggerAutoMove(); // Queue next move
+        if (result.promotion) {
+          // Auto-promote to queen in auto-battle
+          const promoResult = game.completePromotion('queen');
+          if (promoResult) {
+            renderer.removePiece(result.piece.id);
+            renderer.renderPiece(result.piece);
+            addToLog(promoResult);
+          }
+          updateUI();
+          triggerAutoMove();
+        } else {
+          updateUI();
+          triggerAutoMove(); // Queue next move
+        }
       } else if (result && result.action === 'combat') {
         addToLog(result);
         showCombat(result);
         // showCombat will trigger the next auto move after animation
+      } else {
+        // Unexpected result, stop auto battle
+        autoBattleActive = false;
+        autoBattleBtn.textContent = '🤖 Auto Battle';
+        autoBattleBtn.classList.remove('active');
+        updateUI();
       }
     } else {
-      // No valid moves? Skip turn or game over.
-      game.state = GAME_STATE.GAME_OVER;
-      updateUI();
+      // No valid moves for this faction - could be stalemate or elimination
+      // Check if game is over, otherwise skip to next faction
+      const aliveFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
+        .filter(f => !game.eliminatedFactions.has(f));
+      if (aliveFactions.length <= 1) {
+        game.state = GAME_STATE.GAME_OVER;
+        updateUI();
+      } else {
+        // Skip this faction's turn and continue
+        game._nextTurn();
+        triggerAutoMove();
+      }
     }
   }, 400); // 400ms delay between AI moves
 }
