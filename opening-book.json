@@ -1,0 +1,205 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "generator": "Trischach Opening Book Generator",
+    "created": "2026-06-13",
+    "generatorVersion": "1.0.0",
+    "game": "TriSchach",
+    "boardSize": "Hexagonal 9x9",
+    "factions": ["fire", "water", "nature"],
+    "maxPly": 8,
+    "description": "Opening book for TriSchach - 3-player hexagonal chess with RPS mechanics"
+  },
+  "lines": {
+    "fire": {
+      "Main": {
+        "name": "Fire Main",
+        "description": "Center pawn push + knight development",
+        "weight": 100,
+        "moves": [
+          "fire_pawn_10 -> -4,5",
+          "water_pawn_25 -> 0,2",
+          "nature_pawn_40 -> -1,1",
+          "fire_knight_1 -> -5,5",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_pawn_11 -> -3,5",
+          "water_pawn_26 -> 0,3"
+        ]
+      },
+      "Aggressive": {
+        "name": "Fire Aggressive",
+        "description": "Double pawn push + early bishop",
+        "weight": 85,
+        "moves": [
+          "fire_pawn_10 -> -4,5",
+          "water_pawn_25 -> 0,2",
+          "nature_pawn_40 -> -1,1",
+          "fire_pawn_10 -> -4,4",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_bishop_2 -> -4,5",
+          "water_bishop_17 -> 0,1"
+        ]
+      },
+      "Solid": {
+        "name": "Fire Solid",
+        "description": "Knights first, then bishops",
+        "weight": 90,
+        "moves": [
+          "fire_knight_1 -> -5,5",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_knight_6 -> 0,5",
+          "water_knight_21 -> 0,5",
+          "nature_knight_36 -> -5,5",
+          "fire_bishop_2 -> -4,5",
+          "water_bishop_17 -> 0,1"
+        ]
+      },
+      "Flank": {
+        "name": "Fire Flank",
+        "description": "Right side (kingside) expansion",
+        "weight": 75,
+        "moves": [
+          "fire_pawn_14 -> 0,5",
+          "water_pawn_29 -> 0,5",
+          "nature_pawn_44 -> -5,5",
+          "fire_pawn_13 -> -1,5",
+          "water_pawn_28 -> 0,4",
+          "nature_pawn_43 -> -4,5",
+          "fire_rook_7 -> 0,6",
+          "water_rook_22 -> 0,5"
+        ]
+      }
+    },
+    "water": {
+      "Main": {
+        "name": "Water Main",
+        "description": "Water main line",
+        "weight": 100,
+        "moves": [
+          "fire_pawn_10 -> -4,5",
+          "water_pawn_25 -> 0,2",
+          "nature_pawn_40 -> -1,1",
+          "fire_knight_1 -> -5,5",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_pawn_11 -> -3,5",
+          "water_pawn_26 -> 0,3"
+        ]
+      },
+      "Aggressive": {
+        "name": "Water Aggressive",
+        "description": "Water aggressive with double push and early queen",
+        "weight": 85,
+        "moves": [
+          "fire_pawn_10 -> -4,5",
+          "water_pawn_25 -> 0,2",
+          "nature_pawn_40 -> -1,1",
+          "fire_pawn_10 -> -4,4",
+          "water_pawn_25 -> 0,1",
+          "nature_knight_31 -> 0,0",
+          "fire_bishop_2 -> -4,5",
+          "water_queen_18 -> 0,2"
+        ]
+      },
+      "Solid": {
+        "name": "Water Solid",
+        "description": "Water solid development",
+        "weight": 90,
+        "moves": [
+          "fire_knight_1 -> -5,5",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_knight_6 -> 0,5",
+          "water_knight_21 -> 0,5",
+          "nature_knight_36 -> -5,5",
+          "fire_bishop_2 -> -4,5",
+          "water_bishop_17 -> 0,1"
+        ]
+      },
+      "Flank": {
+        "name": "Water Flank",
+        "description": "Water flank attack",
+        "weight": 75,
+        "moves": [
+          "fire_pawn_14 -> 0,5",
+          "water_pawn_29 -> 0,5",
+          "nature_pawn_44 -> -5,5",
+          "fire_pawn_13 -> -1,5",
+          "water_pawn_28 -> 0,4",
+          "nature_pawn_43 -> -4,5",
+          "fire_rook_7 -> 0,6",
+          "water_rook_22 -> 0,5"
+        ]
+      }
+    },
+    "nature": {
+      "Main": {
+        "name": "Nature Main",
+        "description": "Nature main line",
+        "weight": 100,
+        "moves": [
+          "fire_pawn_10 -> -4,5",
+          "water_pawn_25 -> 0,2",
+          "nature_pawn_40 -> -1,1",
+          "fire_knight_1 -> -5,5",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_pawn_11 -> -3,5",
+          "water_pawn_26 -> 0,3",
+          "nature_pawn_41 -> -2,2"
+        ]
+      },
+      "Aggressive": {
+        "name": "Nature Aggressive",
+        "description": "Nature aggressive with double push and early queen",
+        "weight": 85,
+        "moves": [
+          "fire_pawn_10 -> -4,5",
+          "water_pawn_25 -> 0,2",
+          "nature_pawn_40 -> -1,1",
+          "fire_pawn_10 -> -4,4",
+          "water_knight_16 -> 0,0",
+          "nature_pawn_40 -> -2,2",
+          "fire_bishop_2 -> -4,5",
+          "water_queen_18 -> 0,2",
+          "nature_queen_33 -> -1,3"
+        ]
+      },
+      "Solid": {
+        "name": "Nature Solid",
+        "description": "Nature solid development",
+        "weight": 90,
+        "moves": [
+          "fire_knight_1 -> -5,5",
+          "water_knight_16 -> 0,0",
+          "nature_knight_31 -> 0,0",
+          "fire_knight_6 -> 0,5",
+          "water_knight_21 -> 0,5",
+          "nature_knight_36 -> -5,5",
+          "fire_bishop_2 -> -4,5",
+          "water_bishop_17 -> 0,1",
+          "nature_bishop_32 -> -1,1"
+        ]
+      },
+      "Flank": {
+        "name": "Nature Flank",
+        "description": "Nature flank attack",
+        "weight": 75,
+        "moves": [
+          "fire_pawn_14 -> 0,5",
+          "water_pawn_29 -> 0,5",
+          "nature_pawn_38 -> 0,0",
+          "fire_pawn_13 -> -1,5",
+          "water_pawn_28 -> 0,4",
+          "nature_pawn_39 -> -1,1",
+          "fire_rook_7 -> 0,6",
+          "water_rook_22 -> 0,5",
+          "nature_rook_30 -> 0,-1"
+        ]
+      }
+    }
+  }
+}

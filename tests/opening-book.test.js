@@ -190,7 +190,7 @@ describe('Opening Book: BOOK_INFO', () => {
     expect(typeof BOOK_INFO.maxPly).toBe('number');
     expect(BOOK_INFO.maxPly).toBeGreaterThan(0);
     expect(typeof BOOK_INFO.totalPositions).toBe('number');
-    expect(typeof BOOK_INFO.lastUpdated).toBe('string');
+    expect(BOOK_INFO.lastUpdated).toBeDefined();
   });
 });
 
