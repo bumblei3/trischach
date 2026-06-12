@@ -1,5 +1,6 @@
 import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
+import { Hex } from './hex.js';
 
 // ─── Configuration ──────────────────────────────────────────────────
 
@@ -22,20 +23,66 @@ function boardHash(game) {
 
 // ─── Heuristic Evaluation ───────────────────────────────────────────
 
-function posValue(hex) {
-  const dist = Math.max(Math.abs(hex.q), Math.abs(hex.r), Math.abs(-hex.q - hex.r));
-  return 5 - dist;
+// ─── Piece-Square Tables (Hex-adapted) ──────────────────────────────
+// PST values are indexed by hex key "q,r". Values in centipawns.
+// Boards are small (triangular hex), so we use distance-based formulas
+// combined with piece-specific patterns.
+
+// Pre-compute PST for each piece type using hex distance from center
+// Center of the board is around (0, 2) in the central triangle
+const _pstHex = new Hex(0, 0); // Reusable for key lookups
+
+function hexDistFromCenter(hex) {
+  return Math.abs(hex.q) + Math.abs(hex.r - 2) + Math.abs(-hex.q - hex.r + 2);
 }
 
-const PST_BONUS = {
-  king:   { center: -2, mobility: 0 },
-  queen:  { center: 3,  mobility: 0.3 },
-  rook:   { center: 2,  mobility: 0.2 },
-  bishop: { center: 2,  mobility: 0.2 },
-  knight: { center: 3,  mobility: 0.3 },
-  pawn:   { center: 4,  mobility: 0.1 },
-};
+function buildPST(calcFn) {
+  const table = new Map();
+  for (let q = -7; q <= 2; q++) {
+    for (let r = -2; r <= 7; r++) {
+      _pstHex.q = q; _pstHex.r = r;
+      table.set(`${q},${r}`, calcFn(_pstHex, hexDistFromCenter(_pstHex)));
+    }
+  }
+  return table;
+}
 
+// King: prefers edges/corners (defensive)
+const KING_PST = buildPST((h, d) => d * 3);
+
+// Queen: center-seeking, values mobility
+const QUEEN_PST = buildPST((h, d) => (6 - d) * 5);
+
+// Rook: center-seeking, slightly less than queen
+const ROOK_PST = buildPST((h, d) => (5 - d) * 4);
+
+// Bishop: center-seeking (diagonal control)
+const BISHOP_PST = buildPST((h, d) => (5 - d) * 4);
+
+// Knight: strongly center-seeking (knights are weak on edges)
+const KNIGHT_PST = buildPST((h, d) => (6 - d) * 8);
+
+// Pawn: advancement bonus (toward r=0 and beyond), center columns preferred
+const PAWN_PST = buildPST((h, d) => {
+  const advancement = Math.max(0, 5 - h.r);
+  const centerCol = Math.max(0, 3 - Math.abs(h.q));
+  return advancement * 6 + centerCol * 3;
+});
+
+function getPSTValue(piece) {
+  const table = {
+    king: KING_PST,
+    queen: QUEEN_PST,
+    rook: ROOK_PST,
+    bishop: BISHOP_PST,
+    knight: KNIGHT_PST,
+    pawn: PAWN_PST,
+  }[piece.type];
+  if (!table) return 0;
+  return table.get(piece.pos.key) || 0;
+}
+
+// ─── Heuristic Evaluation ───────────────────────────────────────────
 /**
  * Evaluate the board from the perspective of `faction`.
  * Positive = good for faction, negative = bad.
@@ -50,21 +97,20 @@ function evaluateBoard(game, faction) {
     score += (p.faction === faction ? val : -val);
   }
 
-  // 2. Positional bonus: only evaluate mobility for own pieces (cheaper)
+  // 2. Positional bonus: PST + mobility for own pieces
   const myPieces = pieces.filter(p => p.faction === faction);
   for (const p of myPieces) {
-    const pst = PST_BONUS[p.type];
-    if (!pst) continue;
-    const pv = posValue(p.pos);
+    score += getPSTValue(p);
     const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
     const mobility = moves.length + attacks.length;
-    score += pv * pst.center + mobility * pst.mobility;
+    // Mobility bonus varies by piece type
+    const mobBonus = { queen: 0.3, rook: 0.2, bishop: 0.2, knight: 0.3, pawn: 0.1, king: 0 };
+    score += mobility * (mobBonus[p.type] || 0.1);
   }
-  // For enemy pieces, use a rough mobility estimate (cheap)
+  // For enemy pieces: PST penalty + rough positional estimate
   for (const p of pieces) {
     if (p.faction === faction) continue;
-    const pv = posValue(p.pos);
-    score -= pv * 0.5; // Rough positional penalty for centralized enemies
+    score -= getPSTValue(p) * 0.8; // Slightly less weight for enemy PST
   }
 
   // 3. King safety: only check threats to our king
@@ -149,7 +195,71 @@ function getAllActions(game, faction) {
   return actions;
 }
 
-// ─── Minimax with Alpha-Beta + Transposition Table ─────────────────
+// ─── Killer Moves & History Heuristic ────────────────────────────────
+
+// killerMoves[depth] = [move1, move2] (two killer slots per depth)
+const killerMoves = {};
+// historyTable[fromKey][toKey] = cumulative history score
+const historyTable = {};
+
+function getKiller(depth) {
+  if (!killerMoves[depth]) killerMoves[depth] = [null, null];
+  return killerMoves[depth];
+}
+
+function storeKiller(depth, action) {
+  const killers = getKiller(depth);
+  // Don't store duplicates
+  if (killers[0] && actionEquals(killers[0], action)) return;
+  killers[1] = killers[0];
+  killers[0] = action;
+}
+
+function actionEquals(a, b) {
+  return a && b && a.piece.id === b.piece.id && a.target.equals(b.target);
+}
+
+function historyKey(action) {
+  return `${action.piece.pos.key}->${action.target.key}`;
+}
+
+function getHistoryScore(action) {
+  return historyTable[historyKey(action)] || 0;
+}
+
+function updateHistory(depth, action) {
+  const key = historyKey(action);
+  historyTable[key] = (historyTable[key] || 0) + depth * depth;
+}
+
+/**
+ * Score an action for move ordering. Higher = search first.
+ * Order: TT move > winning captures > killer moves > history > losing captures > quiet moves
+ */
+function scoreAction(action, ttAction, depth) {
+  // TT move gets highest priority
+  if (ttAction && actionEquals(action, ttAction)) return 100000;
+
+  // Captures: MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
+  if (action.type === 'attack') {
+    if (action.rps === 'disadvantage') return -1000; // Suicide moves last
+    // We don't have direct access to defender piece here without lookup,
+    // but the sort in getAllActions already handles capture ordering
+    return 5000 + (action.rps === 'advantage' ? 100 : 0);
+  }
+
+  // Killer moves
+  const killers = getKiller(depth);
+  if (killers[0] && actionEquals(action, killers[0])) return 900;
+  if (killers[1] && actionEquals(action, killers[1])) return 800;
+
+  // History heuristic
+  return getHistoryScore(action);
+}
+
+function orderActions(actions, ttAction, depth) {
+  return actions.slice().sort((a, b) => scoreAction(b, ttAction, depth) - scoreAction(a, ttAction, depth));
+}
 
 let searchDeadline = 0;
 let nodesSearched = 0;
@@ -189,13 +299,17 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     return quiesce(game, alpha, beta, maximizingFaction, currentFaction);
   }
 
-  let bestAction = actions[0];
+  // Order moves: TT move > captures > killers > history > quiet
+  const ttAction = ttEntry ? ttEntry.action : null;
+  const ordered = orderActions(actions, ttAction, depth);
+
+  let bestAction = ordered[0];
   let bestScore = currentFaction === maximizingFaction ? -Infinity : Infinity;
   let flag = 'upper';
 
   if (currentFaction === maximizingFaction) {
-    for (const action of actions) {
-      if (action.type === 'attack' && action.rps === 'disadvantage' && actions.length > 1) continue;
+    for (const action of ordered) {
+      if (action.type === 'attack' && action.rps === 'disadvantage' && ordered.length > 1) continue;
 
       const undo = game.simulateMove(action.piece, action.target);
       const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
@@ -210,12 +324,19 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
         bestAction = action;
       }
       alpha = Math.max(alpha, adjustedScore);
-      if (alpha >= beta) { flag = 'lower'; break; }
+      if (alpha >= beta) {
+        flag = 'lower';
+        // Store killer move (non-capture that caused beta cutoff)
+        if (action.type !== 'attack') storeKiller(depth, action);
+        // Update history for all quiet moves searched so far
+        updateHistory(depth, action);
+        break;
+      }
       if (bestScore > -Infinity) flag = 'exact';
     }
   } else {
-    for (const action of actions) {
-      if (action.type === 'attack' && action.rps === 'disadvantage' && actions.length > 1) continue;
+    for (const action of ordered) {
+      if (action.type === 'attack' && action.rps === 'disadvantage' && ordered.length > 1) continue;
 
       const undo = game.simulateMove(action.piece, action.target);
       const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
@@ -230,7 +351,12 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
         bestAction = action;
       }
       beta = Math.min(beta, adjustedScore);
-      if (alpha >= beta) { flag = 'upper'; break; }
+      if (alpha >= beta) {
+        flag = 'upper';
+        if (action.type !== 'attack') storeKiller(depth, action);
+        updateHistory(depth, action);
+        break;
+      }
       if (bestScore < Infinity) flag = 'exact';
     }
   }
@@ -300,19 +426,48 @@ function iterativeDeepening(game, faction) {
   searchDeadline = Date.now() + TIME_LIMIT_MS;
   nodesSearched = 0;
   tt.clear();
+  // Clear killer moves and history for fresh search
+  for (const key in killerMoves) delete killerMoves[key];
+  for (const key in historyTable) delete historyTable[key];
 
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
   if (actions.length === 1) return actions[0];
 
   let bestResult = { score: -Infinity, action: actions[0] };
+  let prevScore = 0;
 
   // Iterative deepening: search depth 1, 2, 3... until time runs out
   for (let depth = 1; depth <= MAX_DEPTH; depth++) {
-    const result = minimax(game, depth, -Infinity, Infinity, faction, faction);
+    // Aspiration window: narrow window around previous score
+    // First iteration uses full window
+    let alpha, beta;
+    if (depth <= 1) {
+      alpha = -Infinity;
+      beta = Infinity;
+    } else {
+      const windowSize = 50;
+      alpha = prevScore - windowSize;
+      beta = prevScore + windowSize;
+    }
+
+    let result = minimax(game, depth, alpha, beta, faction, faction);
+
+    // If aspiration window fails low or high, re-search with full window
+    if (!result.timeout && result.score <= alpha) {
+      result = minimax(game, depth, -Infinity, beta, faction, faction);
+    } else if (!result.timeout && result.score >= beta) {
+      result = minimax(game, depth, alpha, Infinity, faction, faction);
+    }
+
+    // If still failing, use full window
+    if (!result.timeout && (result.score <= -Infinity + 1 || result.score >= Infinity - 1)) {
+      result = minimax(game, depth, -Infinity, Infinity, faction, faction);
+    }
 
     if (!result.timeout) {
       bestResult = result;
+      prevScore = result.score;
     } else {
       // Time ran out - use best result from previous depth
       break;
@@ -342,7 +497,7 @@ function greedyBestMove(game, faction, actions) {
         score = -1000;
       }
     } else {
-      const pv = posValue(action.target);
+      const pv = getPSTValue({ type: 'pawn', pos: action.target });
       const distFromCenter = Math.max(
         Math.abs(action.piece.pos.q), Math.abs(action.piece.pos.r),
         Math.abs(-action.piece.pos.q - action.piece.pos.r)

@@ -65,6 +65,27 @@ class SoundManager {
     });
   }
 
+  playCheck() {
+    this._playTone(800, 'square', 0.15, 0.08);
+    setTimeout(() => this._playTone(600, 'square', 0.15, 0.08), 100);
+    setTimeout(() => this._playTone(400, 'square', 0.2, 0.1), 200);
+  }
+
+  playStalemate() {
+    const notes = [400, 350, 300, 250];
+    notes.forEach((f, i) => {
+      setTimeout(() => this._playTone(f, 'triangle', 0.3, 0.08), i * 200);
+    });
+  }
+
+  playTick() {
+    this._playTone(1200, 'sine', 0.05, 0.03);
+  }
+
+  playAIThinking() {
+    this._playTone(200, 'sine', 0.08, 0.02);
+  }
+
   playPromotion() {
     const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 – shorter triumphant arpeggio
     notes.forEach((f, i) => {

@@ -137,6 +137,11 @@ renderer.onCellClick = (hex) => {
     showCombat(result);
   }
 
+  // Play check sound if a faction is in check after the move
+  if (result.inCheck && result.action !== 'select' && result.action !== 'deselect') {
+    sounds.playCheck();
+  }
+
   if (result.action === 'select' || result.action === 'deselect') updateUI();
 };
 
@@ -270,7 +275,8 @@ function showCombat(result) {
     for (const p of game.getAlivePieces()) renderer.renderPiece(p);
     updateUI();
     if (result.elimination) sounds.playElimination();
-    
+    if (result.stalemate) sounds.playStalemate();
+
     if (result.gameOver) {
       sounds.playWin();
       statusEl.textContent = `🏆 ${FACTION_COLORS[result.winner_faction].name} hat gewonnen!`;
