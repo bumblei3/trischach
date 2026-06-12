@@ -314,7 +314,7 @@ function triggerAutoMove() {
     if (!autoBattleActive || game.state === GAME_STATE.GAME_OVER) return;
 
     // Safety check: if game is somehow expecting a target but AI just calculates fresh move, reset selection
-    if (game.state === GAME_STATE.SELECT_TARGET) {
+    if (game.state === GAME_STATE.SELECT_TARGET && game.selectedPiece) {
       game.handleCellClick(game.selectedPiece.pos); // Deselect
     }
 
