@@ -56,6 +56,49 @@ function getMaterialValue(piece, perspectiveFaction) {
 
 const PIECE_STRENGTH_DYNAMIC = {};
 
+// ─── Adaptive Time Management ────────────────────────────────────────
+/**
+ * Calculate time budget for the current move based on game phase.
+ * Returns time in milliseconds.
+ */
+function calculateTimeBudget(game) {
+  const pieceCount = game.pieces.filter(p => p.alive).length;
+  const actions = getAllActions(game, game.currentFaction);
+  const legalMoves = actions.length;
+  
+  let budget = 3000;
+  
+  if (pieceCount > 35) {
+    budget = 1500;
+  } else if (pieceCount > 25) {
+    budget = 2500;
+  } else if (pieceCount > 15) {
+    budget = 3500;
+  } else if (pieceCount > 8) {
+    budget = 4500;
+  } else {
+    budget = 5500;
+  }
+  
+  if (isKingdomCheck(game, game.currentFaction)) {
+    budget += 1000;
+  }
+  
+  if (legalMoves < 5) {
+    budget += 1000;
+  } else if (legalMoves > 40) {
+    budget -= 500;
+  }
+  
+  budget = Math.max(1000, Math.min(8000, budget));
+  
+  return budget;
+}
+
+// ─── Configuration ──────────────────────────────────────────────────
+
+// MAX_DEPTH is now dynamic (set per move in iterativeDeepening)
+// Kept for backwards compatibility with setAIDepth()
 let MAX_DEPTH = 3;
 const TIME_LIMIT_MS = 5000;
 
@@ -762,7 +805,9 @@ function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 
 }
 
 function iterativeDeepening(game, faction) {
-  searchDeadline = Date.now() + TIME_LIMIT_MS;
+  // Calculate adaptive time budget for this position
+  const timeBudget = calculateTimeBudget(game);
+  searchDeadline = Date.now() + timeBudget;
   nodesSearched = 0;
   tt.clear();
   for (const key in killerMoves) delete killerMoves[key];
@@ -775,7 +820,14 @@ function iterativeDeepening(game, faction) {
   let bestResult = { score: -Infinity, action: actions[0] };
   let prevScore = 0;
 
-  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+  // Iterative deepening: search depth 1, 2, 3... until time runs out
+  // Max depth cap to prevent infinite loops in simple positions
+  const MAX_DEPTH_CAP = 12;
+  for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
+    // Time check: if we're past 80% of budget, don't start deeper search
+    if (Date.now() > searchDeadline - timeBudget * 0.2) {
+      break;
+    }
     let alpha, beta;
     if (depth <= 1) {
       alpha = -Infinity; beta = Infinity;
@@ -787,6 +839,7 @@ function iterativeDeepening(game, faction) {
 
     let result = minimax(game, depth, alpha, beta, faction, faction);
 
+    // If aspiration window fails low or high, re-search with full window
     if (!result.timeout && result.score <= alpha) {
       result = minimax(game, depth, -Infinity, beta, faction, faction);
     } else if (!result.timeout && result.score >= beta) {

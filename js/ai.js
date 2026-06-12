@@ -47,10 +47,68 @@ function getMaterialValue(piece, perspectiveFaction) {
 
 const PIECE_STRENGTH_DYNAMIC = {}; // Cache for dynamic values if needed
 
+// ─── Adaptive Time Management ────────────────────────────────────────
+/**
+ * Calculate time budget for the current move based on game phase.
+ * Returns time in milliseconds.
+ */
+function calculateTimeBudget(game) {
+  const pieceCount = game.getAlivePieces().length;
+  const actions = getAllActions(game, game.currentFaction);
+  const legalMoves = actions.length;
+  
+  // Base time budget: 3 seconds
+  let budget = 3000;
+  
+  // Opening (many pieces): less time needed, use opening book anyway
+  if (pieceCount > 35) {
+    budget = 1500; // Opening book handles this
+  }
+  // Early middlegame
+  else if (pieceCount > 25) {
+    budget = 2500;
+  }
+  // Middlegame: standard time
+  else if (pieceCount > 15) {
+    budget = 3500;
+  }
+  // Late middlegame/early endgame: more time for precision
+  else if (pieceCount > 8) {
+    budget = 4500;
+  }
+  // Endgame: more time, fewer branches, deeper search possible
+  else {
+    budget = 5500;
+  }
+  
+  // Critical position adjustments
+  // In check: need accurate defense
+  if (isKingdomCheck(game, game.currentFaction)) {
+    budget += 1000;
+  }
+  
+  // Very few legal moves: think deeper
+  if (legalMoves < 5) {
+    budget += 1000;
+  }
+  // Many legal moves: don't waste time
+  else if (legalMoves > 40) {
+    budget -= 500;
+  }
+  
+  // Cap budget
+  budget = Math.max(1000, Math.min(8000, budget));
+  
+  return budget;
+}
+
 // ─── Configuration ──────────────────────────────────────────────────
 
+// MAX_DEPTH is now dynamic (set per move in iterativeDeepening)
+// Kept for backwards compatibility with setAIDepth()
 let MAX_DEPTH = 3;
-const TIME_LIMIT_MS = 5000; // 5 seconds per move
+// Base time limit (fallback if calculateTimeBudget not used)
+const TIME_LIMIT_MS = 5000;
 
 // ─── Transposition Table ────────────────────────────────────────────
 
@@ -760,7 +818,9 @@ function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 
 // ─── Iterative Deepening ────────────────────────────────────────────
 
 function iterativeDeepening(game, faction) {
-  searchDeadline = Date.now() + TIME_LIMIT_MS;
+  // Calculate adaptive time budget for this position
+  const timeBudget = calculateTimeBudget(game);
+  searchDeadline = Date.now() + timeBudget;
   nodesSearched = 0;
   tt.clear();
   // Clear killer moves and history for fresh search
@@ -775,7 +835,13 @@ function iterativeDeepening(game, faction) {
   let prevScore = 0;
 
   // Iterative deepening: search depth 1, 2, 3... until time runs out
-  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+  // Max depth cap to prevent infinite loops in simple positions
+  const MAX_DEPTH_CAP = 12;
+  for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
+    // Time check: if we're past 80% of budget, don't start deeper search
+    if (Date.now() > searchDeadline - timeBudget * 0.2) {
+      break;
+    }
     // Aspiration window: narrow window around previous score
     // First iteration uses full window
     let alpha, beta;
