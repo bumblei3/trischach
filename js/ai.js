@@ -282,6 +282,132 @@ function actionEquals(a, b) {
   return a && b && a.piece.id === b.piece.id && a.target.equals(b.target);
 }
 
+// ─── Static Exchange Evaluation (SEE) ─────────────────────────────────
+/**
+ * Static Exchange Evaluation for TriSchach.
+ * Evaluates a capture sequence without making moves on the board.
+ * Returns score in centipawns from attacker's perspective.
+ * Positive = winning material, negative = losing material.
+ * 
+ * Accounts for RPS mechanics: advantage/neutral = attacker wins,
+ * disadvantage = attacker loses.
+ */
+const SEE_PIECE_VALUES = {
+  king: 10000,  // King is infinitely valuable (game ends)
+  queen: 900,
+  rook: 500,
+  bishop: 300,
+  knight: 300,
+  pawn: 100,
+};
+
+function see(game, attacker, victim, attackerFaction, victimFaction, rpsResult) {
+  // If RPS disadvantage, attacker dies immediately - very bad
+  if (rpsResult === 'disadvantage') {
+    return -SEE_PIECE_VALUES[attacker.type] * 10; // Lose attacker, gain nothing
+  }
+  
+  // RPS advantage or neutral: attacker wins the capture
+  // Start with victim's value
+  let score = SEE_PIECE_VALUES[victim.type] * 10;
+  
+  // Track pieces involved in the exchange
+  const attackers = [{ piece: attacker, faction: attackerFaction }];
+  const defenders = [{ piece: victim, faction: victimFaction }];
+  
+  // Current side to move in the exchange (defender recaptures first)
+  let currentAttackerFaction = victimFaction;
+  let currentDefenderFaction = attackerFaction;
+  let currentAttackers = [...defenders];
+  let currentDefenders = [...attackers];
+  
+  // Simulate capture sequence
+  // In SEE, we alternate: attacker captures, defender recaptures, etc.
+  // But in TriSchach, RPS determines outcome of each capture
+  // Simplified: assume each capture follows RPS rules
+  
+  let depth = 0;
+  const maxDepth = 10; // Prevent infinite loops
+  
+  while (depth < maxDepth) {
+    // Find least valuable attacker for current side
+    let bestAttacker = null;
+    let bestAttackerIdx = -1;
+    let bestValue = Infinity;
+    
+    for (let i = 0; i < currentAttackers.length; i++) {
+      const att = currentAttackers[i];
+      const val = SEE_PIECE_VALUES[att.piece.type] || 0;
+      if (val < bestValue) {
+        bestValue = val;
+        bestAttacker = att;
+        bestAttackerIdx = i;
+      }
+    }
+    
+    if (!bestAttacker) break; // No more attackers
+    
+    // Find best victim for this attacker (most valuable defender piece that can be captured)
+    // In real SEE, we'd check legal moves. Here we approximate.
+    let bestVictim = null;
+    let bestVictimIdx = -1;
+    let bestVictimValue = -Infinity;
+    
+    for (let i = 0; i < currentDefenders.length; i++) {
+      const def = currentDefenders[i];
+      // Check if attacker can capture defender (simplified: assume yes if on board)
+      const val = SEE_PIECE_VALUES[def.piece.type] || 0;
+      if (val > bestVictimValue) {
+        bestVictimValue = val;
+        bestVictim = def;
+        bestVictimIdx = i;
+      }
+    }
+    
+    if (!bestVictim) break; // No more victims
+    
+    // Determine RPS result for this capture
+    const captureRps = game.rpsEnabled 
+      ? getRPSResult(bestAttacker.faction, bestVictim.faction)
+      : 'advantage';
+    
+    if (captureRps === 'disadvantage') {
+      // Attacker loses - swap sides and continue
+      score -= bestValue * 10;
+      // Remove attacker
+      currentAttackers.splice(bestAttackerIdx, 1);
+      // Swap sides
+      [currentAttackers, currentDefenders] = [currentDefenders, currentAttackers];
+      [currentAttackerFaction, currentDefenderFaction] = [currentDefenderFaction, currentAttackerFaction];
+    } else {
+      // Attacker wins - gain victim value
+      score += bestVictimValue * 10;
+      // Remove victim
+      currentDefenders.splice(bestVictimIdx, 1);
+      // Swap sides
+      [currentAttackers, currentDefenders] = [currentDefenders, currentAttackers];
+      [currentAttackerFaction, currentDefenderFaction] = [currentDefenderFaction, currentAttackerFaction];
+    }
+    
+    depth++;
+  }
+  
+  return score;
+}
+
+/**
+ * Get SEE score for an action (used in move ordering).
+ * Returns score in centipawns.
+ */
+function getSeeScore(game, action) {
+  if (action.type !== 'attack') return 0;
+  
+  const victim = game.getPieceAt(action.target);
+  if (!victim) return 0;
+  
+  return see(game, action.piece, victim, action.piece.faction, victim.faction, action.rps);
+}
+
 function historyKey(action) {
   return `${action.piece.pos.key}->${action.target.key}`;
 }
@@ -297,18 +423,28 @@ function updateHistory(depth, action) {
 
 /**
  * Score an action for move ordering. Higher = search first.
- * Order: TT move > winning captures > killer moves > history > losing captures > quiet moves
+ * Order: TT move > winning captures (SEE) > killer moves > history > losing captures > quiet moves
  */
-function scoreAction(action, ttAction, depth) {
+function scoreAction(action, ttAction, depth, game) {
   // TT move gets highest priority
   if (ttAction && actionEquals(action, ttAction)) return 100000;
 
-  // Captures: MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
+  // Captures: Use SEE for accurate capture evaluation
   if (action.type === 'attack') {
     if (action.rps === 'disadvantage') return -1000; // Suicide moves last
-    // We don't have direct access to defender piece here without lookup,
-    // but the sort in getAllActions already handles capture ordering
-    return 5000 + (action.rps === 'advantage' ? 100 : 0);
+    
+    // Use SEE score for precise capture ordering
+    const seeScore = game ? getSeeScore(game, action) : 0;
+    if (seeScore > 0) {
+      // Winning capture: high priority + SEE score
+      return 10000 + seeScore;
+    } else if (seeScore === 0) {
+      // Equal capture (neutral)
+      return 5000 + (action.rps === 'advantage' ? 100 : 0);
+    } else {
+      // Losing capture but not disadvantage (should be rare)
+      return 1000;
+    }
   }
 
   // Killer moves
@@ -320,8 +456,8 @@ function scoreAction(action, ttAction, depth) {
   return getHistoryScore(action);
 }
 
-function orderActions(actions, ttAction, depth) {
-  return actions.slice().sort((a, b) => scoreAction(b, ttAction, depth) - scoreAction(a, ttAction, depth));
+function orderActions(actions, ttAction, depth, game) {
+  return actions.slice().sort((a, b) => scoreAction(b, ttAction, depth, game) - scoreAction(a, ttAction, depth, game));
 }
 
 let searchDeadline = 0;
@@ -388,9 +524,42 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     }
   }
 
+  // ─── Futility Pruning & Razoring ────────────────────────────────────
+  // Futility Pruning: at shallow depths, if a quiet move cannot possibly
+  // raise score above alpha (even with optimistic margin), skip it.
+  // Razoring: at depth <= 3, if we're far below beta, reduce depth aggressively.
+  const FUTILITY_MARGINS = [0, 150, 300, 500]; // Depth 1, 2, 3
+  const RAZOR_MARGINS = [0, 300, 500]; // Depth 1, 2
+
+  let futilityMargin = 0;
+  let razorMargin = 0;
+  let doFutility = false;
+  let doRazoring = false;
+
+  if (currentFaction === maximizingFaction) {
+    if (depth <= 3 && depth > 0) {
+      futilityMargin = FUTILITY_MARGINS[depth];
+      doFutility = true;
+    }
+    if (depth <= 2 && depth > 0) {
+      razorMargin = RAZOR_MARGINS[depth];
+      doRazoring = true;
+    }
+  } else {
+    if (depth <= 3 && depth > 0) {
+      futilityMargin = FUTILITY_MARGINS[depth];
+      doFutility = true;
+    }
+    if (depth <= 2 && depth > 0) {
+      razorMargin = RAZOR_MARGINS[depth];
+      doRazoring = true;
+    }
+  }
+
+  // ─── Move Ordering ──────────────────────────────────────────────────
   // Order moves: TT move > captures > killers > history > quiet
   const ttAction = ttEntry ? ttEntry.action : null;
-  const ordered = orderActions(actions, ttAction, depth);
+  const ordered = orderActions(actions, ttAction, depth, game);
 
   let bestAction = ordered[0];
   let bestScore = currentFaction === maximizingFaction ? -Infinity : Infinity;
@@ -400,8 +569,28 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     for (const action of ordered) {
       if (action.type === 'attack' && action.rps === 'disadvantage' && ordered.length > 1) continue;
 
+      // ─── Futility Pruning ──────────────────────────────────────────
+      // Skip quiet moves that cannot possibly raise score above alpha
+      if (doFutility && action.type !== 'attack' && depth <= 3) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore + futilityMargin <= alpha) {
+          continue; // Prune this move
+        }
+      }
+
+      // ─── Razoring ──────────────────────────────────────────────────
+      // At depth <= 2, if static eval is far below beta, search with reduced depth
+      let razorReduction = 0;
+      if (doRazoring && action.type !== 'attack' && depth <= 2) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore + razorMargin <= alpha) {
+          razorReduction = 1; // Reduce depth by 1 for this move
+        }
+      }
+
       const undo = game.simulateMove(action.piece, action.target);
-      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
+      const searchDepth = depth - 1 - razorReduction;
+      const result = minimax(game, searchDepth, alpha, beta, maximizingFaction, game.currentFaction);
       game.undoMove(undo);
 
       if (result.timeout) return { score: bestScore, action: bestAction, timeout: true };
@@ -427,8 +616,26 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     for (const action of ordered) {
       if (action.type === 'attack' && action.rps === 'disadvantage' && ordered.length > 1) continue;
 
+      // ─── Futility Pruning ──────────────────────────────────────────
+      if (doFutility && action.type !== 'attack' && depth <= 3) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore - futilityMargin >= beta) {
+          continue; // Prune this move
+        }
+      }
+
+      // ─── Razoring ──────────────────────────────────────────────────
+      let razorReduction = 0;
+      if (doRazoring && action.type !== 'attack' && depth <= 2) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore - razorMargin >= beta) {
+          razorReduction = 1;
+        }
+      }
+
       const undo = game.simulateMove(action.piece, action.target);
-      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
+      const searchDepth = depth - 1 - razorReduction;
+      const result = minimax(game, searchDepth, alpha, beta, maximizingFaction, game.currentFaction);
       game.undoMove(undo);
 
       if (result.timeout) return { score: bestScore, action: bestAction, timeout: true };

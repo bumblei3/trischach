@@ -244,7 +244,7 @@ function legalMoveCheck(game, piece, target, faction) {
   return !inCheck;
 }
 
-// --- Game simulation (simplified, no callbacks) ---
+// --- Game simulation ---
 function rebuildOccupiedMap(game) {
   game._occupiedMap = new Map();
   for (const p of game.pieces) {
@@ -380,20 +380,124 @@ function updateHistory(depth, action) {
   historyTable[key] = (historyTable[key] || 0) + depth * depth;
 }
 
-function scoreAction(action, ttAction, depth) {
+// ─── Static Exchange Evaluation (SEE) ─────────────────────────────────
+const SEE_PIECE_VALUES = {
+  king: 10000,
+  queen: 900,
+  rook: 500,
+  bishop: 300,
+  knight: 300,
+  pawn: 100,
+};
+
+function see(game, attacker, victim, attackerFaction, victimFaction, rpsResult) {
+  if (rpsResult === 'disadvantage') {
+    return -SEE_PIECE_VALUES[attacker.type] * 10;
+  }
+  
+  let score = SEE_PIECE_VALUES[victim.type] * 10;
+  
+  const attackers = [{ piece: attacker, faction: attackerFaction }];
+  const defenders = [{ piece: victim, faction: victimFaction }];
+  
+  let currentAttackerFaction = victimFaction;
+  let currentDefenderFaction = attackerFaction;
+  let currentAttackers = [...defenders];
+  let currentDefenders = [...attackers];
+  
+  let depth = 0;
+  const maxDepth = 10;
+  
+  while (depth < maxDepth) {
+    let bestAttacker = null;
+    let bestAttackerIdx = -1;
+    let bestValue = Infinity;
+    
+    for (let i = 0; i < currentAttackers.length; i++) {
+      const att = currentAttackers[i];
+      const val = SEE_PIECE_VALUES[att.piece.type] || 0;
+      if (val < bestValue) {
+        bestValue = val;
+        bestAttacker = att;
+        bestAttackerIdx = i;
+      }
+    }
+    
+    if (!bestAttacker) break;
+    
+    let bestVictim = null;
+    let bestVictimIdx = -1;
+    let bestVictimValue = -Infinity;
+    
+    for (let i = 0; i < currentDefenders.length; i++) {
+      const def = currentDefenders[i];
+      const val = SEE_PIECE_VALUES[def.piece.type] || 0;
+      if (val > bestVictimValue) {
+        bestVictimValue = val;
+        bestVictim = def;
+        bestVictimIdx = i;
+      }
+    }
+    
+    if (!bestVictim) break;
+    
+    const captureRps = game.rpsEnabled 
+      ? getRPSResult(bestAttacker.faction, bestVictim.faction)
+      : 'advantage';
+    
+    if (captureRps === 'disadvantage') {
+      score -= bestValue * 10;
+      currentAttackers.splice(bestAttackerIdx, 1);
+      [currentAttackers, currentDefenders] = [currentDefenders, currentAttackers];
+      [currentAttackerFaction, currentDefenderFaction] = [currentDefenderFaction, currentAttackerFaction];
+    } else {
+      score += bestVictimValue * 10;
+      currentDefenders.splice(bestVictimIdx, 1);
+      [currentAttackers, currentDefenders] = [currentDefenders, currentAttackers];
+      [currentAttackerFaction, currentDefenderFaction] = [currentDefenderFaction, currentAttackerFaction];
+    }
+    
+    depth++;
+  }
+  
+  return score;
+}
+
+function getSeeScore(game, action) {
+  if (action.type !== 'attack') return 0;
+  
+  const victim = game.getPieceAt(action.target);
+  if (!victim) return 0;
+  
+  return see(game, action.piece, victim, action.piece.faction, victim.faction, action.rps);
+}
+
+// --- Move Ordering ---
+function scoreAction(action, ttAction, depth, game) {
   if (ttAction && actionEquals(action, ttAction)) return 100000;
+
   if (action.type === 'attack') {
     if (action.rps === 'disadvantage') return -1000;
-    return 5000 + (action.rps === 'advantage' ? 100 : 0);
+    
+    const seeScore = game ? getSeeScore(game, action) : 0;
+    if (seeScore > 0) {
+      return 10000 + seeScore;
+    } else if (seeScore === 0) {
+      return 5000 + (action.rps === 'advantage' ? 100 : 0);
+    } else {
+      return 1000;
+    }
   }
+
   const killers = getKiller(depth);
   if (killers[0] && actionEquals(action, killers[0])) return 900;
   if (killers[1] && actionEquals(action, killers[1])) return 800;
+
   return getHistoryScore(action);
 }
 
-function orderActions(actions, ttAction, depth) {
-  return actions.slice().sort((a, b) => scoreAction(b, ttAction, depth) - scoreAction(a, ttAction, depth));
+function orderActions(actions, ttAction, depth, game) {
+  return actions.slice().sort((a, b) => scoreAction(b, ttAction, depth, game) - scoreAction(a, ttAction, depth, game));
 }
 
 // --- Search ---
@@ -450,8 +554,37 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     }
   }
 
+  // ─── Futility Pruning & Razoring ────────────────────────────────────
+  const FUTILITY_MARGINS = [0, 150, 300, 500];
+  const RAZOR_MARGINS = [0, 300, 500];
+
+  let futilityMargin = 0;
+  let razorMargin = 0;
+  let doFutility = false;
+  let doRazoring = false;
+
+  if (currentFaction === maximizingFaction) {
+    if (depth <= 3 && depth > 0) {
+      futilityMargin = FUTILITY_MARGINS[depth];
+      doFutility = true;
+    }
+    if (depth <= 2 && depth > 0) {
+      razorMargin = RAZOR_MARGINS[depth];
+      doRazoring = true;
+    }
+  } else {
+    if (depth <= 3 && depth > 0) {
+      futilityMargin = FUTILITY_MARGINS[depth];
+      doFutility = true;
+    }
+    if (depth <= 2 && depth > 0) {
+      razorMargin = RAZOR_MARGINS[depth];
+      doRazoring = true;
+    }
+  }
+
   const ttAction = ttEntry ? ttEntry.action : null;
-  const ordered = orderActions(actions, ttAction, depth);
+  const ordered = orderActions(actions, ttAction, depth, game);
 
   let bestAction = ordered[0];
   let bestScore = currentFaction === maximizingFaction ? -Infinity : Infinity;
@@ -461,9 +594,27 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     for (const action of ordered) {
       if (action.type === 'attack' && action.rps === 'disadvantage' && ordered.length > 1) continue;
 
-      const undo = simulateMove(game, action.piece, action.target);
-      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
-      undoMove(game, undo);
+      // ─── Futility Pruning ──────────────────────────────────────────
+      if (doFutility && action.type !== 'attack' && depth <= 3) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore + futilityMargin <= alpha) {
+          continue;
+        }
+      }
+
+      // ─── Razoring ──────────────────────────────────────────────────
+      let razorReduction = 0;
+      if (doRazoring && action.type !== 'attack' && depth <= 2) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore + razorMargin <= alpha) {
+          razorReduction = 1;
+        }
+      }
+
+      const undo = game.simulateMove(action.piece, action.target);
+      const searchDepth = depth - 1 - razorReduction;
+      const result = minimax(game, searchDepth, alpha, beta, maximizingFaction, game.currentFaction);
+      game.undoMove(undo);
 
       if (result.timeout) return { score: bestScore, action: bestAction, timeout: true };
 
@@ -486,9 +637,27 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
     for (const action of ordered) {
       if (action.type === 'attack' && action.rps === 'disadvantage' && ordered.length > 1) continue;
 
-      const undo = simulateMove(game, action.piece, action.target);
-      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
-      undoMove(game, undo);
+      // ─── Futility Pruning ──────────────────────────────────────────
+      if (doFutility && action.type !== 'attack' && depth <= 3) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore - futilityMargin >= beta) {
+          continue;
+        }
+      }
+
+      // ─── Razoring ──────────────────────────────────────────────────
+      let razorReduction = 0;
+      if (doRazoring && action.type !== 'attack' && depth <= 2) {
+        const staticScore = evaluateBoard(game, maximizingFaction);
+        if (staticScore - razorMargin >= beta) {
+          razorReduction = 1;
+        }
+      }
+
+      const undo = game.simulateMove(action.piece, action.target);
+      const searchDepth = depth - 1 - razorReduction;
+      const result = minimax(game, searchDepth, alpha, beta, maximizingFaction, game.currentFaction);
+      game.undoMove(undo);
 
       if (result.timeout) return { score: bestScore, action: bestAction, timeout: true };
 
@@ -528,9 +697,9 @@ function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 
       .filter(a => a.type === 'attack' && a.rps !== 'disadvantage');
 
     for (const action of attackActions) {
-      const undo = simulateMove(game, action.piece, action.target);
+      const undo = game.simulateMove(action.piece, action.target);
       const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
-      undoMove(game, undo);
+      game.undoMove(undo);
 
       if (result.score >= beta) return { score: beta };
       alpha = Math.max(alpha, result.score);
@@ -544,9 +713,9 @@ function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 
       .filter(a => a.type === 'attack' && a.rps !== 'disadvantage');
 
     for (const action of attackActions) {
-      const undo = simulateMove(game, action.piece, action.target);
+      const undo = game.simulateMove(action.piece, action.target);
       const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
-      undoMove(game, undo);
+      game.undoMove(undo);
 
       if (result.score <= alpha) return { score: alpha };
       beta = Math.min(beta, result.score);
@@ -555,7 +724,6 @@ function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 
   }
 }
 
-// --- Iterative Deepening ---
 function iterativeDeepening(game, faction) {
   searchDeadline = Date.now() + TIME_LIMIT_MS;
   nodesSearched = 0;
@@ -595,7 +763,6 @@ function iterativeDeepening(game, faction) {
     if (!result.timeout) {
       bestResult = result;
       prevScore = result.score;
-      // Report progress
       self.postMessage({ type: 'progress', depth, score: result.score, nodes: nodesSearched });
     } else {
       break;
@@ -650,7 +817,7 @@ let _bookBuilt = false;
 
 function calculateBestMove(game, faction) {
   if (!_bookBuilt) {
-    buildOpeningBook(function() {}); // GameClass not needed in worker
+    buildOpeningBook(function() {});
     _bookBuilt = true;
   }
 
@@ -689,7 +856,6 @@ self.onmessage = function(e) {
   const { type, gameState, faction, depth } = e.data;
 
   if (type === 'calculate') {
-    // Reconstruct game object from serialized state
     const game = deserializeGame(gameState);
     if (depth !== undefined) MAX_DEPTH = depth;
 
@@ -718,7 +884,6 @@ self.onmessage = function(e) {
   }
 };
 
-// Deserialize game state from main thread
 function deserializeGame(state) {
   const game = {
     pieces: state.pieces.map(p => ({
@@ -735,7 +900,7 @@ function deserializeGame(state) {
     state: state.state,
     eliminatedFactions: new Set(state.eliminatedFactions),
     rpsEnabled: state.rpsEnabled,
-    boardCells: new Map(), // Will be rebuilt
+    boardCells: new Map(),
     _occupiedMap: new Map(),
     capturedPieces: state.capturedPieces,
     moveHistory: [],
