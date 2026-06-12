@@ -4,6 +4,71 @@ import { calculateBestMove, evaluateBoard, setAIDepth } from './ai.js';
 import { sounds } from './sounds.js';
 import { buildOpeningBook } from './opening-book.js';
 
+// ─── Settings Persistence (localStorage) ────────────────────────────────
+const STORAGE_KEY = 'trischach-settings';
+
+const DEFAULT_SETTINGS = {
+  rpsEnabled: true,
+  soundEnabled: true,
+  aiDepth: 3,
+  boardRotation: 0,
+  autoBattle: false,
+};
+
+// Depth names (needed by applySettings before DOM elements exist)
+const depthNames = { 1: 'Leicht', 2: 'Mittel', 3: 'Schwer', 4: 'Extrem' };
+
+function loadSettings() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+    }
+  } catch (e) {
+    console.warn('Failed to load settings:', e);
+  }
+  return { ...DEFAULT_SETTINGS };
+}
+
+function saveSettings(settings) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  } catch (e) {
+    console.warn('Failed to save settings:', e);
+  }
+}
+
+function applySettings(settings) {
+  // RPS Toggle
+  game.rpsEnabled = settings.rpsEnabled;
+  rpsToggle.checked = settings.rpsEnabled;
+  
+  // Sound Toggle
+  sounds.toggle(settings.soundEnabled);
+  soundToggle.checked = settings.soundEnabled;
+  
+  // AI Depth
+  setAIDepth(settings.aiDepth);
+  depthSlider.value = settings.aiDepth;
+  depthLabel.textContent = 'KI: ' + depthNames[settings.aiDepth];
+  
+  // Board Rotation
+  currentBoardRotation = settings.boardRotation % 360;
+  renderer.setRotation(currentBoardRotation);
+  
+  // Auto Battle (just sync button state, don't start)
+  autoBattleActive = settings.autoBattle;
+  if (autoBattleActive) {
+    autoBattleBtn.textContent = '⏹ Auto Battle Stoppen';
+    autoBattleBtn.classList.add('active');
+  } else {
+    autoBattleBtn.textContent = '🤖 Auto Battle';
+    autoBattleBtn.classList.remove('active');
+  }
+  
+  updateUI();
+}
+
 const svg = document.getElementById('board-svg');
 const statusEl = document.getElementById('status');
 const turnEl = document.getElementById('turn-indicator');
@@ -97,6 +162,9 @@ function init() {
   buildOpeningBook(Game);
   // Initialize AI Worker
   initAIWorker();
+  // Load and apply persisted settings
+  const settings = loadSettings();
+  applySettings(settings);
   // Add tooltips to hex cells
   for (const [key, cell] of renderer.hexElements) {
     const c = game.boardCells.get(key);
@@ -440,6 +508,7 @@ autoBattleBtn.addEventListener('click', () => {
     autoBattleBtn.classList.remove('active');
     clearTimeout(autoBattleTimer);
   }
+  saveSettings({ ...loadSettings(), autoBattle: autoBattleActive });
 });
 
 const undoBtn = document.getElementById('undo-btn');
@@ -449,30 +518,33 @@ undoBtn.addEventListener('click', () => {
     updateUI();
   }
 });
- 
+
 rpsToggle.addEventListener('change', (e) => {
   game.rpsEnabled = e.target.checked;
   updateUI();
+  saveSettings({ ...loadSettings(), rpsEnabled: e.target.checked });
 });
 
 soundToggle.addEventListener('change', (e) => {
   sounds.toggle(e.target.checked);
+  saveSettings({ ...loadSettings(), soundEnabled: e.target.checked });
 });
 
 // AI Difficulty Slider
 const depthSlider = document.getElementById('depth-slider');
 const depthLabel = document.getElementById('depth-label');
-const depthNames = { 1: 'Leicht', 2: 'Mittel', 3: 'Schwer', 4: 'Extrem' };
 depthSlider.addEventListener('input', (e) => {
   const depth = parseInt(e.target.value);
   setAIDepth(depth);
   depthLabel.textContent = 'KI: ' + depthNames[depth];
+  saveSettings({ ...loadSettings(), aiDepth: depth });
 });
 
 let currentBoardRotation = 0;
 rotateBtn.addEventListener('click', () => {
   currentBoardRotation += 120;
   renderer.setRotation(currentBoardRotation);
+  saveSettings({ ...loadSettings(), boardRotation: currentBoardRotation });
 });
 
 restartBtn.addEventListener('click', () => {
@@ -494,6 +566,8 @@ restartBtn.addEventListener('click', () => {
   autoBattleBtn.textContent = '🤖 Auto Battle';
   autoBattleBtn.classList.remove('active');
   clearTimeout(autoBattleTimer);
+  
+  saveSettings({ ...loadSettings(), autoBattle: false });
   
   updateUI();
 });
