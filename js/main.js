@@ -20,6 +20,72 @@ const moveLogEl = document.getElementById('move-log');
 const renderer = new BoardRenderer(svg);
 const game = new Game();
 
+// AI Worker
+let aiWorker = null;
+let workerReady = false;
+let pendingWorkerCallback = null;
+
+function initAIWorker() {
+  try {
+    aiWorker = new Worker('./ai-worker.js', { type: 'module' });
+    aiWorker.onmessage = (e) => {
+      const { type, move, depth, score, nodes } = e.data;
+      if (type === 'result' && pendingWorkerCallback) {
+        pendingWorkerCallback(move);
+        pendingWorkerCallback = null;
+      } else if (type === 'progress') {
+        // Could update UI with search progress
+        console.log(`AI depth ${depth}: score ${score}, nodes ${nodes}`);
+      } else if (type === 'bookReady') {
+        workerReady = true;
+      }
+    };
+    aiWorker.onerror = (err) => {
+      console.warn('AI Worker error, falling back to main thread:', err);
+      aiWorker = null;
+    };
+    // Initialize opening book in worker
+    aiWorker.postMessage({ type: 'initBook' });
+  } catch (e) {
+    console.warn('Web Worker not supported, using main thread AI');
+    aiWorker = null;
+  }
+}
+
+function calculateBestMoveWorker(game, faction) {
+  return new Promise((resolve) => {
+    if (!aiWorker || !workerReady) {
+      // Fallback to main thread
+      resolve(calculateBestMove(game, faction));
+      return;
+    }
+    pendingWorkerCallback = resolve;
+    const gameState = serializeGameForWorker(game);
+    aiWorker.postMessage({ type: 'calculate', gameState, faction });
+  });
+}
+
+function serializeGameForWorker(game) {
+  return {
+    pieces: game.getAlivePieces().map(p => ({
+      id: p.id,
+      type: p.type,
+      faction: p.faction,
+      pos: { q: p.pos.q, r: p.pos.r },
+      symbol: p.symbol,
+      alive: p.alive,
+      hasMoved: p.hasMoved
+    })),
+    currentFactionIdx: game.currentFactionIdx,
+    currentFaction: game.currentFaction,
+    state: game.state,
+    eliminatedFactions: Array.from(game.eliminatedFactions),
+    rpsEnabled: game.rpsEnabled,
+    capturedPieces: game.capturedPieces,
+    _halfmoveClock: game._halfmoveClock || 0
+  };
+}
+
 let autoBattleActive = false;
 let autoBattleTimer = null;
 
@@ -29,6 +95,8 @@ function init() {
     game._undoStack = [];
   // Build opening book (first time only)
   buildOpeningBook(Game);
+  // Initialize AI Worker
+  initAIWorker();
   // Add tooltips to hex cells
   for (const [key, cell] of renderer.hexElements) {
     const c = game.boardCells.get(key);
@@ -174,7 +242,7 @@ function triggerAutoMove() {
   if (!autoBattleActive || game.state === GAME_STATE.GAME_OVER) return;
 
   clearTimeout(autoBattleTimer);
-  autoBattleTimer = setTimeout(() => {
+  autoBattleTimer = setTimeout(async () => {
     if (!autoBattleActive || game.state === GAME_STATE.GAME_OVER) return;
 
     // Safety check: if game is somehow expecting a target but AI just calculates fresh move, reset selection
@@ -189,12 +257,19 @@ function triggerAutoMove() {
       return;
     }
 
-    const action = calculateBestMove(game, game.currentFaction);
+    const action = await calculateBestMoveWorker(game, game.currentFaction);
 
     if (action) {
       // Execute the action programmatically
-      game.handleCellClick(action.piece.pos); // Select piece
-      const result = game.handleCellClick(action.target); // Execute move/attack
+      const piece = game.pieces.find(p => p.id === action.pieceId);
+      if (!piece) {
+        console.error('Piece not found:', action.pieceId);
+        triggerAutoMove();
+        return;
+      }
+      game.handleCellClick(piece.pos); // Select piece
+      const target = new (await import('./hex.js')).Hex(action.targetQ, action.targetR);
+      const result = game.handleCellClick(target); // Execute move/attack
 
       renderer.clearHighlights();
       renderer.clearSelection();
