@@ -1,6 +1,6 @@
 import { BoardRenderer, FACTION_COLORS, FACTION } from './board.js';
 import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
-import { calculateBestMove, evaluateBoard, setAIDepth } from './ai.js';
+import { calculateBestMove, evaluateBoard, setAIDepth, setAIPersonality, getAIPersonalities } from './ai.js';
 import { sounds } from './sounds.js';
 import { buildOpeningBook } from './opening-book.js';
 import { serializeGame, downloadGame, copyGameToClipboard, loadGameFromFile, parseTSPN } from './replay.js';
@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   aiDepth: 3,
   boardRotation: 0,
   autoBattle: false,
+  aiPersonality: 'balanced',
 };
 
 // Depth names (needed by applySettings before DOM elements exist)
@@ -66,7 +67,11 @@ function applySettings(settings) {
     autoBattleBtn.textContent = '🤖 Auto Battle';
     autoBattleBtn.classList.remove('active');
   }
-  
+
+  // AI Personality
+  setAIPersonality(settings.aiPersonality);
+  personalitySelect.value = settings.aiPersonality;
+
   updateUI();
 }
 
@@ -93,6 +98,8 @@ fileInput.type = 'file';
 fileInput.accept = '.tspn,text/plain';
 fileInput.style.display = 'none';
 document.body.appendChild(fileInput);
+
+const personalitySelect = document.getElementById('personality-select');
 
 const renderer = new BoardRenderer(svg);
 const game = new Game();
@@ -634,6 +641,16 @@ fileInput.addEventListener('change', async (e) => {
   
   // Reset file input
   fileInput.value = '';
+});
+
+// Personality selector
+personalitySelect.addEventListener('change', (e) => {
+  const personality = e.target.value;
+  setAIPersonality(personality);
+  if (aiWorker && workerReady) {
+    aiWorker.postMessage({ type: 'setPersonality', depth: personality });
+  }
+  saveSettings({ ...loadSettings(), aiPersonality: personality });
 });
 
 init();

@@ -110,6 +110,119 @@ let MAX_DEPTH = 3;
 // Base time limit (fallback if calculateTimeBudget not used)
 const TIME_LIMIT_MS = 5000;
 
+// ─── AI Personalities ────────────────────────────────────────────────
+/**
+ * AI Personality profiles with different evaluation weight priorities.
+ * Each personality adjusts weights for different evaluation components.
+ */
+const AI_PERSONALITIES = {
+  balanced: {
+    name: 'Ausgewogen',
+    description: 'Standard-Spielweise, ausgewogene Bewertung',
+    weights: {
+      material: 1.0,
+      positional: 1.0,
+      kingSafety: 1.0,
+      kingThreats: 1.0,
+      pawnStructure: 1.0,
+      endgame: 1.0,
+      mobility: 1.0,
+    },
+    aggression: 0.0, // Neutral
+  },
+  aggressive: {
+    name: 'Aggressiv',
+    description: 'Angreifend, sucht taktische Komplikationen, opfert Material für Initiative',
+    weights: {
+      material: 0.8,           // Weniger Material-Fixierung
+      positional: 1.3,         // Mehr Wert auf Aktivität
+      kingSafety: 0.7,         // Eigene Königssicherheit vernachlässigt
+      kingThreats: 1.5,        // Feindlichen König jagen
+      pawnStructure: 0.7,      // Bauernstruktur egal
+      endgame: 1.2,            // Ruhig in Endspiel abwickeln
+      mobility: 1.4,           // Maximale Beweglichkeit
+    },
+    aggression: 0.3,           // positiver Faktor für Risiko
+  },
+  defensive: {
+    name: 'Defensiv',
+    description: 'Solid, minimiert Risiken, wartet auf Fehler des Gegners',
+    weights: {
+      material: 1.2,           // Material wichtig
+      positional: 0.8,         // Weniger Aktivität
+      kingSafety: 1.5,         // Eigener König heilig
+      kingThreats: 0.7,        // Gegner nicht aktiv jagen
+      pawnStructure: 1.3,      // Solide Bauernstruktur
+      endgame: 0.9,            // Endspiel vermeiden
+      mobility: 0.8,           // Kontrolliert, nicht wild
+    },
+    aggression: -0.3,          // Risiko vermeiden
+  },
+  tactical: {
+    name: 'Taktisch',
+    description: 'Fokus auf Taktik, Opfersuchend, scharfes Spiel',
+    weights: {
+      material: 0.7,
+      positional: 1.4,
+      kingSafety: 0.6,
+      kingThreats: 1.6,
+      pawnStructure: 0.5,
+      endgame: 1.1,
+      mobility: 1.5,
+    },
+    aggression: 0.5,
+  },
+};
+
+// Current personality (default: balanced)
+let currentPersonality = 'balanced';
+
+/**
+ * Get current personality weights.
+ */
+function getPersonalityWeights() {
+  return AI_PERSONALITIES[currentPersonality]?.weights || AI_PERSONALITIES.balanced.weights;
+}
+
+/**
+ * Get current personality aggression factor.
+ */
+function getPersonalityAggression() {
+  return AI_PERSONALITIES[currentPersonality]?.aggression || 0;
+}
+
+/**
+ * Set AI personality.
+ * @param {'balanced'|'aggressive'|'defensive'|'tactical'} personality
+ */
+export function setAIPersonality(personality) {
+  if (AI_PERSONALITIES[personality]) {
+    currentPersonality = personality;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Get current personality key.
+ */
+export function getAIPersonality() {
+  return currentPersonality;
+}
+
+/**
+ * Get all available personalities.
+ */
+export function getAIPersonalities() {
+  return Object.keys(AI_PERSONALITIES).map(key => ({
+    key,
+    name: AI_PERSONALITIES[key].name,
+    description: AI_PERSONALITIES[key].description,
+  }));
+}
+
+export { AI_PERSONALITIES };
+
 // ─── Transposition Table ────────────────────────────────────────────
 
 const tt = new Map();
@@ -191,29 +304,33 @@ function getPSTValue(piece) {
  * Positive = good for faction, negative = bad.
  */
 function evaluateBoard(game, faction) {
+  // Get personality weights
+  const W = getPersonalityWeights();
+  const aggression = getPersonalityAggression();
+  
   const pieces = game.getAlivePieces();
   let score = 0;
 
   // 1. Material balance (RPS-aware)
   for (const p of pieces) {
     const val = getMaterialValue(p, faction) * 10;
-    score += (p.faction === faction ? val : -val);
+    score += (p.faction === faction ? val : -val) * W.material;
   }
 
   // 2. Positional bonus: PST + mobility for own pieces
   const myPieces = pieces.filter(p => p.faction === faction);
   for (const p of myPieces) {
-    score += getPSTValue(p);
+    score += getPSTValue(p) * W.positional;
     const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
     const mobility = moves.length + attacks.length;
     // Mobility bonus varies by piece type
     const mobBonus = { queen: 0.3, rook: 0.2, bishop: 0.2, knight: 0.3, pawn: 0.1, king: 0 };
-    score += mobility * (mobBonus[p.type] || 0.1);
+    score += mobility * (mobBonus[p.type] || 0.1) * W.mobility;
   }
   // For enemy pieces: PST penalty + rough positional estimate
   for (const p of pieces) {
     if (p.faction === faction) continue;
-    score -= getPSTValue(p) * 0.8; // Slightly less weight for enemy PST
+    score -= getPSTValue(p) * 0.8 * W.positional;
   }
 
   // 3. King safety: only check threats to our king
@@ -226,23 +343,23 @@ function evaluateBoard(game, faction) {
       const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
       if (attacks.some(a => a.equals(myKing.pos))) kingThreats++;
     }
-    score -= kingThreats * 15;
+    score -= kingThreats * 15 * W.kingSafety;
     const kingDist = Math.max(Math.abs(myKing.pos.q), Math.abs(myKing.pos.r), Math.abs(-myKing.pos.q - myKing.pos.r));
-    if (kingDist >= 6) score += 8;
+    if (kingDist >= 6) score += 8 * W.kingSafety;
   }
 
-  // 4. King threats: count pieces threatening enemy kings
+  // 4. King threats: count pieces threatening enemy kings (with aggression factor)
   const enemyFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(f => f !== faction);
   for (const ef of enemyFactions) {
     if (game.eliminatedFactions.has(ef)) {
-      score += 200;
+      score += 200 * W.kingThreats;
       continue;
     }
     const eKing = pieces.find(p => p.faction === ef && p.type === 'king');
     if (eKing) {
       for (const attacker of myPieces) {
         const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
-        if (attacks.some(a => a.equals(eKing.pos))) score += 10;
+        if (attacks.some(a => a.equals(eKing.pos))) score += 10 * W.kingThreats * (1 + aggression);
       }
     }
   }
@@ -251,14 +368,14 @@ function evaluateBoard(game, faction) {
   const aliveEnemies = enemyFactions.filter(f => !game.eliminatedFactions.has(f));
   if (aliveEnemies.length === 1) {
     const rps = getRPSResult(faction, aliveEnemies[0]);
-    if (rps === 'advantage') score += 20;
+    if (rps === 'advantage') score += 20 * W.endgame;
   }
 
   // 6. Pawn structure analysis
-  score += evaluatePawnStructure(pieces, faction);
+  score += evaluatePawnStructure(pieces, faction) * W.pawnStructure;
 
   // 7. Endgame-specific evaluation
-  score += evaluateEndgame(game, pieces, faction);
+  score += evaluateEndgame(game, pieces, faction) * W.endgame;
 
   return score;
 }

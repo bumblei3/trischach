@@ -102,6 +102,40 @@ function calculateTimeBudget(game) {
 let MAX_DEPTH = 3;
 const TIME_LIMIT_MS = 5000;
 
+// ─── AI Personalities ────────────────────────────────────────────────
+// COPIED FROM ai.js - keep in sync!
+const AI_PERSONALITIES = {
+  balanced: {
+    name: 'Ausgewogen', description: 'Standard-Spielweise',
+    weights: { material: 1.0, positional: 1.0, kingSafety: 1.0, kingThreats: 1.0, pawnStructure: 1.0, endgame: 1.0, mobility: 1.0 },
+    aggression: 0.0,
+  },
+  aggressive: {
+    name: 'Aggressiv', description: 'Angreifend, sucht taktische Komplikationen',
+    weights: { material: 0.8, positional: 1.3, kingSafety: 0.7, kingThreats: 1.5, pawnStructure: 0.7, endgame: 1.2, mobility: 1.4 },
+    aggression: 0.3,
+  },
+  defensive: {
+    name: 'Defensiv', description: 'Solid, minimiert Risiken',
+    weights: { material: 1.2, positional: 0.8, kingSafety: 1.5, kingThreats: 0.7, pawnStructure: 1.3, endgame: 0.9, mobility: 0.8 },
+    aggression: -0.3,
+  },
+  tactical: {
+    name: 'Taktisch', description: 'Fokus auf Taktik, Opfersuchend',
+    weights: { material: 0.7, positional: 1.4, kingSafety: 0.6, kingThreats: 1.6, pawnStructure: 0.5, endgame: 1.1, mobility: 1.5 },
+    aggression: 0.5,
+  },
+};
+
+let _workerPersonality = 'balanced';
+
+function getPersonalityWeights() {
+  return AI_PERSONALITIES[_workerPersonality]?.weights || AI_PERSONALITIES.balanced.weights;
+}
+function getPersonalityAggression() {
+  return AI_PERSONALITIES[_workerPersonality]?.aggression || 0;
+}
+
 const tt = new Map();
 
 function boardHash(game) {
@@ -352,27 +386,31 @@ function evaluateEndgame(game, pieces, faction) {
 }
 
 function evaluateBoard(game, faction) {
+  // Get personality weights
+  const W = getPersonalityWeights();
+  const aggression = getPersonalityAggression();
+
   const pieces = game.pieces.filter(p => p.alive);
   let score = 0;
 
   // Material (RPS-aware)
   for (const p of pieces) {
     const val = getMaterialValue(p, faction) * 10;
-    score += (p.faction === faction ? val : -val);
+    score += (p.faction === faction ? val : -val) * W.material;
   }
 
   // Positional: PST + mobility for own pieces
   const myPieces = pieces.filter(p => p.faction === faction);
   for (const p of myPieces) {
-    score += getPSTValue(p);
+    score += getPSTValue(p) * W.positional;
     const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
     const mobility = moves.length + attacks.length;
     const mobBonus = { queen: 0.3, rook: 0.2, bishop: 0.2, knight: 0.3, pawn: 0.1, king: 0 };
-    score += mobility * (mobBonus[p.type] || 0.1);
+    score += mobility * (mobBonus[p.type] || 0.1) * W.mobility;
   }
   for (const p of pieces) {
     if (p.faction === faction) continue;
-    score -= getPSTValue(p) * 0.8;
+    score -= getPSTValue(p) * 0.8 * W.positional;
   }
 
   // King safety
@@ -384,23 +422,23 @@ function evaluateBoard(game, faction) {
       const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
       if (attacks.some(a => a.equals(myKing.pos))) kingThreats++;
     }
-    score -= kingThreats * 15;
+    score -= kingThreats * 15 * W.kingSafety;
     const kingDist = Math.max(Math.abs(myKing.pos.q), Math.abs(myKing.pos.r), Math.abs(-myKing.pos.q - myKing.pos.r));
-    if (kingDist >= 6) score += 8;
+    if (kingDist >= 6) score += 8 * W.kingSafety;
   }
 
   // King threats
   const enemyFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(f => f !== faction);
   for (const ef of enemyFactions) {
     if (game.eliminatedFactions.has(ef)) {
-      score += 200;
+      score += 200 * W.kingThreats;
       continue;
     }
     const eKing = pieces.find(p => p.faction === ef && p.type === 'king');
     if (eKing) {
       for (const attacker of myPieces) {
         const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
-        if (attacks.some(a => a.equals(eKing.pos))) score += 10;
+        if (attacks.some(a => a.equals(eKing.pos))) score += 10 * W.kingThreats * (1 + aggression);
       }
     }
   }
@@ -409,13 +447,13 @@ function evaluateBoard(game, faction) {
   const aliveEnemies = enemyFactions.filter(f => !game.eliminatedFactions.has(f));
   if (aliveEnemies.length === 1) {
     const rps = getRPSResult(faction, aliveEnemies[0]);
-    if (rps === 'advantage') score += 20;
+    if (rps === 'advantage') score += 20 * W.endgame;
   }
 
-  score += evaluatePawnStructure(pieces, faction);
+  score += evaluatePawnStructure(pieces, faction) * W.pawnStructure;
 
   // 7. Endgame-specific evaluation
-  score += evaluateEndgame(game, pieces, faction);
+  score += evaluateEndgame(game, pieces, faction) * W.endgame;
 
   return score;
 }
@@ -1121,6 +1159,8 @@ self.onmessage = function(e) {
     }
   } else if (type === 'setDepth') {
     MAX_DEPTH = depth;
+  } else if (type === 'setPersonality') {
+    _workerPersonality = depth; // depth parameter carries personality name
   } else if (type === 'initBook') {
     // Don't build opening book in worker - piece IDs won't match main thread
     // Worker will use greedy/minimax directly (fast enough for early game)
