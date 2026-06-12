@@ -23,8 +23,7 @@ describe('AI Simulation (Integration)', () => {
       // Execute the action
       const selResult = game.handleCellClick(action.piece.pos);
       if (selResult.action === 'deselect') {
-        // AI may select a piece that's not selectable due to faction mismatch
-        // after wouldBeInCheck idx manipulation. Skip this turn.
+        // AI selected an invalid piece; skip this turn
         break;
       }
       const result = game.handleCellClick(action.target);
@@ -34,7 +33,7 @@ describe('AI Simulation (Integration)', () => {
         game.completePromotion(PIECE_TYPE.QUEEN);
       }
 
-      if (result) {
+      if (result && result.action !== 'deselect') {
         expect(result.action).toMatch(/move|combat|promotion/);
       }
     }

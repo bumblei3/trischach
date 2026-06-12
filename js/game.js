@@ -40,6 +40,7 @@ export class Game {
     this.pendingPromotion = null;
     this.onPromotion = null;
     this._undoStack = [];
+    this.currentFaction = TURN_ORDER[0];
   }
 
   get currentFactionName() {
@@ -50,6 +51,7 @@ export class Game {
     this.boardCells = boardCells;
     this.pieces = createInitialPieces();
     this.currentFactionIdx = 0;
+    this.currentFaction = TURN_ORDER[0];
     this.state = GAME_STATE.SELECT_PIECE;
     this.eliminatedFactions.clear();
     this.moveHistory = [];
@@ -93,6 +95,7 @@ export class Game {
   /**
    * Check if making a move would leave `faction`'s king in check.
    * Simulates the move, checks, then undoes.
+   * @returns {boolean}
    */
   wouldBeInCheck(piece, target, faction) {
     const savedIdx = this.currentFactionIdx;
@@ -130,6 +133,7 @@ export class Game {
     return { moves: legalMoves, attacks: legalAttacks };
   }
 
+
   /**
    * Check if `faction` is in checkmate.
    * Conditions: in check + no legal moves for any piece.
@@ -138,6 +142,7 @@ export class Game {
     if (!this.isKingInCheck(faction)) return false;
     return !this._hasLegalMoves(faction);
   }
+
 
   /**
    * Check if `faction` is in stalemate.
@@ -338,34 +343,45 @@ export class Game {
     this.selectedPiece = null;
     this.state = GAME_STATE.SELECT_PIECE;
 
-    // Check if next player is checkmated or stalemated
-    const nextFaction = this.currentFaction;
-    if (this.isCheckmate(nextFaction) || this.isStalemate(nextFaction)) {
-      // In a 3-player game, checkmate/stalemate eliminates the stuck faction
-      if (this.isCheckmate(nextFaction)) {
-        result.checkmate = nextFaction;
-      } else {
-        result.stalemate = nextFaction;
+    // Check for checkmate or stalemate of any faction that is in check
+    let checkedFaction = null;
+    for (const fac of TURN_ORDER) {
+      if (this.eliminatedFactions.has(fac)) continue;
+      if (this.isKingInCheck(fac)) {
+        checkedFaction = fac;
+        break;
       }
-      this.eliminatedFactions.add(nextFaction);
-      for (const p of this.pieces) {
-        if (p.faction === nextFaction) p.alive = false;
-      }
-      result.elimination = nextFaction;
-      if (this.onElimination) this.onElimination(nextFaction);
+    }
+    if (checkedFaction !== null) {
+      const isCM = this.isCheckmate(checkedFaction);
+      const isStale = this.isStalemate(checkedFaction);
+      if (isCM || isStale) {
+        if (isCM) {
+          result.checkmate = checkedFaction;
+        } else {
+          result.stalemate = checkedFaction;
+        }
+        this.eliminatedFactions.add(checkedFaction);
+        for (const p of this.pieces) {
+          if (p.faction === checkedFaction) p.alive = false;
+        }
+        this._rebuildOccupiedMap();
+        result.elimination = checkedFaction;
+        if (this.onElimination) this.onElimination(checkedFaction);
 
-      // Check game over after elimination
-      const aliveAfter = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
-      if (aliveAfter.length <= 1) {
-        this.state = GAME_STATE.GAME_OVER;
-        result.gameOver = true;
-        result.winner_faction = aliveAfter[0] || null;
-        result.inCheck = this.isKingInCheck(this.currentFaction);
-        if (this.onGameOver) this.onGameOver(aliveAfter[0]);
-        return result;
+        // Check game over after elimination
+        const aliveAfter = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
+        if (aliveAfter.length <= 1) {
+          this.state = GAME_STATE.GAME_OVER;
+          result.gameOver = true;
+          result.winner_faction = aliveAfter[0] || null;
+          result.inCheck = this.isKingInCheck(this.currentFaction);
+          if (this.onGameOver) this.onGameOver(aliveAfter[0]);
+          return result;
+        }
+        // Continue to next faction after elimination
+        this._nextTurn();
       }
-      // Continue to next faction after elimination
-      this._nextTurn();
     }
 
     result.inCheck = this.isKingInCheck(this.currentFaction);
@@ -377,7 +393,8 @@ export class Game {
   _nextTurn() {
     do {
       this.currentFactionIdx = (this.currentFactionIdx + 1) % 3;
-    } while (this.eliminatedFactions.has(this.currentFaction));
+    } while (this.eliminatedFactions.has(TURN_ORDER[this.currentFactionIdx]));
+    this.currentFaction = TURN_ORDER[this.currentFactionIdx];
   }
 
   /**
@@ -459,6 +476,7 @@ export class Game {
   undoMove(undo) {
     // Restore turn
     this.currentFactionIdx = undo.prevFactionIdx;
+    this.currentFaction = TURN_ORDER[this.currentFactionIdx];
 
     // Undo elimination
     if (undo.eliminatedFaction) {
@@ -542,6 +560,7 @@ export class Game {
       }
     });
     this.currentFactionIdx = snap.currentFactionIdx;
+    this.currentFaction = TURN_ORDER[this.currentFactionIdx];
     this.eliminatedFactions = new Set(snap.eliminatedFactions);
     // restore capturedPieces
     for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {

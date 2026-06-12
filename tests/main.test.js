@@ -6,16 +6,15 @@ import path from 'path';
 // eslint-disable-next-line no-undef
 const htmlPath = path.resolve(__dirname, '../index.html');
 const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
-const bodyMatch = htmlContent.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+const bodyMatch = htmlContent.match(new RegExp('<body[^>]*>([\\s\\S]*)<\\/body>', 'i'));
 let bodyHTML = bodyMatch ? bodyMatch[1] : htmlContent;
-// Remove script tags to prevent HappyDOM from trying to fetch them
-bodyHTML = bodyHTML.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+bodyHTML = bodyHTML.replace(new RegExp('<script\\\\b[^<]*(?:(?!<\\\\/script>)<[^<]*)*<\\\\/script>', 'gi'), '');
 
 describe('Main UI & Events', () => {
   beforeEach(() => {
     document.body.innerHTML = bodyHTML;
     vi.resetModules(); // Ensure main.js runs cleanly each time
-    
+
     // Mock AudioContext
     globalThis.AudioContext = vi.fn().mockImplementation(() => ({
       createOscillator: () => ({ connect: vi.fn(), start: vi.fn(), stop: vi.fn(), frequency: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'sine' }),
@@ -23,10 +22,34 @@ describe('Main UI & Events', () => {
       destination: {},
       currentTime: 100
     }));
+
+    // Mock fetch for static assets (CSS, JS) to avoid network requests
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch.__original = originalFetch;
+    globalThis.fetch = async (url, opts) => {
+      if (typeof url === 'string' && url.startsWith('http://localhost:3000/')) {
+        const path = url.replace('http://localhost:3000/', '');
+        let content = '';
+        try {
+          content = require('fs').readFileSync(`./${path}`, 'utf8');
+        } catch (e) {
+          // If file not found, return empty string
+          content = '';
+        }
+        const mime = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'application/javascript' : 'text/plain';
+        return new Response(content, { headers: { 'Content-Type': mime } });
+      }
+      // If not our mock, call original fetch
+      return globalThis.fetch.__original(url, opts);
+    };
   });
 
   afterEach(() => {
     vi.clearAllTimers();
+    // Restore fetch
+    if (globalThis.fetch && globalThis.fetch.__original) {
+      globalThis.fetch = globalThis.fetch.__original;
+    }
   });
 
   test('UI initializes correctly on load', async () => {
