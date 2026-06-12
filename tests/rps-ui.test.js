@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach } from 'vitest';
-import { Game, GAME_STATE } from '../js/game.js';
+import { Game } from '../js/game.js';
 import { FACTION, generateBoard, getRPSResult } from '../js/board.js';
 import { Piece, PIECE_TYPE } from '../js/pieces.js';
 import { Hex } from '../js/hex.js';

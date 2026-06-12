@@ -31,9 +31,9 @@ describe('Main UI & Events', () => {
         const path = url.replace('http://localhost:3000/', '');
         let content = '';
         try {
+          // eslint-disable-next-line no-undef
           content = require('fs').readFileSync(`./${path}`, 'utf8');
         } catch (e) {
-          // If file not found, return empty string
           content = '';
         }
         const mime = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'application/javascript' : 'text/plain';

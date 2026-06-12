@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach } from 'vitest';
-import { Game, GAME_STATE } from '../js/game.js';
+import { Game } from '../js/game.js';
 import { FACTION, generateBoard } from '../js/board.js';
 import { Piece, PIECE_TYPE } from '../js/pieces.js';
 import { Hex } from '../js/hex.js';
@@ -193,7 +193,7 @@ describe('Check Resolution in Game Flow', () => {
     // Select fire pawn
     game.handleCellClick(firePawn.pos);
     // Try to move pawn away, exposing king to rook
-    const result = game.handleCellClick(new Hex(1, 1));
+    game.handleCellClick(new Hex(1, 1));
 
     // The pawn move should be blocked (deselect) because it's not a legal move
     // OR the pawn stays and king remains safe
@@ -228,28 +228,7 @@ describe('Check Resolution in Game Flow', () => {
     // King can't capture queen (protected by fire rook at (0,2)).
     // Nature rooks can't capture queen (not on same line).
     // No legal moves = checkmate.
-    const nk = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 0));
-    // Block 4 safe neighbors with Nature rooks
-    // Queen on (0,1). Rook directions from (0,1): E,NE,NW,W,SW,SE
-    // Safe rook positions (not on queen's lines): (1,-1) is NW of queen - NOT safe
-    // Let me recalculate: queen on (0,1), directions:
-    //   E: (1,1),(2,1)...  NE: (1,0),(2,-1)...  NW: (0,0),(0,-1)...
-    //   W: (-1,1),(-2,1)...  SW: (-1,2),(-2,3)...  SE: (0,2),(0,3)...
-    // King neighbors: (1,0), (1,-1), (0,-1), (-1,0), (-1,1), (0,1)=queen
-    // On queen's lines: (1,0)=NE, (0,-1)=NW, (-1,1)=W
-    // Safe: (1,-1), (-1,0), (-1,1)... wait (-1,1) is W of queen. Not safe.
-    // Safe: (1,-1), (-1,0) - only 2 safe positions!
-    // Need to block 5 neighbors but only 2 are safe for rooks.
-    //
-    // Different approach: use a position where the king truly has no moves.
-    // King at (0,0), all 6 neighbors occupied by OWN pieces (friendly fire).
-    // One of those own pieces is captured by the checking piece.
-    // After capture, the king has no escape.
-    //
-    // Actually, the simplest test: directly set up a position and verify.
-    // King at (0,0), queen on (0,1) giving check, king surrounded by own pieces.
-    // The queen is protected. King can't move (all neighbors = own pieces).
-    // isCheckmate should return true.
+    // Set up a position where Nature King is in check and has no legal moves
     const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 0));
     // All 6 neighbors are Nature pieces (king can't move to friendly-occupied squares)
     const np1 = new Piece(PIECE_TYPE.ROOK, FACTION.NATURE, new Hex(1, 0));
