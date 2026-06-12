@@ -166,8 +166,13 @@ export class Game {
   }
 
   handleCellClick(hex) {
+    // Handle draw states - no moves allowed after draw
+    if (this.state === GAME_STATE.DRAW_REPETITION || this.state === GAME_STATE.DRAW_50MOVE) {
+      return null;
+    }
+    
     if (this.state === GAME_STATE.GAME_OVER) return null;
-    if (this.state === GAME_STATE.PROMOTION) return null; // UI must call completePromotion()
+    if (this.state === GAME_STATE.PROMOTION) return null;
 
     if (this.state === GAME_STATE.SELECT_PIECE) {
       return this._selectPiece(hex);
@@ -275,6 +280,15 @@ export class Game {
       result.promotion = true;
       result.notation = `${this.selectedPiece.pos.q},${this.selectedPiece.pos.r} ♟→?`;
       if (this.onPromotion) this.onPromotion(this.selectedPiece);
+      return result;
+    }
+
+    // Update draw state (threefold repetition + 50-move rule)
+    const wasCapture = result.action === 'combat' && result.rpsResult !== 'disadvantage';
+    const wasPawnMove = this.selectedPiece.type === PIECE_TYPE.PAWN;
+    const isDraw = this._updateDrawState(wasCapture, wasPawnMove);
+    if (isDraw) {
+      result.draw = true;
       return result;
     }
 
@@ -548,6 +562,51 @@ export class Game {
     return snap;
   }
 
+  /**
+   * Generate a position hash for repetition detection.
+   * Includes current player to match standard chess threefold repetition rule.
+   */
+  _positionHash() {
+    const pieces = this.getAlivePieces()
+      .filter(p => p.alive)
+      .map(p => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+      .sort()
+      .join('|');
+    // Include current faction index for proper threefold repetition (same position + same player to move)
+    return `${pieces}#${this.currentFactionIdx}`;
+  }
+
+  /**
+   * Update position history and halfmove clock after a move.
+   * Returns true if a draw is detected.
+   */
+  _updateDrawState(wasCapture, wasPawnMove) {
+    const hash = this._positionHash();
+    
+    // Threefold repetition: increment count for current position
+    const count = (this._positionHistory.get(hash) || 0) + 1;
+    this._positionHistory.set(hash, count);
+    
+    // 50-move rule: increment on any half-move, reset on capture or pawn move
+    if (wasCapture || wasPawnMove) {
+      this._halfmoveClock = 0;
+    } else {
+      this._halfmoveClock++;
+    }
+    
+    // Check for draws
+    if (count >= 3) {
+      this.state = GAME_STATE.DRAW_REPETITION;
+      if (this.onDraw) this.onDraw('repetition');
+      return true;
+    }
+    if (this._halfmoveClock >= 100) { // 50 full moves = 100 half-moves
+      this.state = GAME_STATE.DRAW_50MOVE;
+      if (this.onDraw) this.onDraw('50move');
+      return true;
+    }
+    return false;
+  }
 
 }
 
