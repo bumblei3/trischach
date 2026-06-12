@@ -1,6 +1,6 @@
 import { BoardRenderer, FACTION_COLORS, FACTION } from './board.js';
 import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
-import { calculateBestMove } from './ai.js';
+import { calculateBestMove, evaluateBoard } from './ai.js';
 import { sounds } from './sounds.js';
 
 const svg = document.getElementById('board-svg');
@@ -85,6 +85,28 @@ function updateUI() {
       capEl.innerHTML = game.capturedPieces[fac].map(p => `<span class="captured-piece">${p.symbol}</span>`).join('');
     }
   }
+
+  // Update Eval Bar
+  updateEvalBar();
+}
+
+function updateEvalBar() {
+  const fireEval = evaluateBoard(game, FACTION.FIRE);
+  const natureEval = evaluateBoard(game, FACTION.NATURE);
+  const waterEval = evaluateBoard(game, FACTION.WATER);
+
+  // Normalize: shift so minimum is 0, then scale to 100%
+  const minEval = Math.min(fireEval, natureEval, waterEval);
+  const shifted = [fireEval - minEval, natureEval - minEval, waterEval - minEval];
+  const maxShifted = Math.max(...shifted, 1); // avoid div by zero
+
+  const firePct = (shifted[0] / maxShifted) * 100;
+  const naturePct = (shifted[1] / maxShifted) * 100;
+  const waterPct = (shifted[2] / maxShifted) * 100;
+
+  document.getElementById('eval-fire').style.width = firePct + '%';
+  document.getElementById('eval-nature').style.width = naturePct + '%';
+  document.getElementById('eval-water').style.width = waterPct + '%';
 }
 
 function clearCheckHighlight() {

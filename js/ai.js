@@ -162,6 +162,8 @@ function evaluateBoard(game, faction) {
   return score;
 }
 
+export { evaluateBoard };
+
 // ─── Move Generation ────────────────────────────────────────────────
 
 function getAllActions(game, faction) {

@@ -141,6 +141,9 @@ header h1 {
   max-width: 650px;
   height: auto;
   cursor: pointer;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .controls {
@@ -562,9 +565,78 @@ input:checked + .slider:before {
   margin-top: 0.2rem;
 }
 
+/* Eval Bar */
+#eval-bar-container {
+  width: 100%;
+  max-width: 650px;
+  margin-bottom: 0.5rem;
+}
+
+#eval-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border);
+  transition: all 0.3s ease;
+}
+
+.eval-segment {
+  height: 100%;
+  transition: width 0.5s ease;
+  min-width: 2%;
+}
+
+.eval-segment.fire { background: var(--fire); }
+.eval-segment.nature { background: var(--nature); }
+.eval-segment.water { background: var(--water); }
+
+#eval-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.3rem;
+  padding: 0 0.2rem;
+}
+
+.eval-label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
 /* Responsive */
 @media (max-width: 800px) {
-  #main { flex-direction: column; align-items: center; }
-  .sidebar { flex-direction: row; width: auto; }
-  header h1 { font-size: 1.8rem; }
+  #app { padding: 0.5rem; }
+  #main { flex-direction: column; align-items: center; gap: 0.8rem; }
+  .sidebar { flex-direction: row; width: auto; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+  .sidebar .faction-panel { min-width: 140px; padding: 0.5rem; }
+  .sidebar .faction-panel h2 { font-size: 0.9rem; }
+  .sidebar .rps-diagram { display: none; }
+  header h1 { font-size: 1.6rem; }
+  .subtitle { font-size: 0.8rem; }
+  #board-container { max-width: 100%; }
+  #board-svg { max-width: 100%; }
+  .controls { gap: 0.4rem; padding: 0 0.5rem; }
+  .controls button { padding: 0.5rem 0.8rem; font-size: 0.8rem; }
+  .rps-toggle-container { padding: 0 0.6rem; }
+  #turn-bar { padding: 0.5rem 1rem; font-size: 0.9rem; }
+  .history-panel { max-height: 200px; min-height: 100px; }
+  .faction-header { flex-direction: column; align-items: flex-start; }
+  .rps-hint { font-size: 0.75rem; }
+
+  /* Combat overlay mobile */
+  .combat-box { padding: 1.5rem; max-width: 90vw; }
+  .fighter-symbol { font-size: 2rem; }
+  .combat-vs { font-size: 1.5rem; }
+  .combat-result { font-size: 1rem; }
+
+  /* Promotion overlay mobile */
+  .promotion-box { padding: 1.5rem; max-width: 90vw; }
+  .promotion-choice { width: 52px; height: 52px; }
+  .promotion-choice .choice-symbol { font-size: 1.5rem; }
+
+  /* Eval bar mobile */
+  #eval-bar-container { max-width: 100%; }
+  #eval-bar { height: 6px; }
+  .eval-label { font-size: 0.75rem; }
 }

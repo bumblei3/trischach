@@ -119,7 +119,10 @@ export class BoardRenderer {
       label.style.transition = 'transform 0.5s ease';
       cg.appendChild(label);
       
-      cg.addEventListener('click', () => this.onCellClick && this.onCellClick(cell.hex, cell));
+      cg.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        if (this.onCellClick) this.onCellClick(cell.hex, cell);
+      });
       g.appendChild(cg);
       this.hexElements.set(key, { group: cg, polygon: poly, label: label });
     }
