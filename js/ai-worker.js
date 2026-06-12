@@ -201,6 +201,156 @@ function evaluatePawnStructure(pieces, faction) {
   return score;
 }
 
+// ─── Endgame-Specific Evaluation ──────────────────────────────────────
+/**
+ * Endgame-specific evaluation for TriSchach.
+ * Applies when total pieces <= 20 (roughly endgame threshold).
+ * Handles: king activity, pawn promotion pressure, 2-vs-1 dynamics, piece coordination.
+ */
+function evaluateEndgame(game, pieces, faction) {
+  const totalPieces = pieces.length;
+  const aliveFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
+    .filter(f => !game.eliminatedFactions.has(f));
+  const isEndgame = totalPieces <= 20;
+  const isLateEndgame = totalPieces <= 10;
+  
+  if (!isEndgame && aliveFactions.length === 3) return 0;
+  
+  let score = 0;
+  const myPieces = pieces.filter(p => p.faction === faction);
+  const myKing = myPieces.find(p => p.type === 'king');
+  const myPawns = myPieces.filter(p => p.type === 'pawn');
+  
+  // Enemy factions still alive
+  const enemyFactions = aliveFactions.filter(f => f !== faction);
+  
+  // 1. KING ACTIVITY: In endgame, king should be centralized/active, not hiding in corners
+  if (myKing) {
+    const kingDistFromCenter = Math.max(
+      Math.abs(myKing.pos.q), 
+      Math.abs(myKing.pos.r), 
+      Math.abs(-myKing.pos.q - myKing.pos.r)
+    );
+    
+    if (isLateEndgame) {
+      score -= kingDistFromCenter * 8;
+    } else if (isEndgame) {
+      score -= kingDistFromCenter * 3;
+    } else if (aliveFactions.length === 2) {
+      score -= kingDistFromCenter * 5;
+    }
+    
+    const myMaterial = myPieces.reduce((sum, p) => sum + (PIECE_STRENGTH[p.type] || 0), 0);
+    const enemyPieces = pieces.filter(p => p.faction !== faction);
+    const enemyMaterial = enemyPieces.reduce((sum, p) => sum + (PIECE_STRENGTH[p.type] || 0), 0);
+    
+    if (myMaterial > enemyMaterial * 1.5) {
+      // Winning: king safety less important
+    }
+  }
+  
+  // 2. PAWN PROMOTION PRESSURE
+  for (const pawn of myPawns) {
+    if (pawn.r <= 0) {
+      score += isLateEndgame ? 200 : 100;
+    } else if (pawn.r === 1) {
+      score += isLateEndgame ? 80 : 40;
+    } else if (pawn.r === 2) {
+      score += isLateEndgame ? 40 : 20;
+    } else if (pawn.r <= 4) {
+      score += 10;
+    }
+    
+    const blockingPawns = pieces.filter(p => 
+      p.type === 'pawn' && 
+      p.faction !== faction &&
+      Math.abs(p.q - pawn.q) <= 1 &&
+      (faction === FACTION.FIRE ? p.r < pawn.r :
+       faction === FACTION.WATER ? (p.r > pawn.r || p.q < pawn.q) :
+       faction === FACTION.NATURE ? (p.r > pawn.r || p.q > pawn.q) : false)
+    );
+    if (blockingPawns.length === 0) {
+      score += isLateEndgame ? 60 : 30;
+    }
+  }
+  
+  // 3. 2-vs-1 DYNAMICS
+  if (aliveFactions.length === 2) {
+    const otherFaction = enemyFactions[0];
+    if (!otherFaction) return score;
+    
+    const rps = getRPSResult(faction, otherFaction);
+    if (rps === 'advantage') {
+      score += 150;
+    } else if (rps === 'disadvantage') {
+      score -= 200;
+    }
+    
+    if (rps === 'advantage') {
+      const myKing = myPieces.find(p => p.type === 'king');
+      if (myKing) {
+        const enemyKing = pieces.find(p => p.faction === otherFaction && p.type === 'king');
+        if (enemyKing) {
+          const kingDist = myKing.pos.distance(enemyKing.pos);
+          if (kingDist <= 3) score += 30;
+        }
+      }
+    }
+  }
+  
+  // 4. PIECE COORDINATION
+  if (isEndgame) {
+    for (const piece of myPieces) {
+      if (piece.type === 'rook' || piece.type === 'queen') {
+        const supportingPawns = myPawns.filter(p => 
+          p.q === piece.pos.q || 
+          p.r === piece.pos.r || 
+          Math.abs(p.q - piece.pos.q) <= 1 && Math.abs(p.r - piece.pos.r) <= 1
+        );
+        score += supportingPawns.length * 15;
+      }
+      
+      if (piece.type === 'knight' && myKing) {
+        if (piece.pos.distance(myKing.pos) <= 2) score += 20;
+      }
+    }
+  }
+  
+  // 5. ELIMINATION PROXIMITY
+  for (const ef of enemyFactions) {
+    const enemyPieces = pieces.filter(p => p.faction === ef);
+    const enemyKing = enemyPieces.find(p => p.type === 'king');
+    
+    if (enemyPieces.length <= 3) {
+      score += (4 - enemyPieces.length) * 100;
+      
+      if (enemyKing) {
+        for (const attacker of myPieces) {
+          const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
+          if (attacks.some(a => a.equals(enemyKing.pos))) {
+            score += 500;
+          }
+        }
+      }
+    }
+  }
+  
+  // 6. ZUGZWANG / OPPOSITION
+  if (aliveFactions.length === 2 && totalPieces <= 6) {
+    const myKing = myPieces.find(p => p.type === 'king');
+    const otherFaction = enemyFactions[0];
+    const enemyKing = pieces.find(p => p.faction === otherFaction && p.type === 'king');
+    
+    if (myKing && enemyKing) {
+      const dist = myKing.pos.distance(enemyKing.pos);
+      if (dist % 2 === 1) score += 25;
+      else score -= 15;
+    }
+  }
+  
+  return score;
+}
+
 function evaluateBoard(game, faction) {
   const pieces = game.pieces.filter(p => p.alive);
   let score = 0;
@@ -263,6 +413,10 @@ function evaluateBoard(game, faction) {
   }
 
   score += evaluatePawnStructure(pieces, faction);
+
+  // 7. Endgame-specific evaluation
+  score += evaluateEndgame(game, pieces, faction);
+
   return score;
 }
 
