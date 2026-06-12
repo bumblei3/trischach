@@ -1,6 +1,6 @@
 import { BoardRenderer, FACTION_COLORS, FACTION } from './board.js';
 import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
-import { calculateBestMove, evaluateBoard } from './ai.js';
+import { calculateBestMove, evaluateBoard, setAIDepth } from './ai.js';
 import { sounds } from './sounds.js';
 
 const svg = document.getElementById('board-svg');
@@ -379,6 +379,16 @@ rpsToggle.addEventListener('change', (e) => {
 
 soundToggle.addEventListener('change', (e) => {
   sounds.toggle(e.target.checked);
+});
+
+// AI Difficulty Slider
+const depthSlider = document.getElementById('depth-slider');
+const depthLabel = document.getElementById('depth-label');
+const depthNames = { 1: 'Leicht', 2: 'Mittel', 3: 'Schwer', 4: 'Extrem' };
+depthSlider.addEventListener('input', (e) => {
+  const depth = parseInt(e.target.value);
+  setAIDepth(depth);
+  depthLabel.textContent = 'KI: ' + depthNames[depth];
 });
 
 let currentBoardRotation = 0;

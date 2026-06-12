@@ -1,6 +1,9 @@
 import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
 import { Hex } from './hex.js';
+import { isKingdomCheck } from './game-check.js';
+
+const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 // ─── Configuration ──────────────────────────────────────────────────
 
@@ -151,12 +154,69 @@ function evaluateBoard(game, faction) {
     if (rps === 'advantage') score += 20;
   }
 
-  // 6. Pawn advancement
-  for (const p of pieces) {
-    if (p.type !== 'pawn') continue;
-    const pv = p.faction === faction ? 1 : -1;
-    if (p.r <= 0) score += pv * 15;
-    else if (p.r <= 2) score += pv * 5;
+  // 6. Pawn structure analysis
+  score += evaluatePawnStructure(pieces, faction);
+
+  return score;
+}
+
+/**
+ * Evaluate pawn structure for a given faction.
+ * Checks for doubled, isolated, and connected pawns.
+ * Returns score in centipawns (positive = good for faction).
+ */
+function evaluatePawnStructure(pieces, faction) {
+  const pawns = pieces.filter(p => p.type === 'pawn');
+  const myPawns = pawns.filter(p => p.faction === faction);
+  const enemyPawns = pawns.filter(p => p.faction !== faction);
+  let score = 0;
+
+  // Pawn advancement (existing logic, refined)
+  for (const p of myPawns) {
+    if (p.r <= 0) score += 15;
+    else if (p.r <= 2) score += 5;
+    else if (p.r <= 4) score += 2;
+  }
+  for (const p of enemyPawns) {
+    if (p.r <= 0) score -= 15;
+    else if (p.r <= 2) score -= 5;
+    else if (p.r <= 4) score -= 2;
+  }
+
+  // Doubled pawns: penalty for multiple pawns in same column (q)
+  const myColumnCounts = {};
+  const enemyColumnCounts = {};
+  for (const p of myPawns) { myColumnCounts[p.q] = (myColumnCounts[p.q] || 0) + 1; }
+  for (const p of enemyPawns) { enemyColumnCounts[p.q] = (enemyColumnCounts[p.q] || 0) + 1; }
+  for (const q in myColumnCounts) {
+    if (myColumnCounts[q] > 1) score -= (myColumnCounts[q] - 1) * 10;
+  }
+  for (const q in enemyColumnCounts) {
+    if (enemyColumnCounts[q] > 1) score += (enemyColumnCounts[q] - 1) * 10;
+  }
+
+  // Isolated pawns: no friendly pawn on adjacent columns (q-1 or q+1)
+  for (const p of myPawns) {
+    const hasNeighbor = myPawns.some(other => other !== p && Math.abs(other.q - p.q) <= 1);
+    if (!hasNeighbor) score -= 8;
+  }
+  for (const p of enemyPawns) {
+    const hasNeighbor = enemyPawns.some(other => other !== p && Math.abs(other.q - p.q) <= 1);
+    if (!hasNeighbor) score += 8;
+  }
+
+  // Connected pawns: friendly pawn on adjacent column at same or nearby row
+  for (const p of myPawns) {
+    const hasConnected = myPawns.some(other =>
+      other !== p && Math.abs(other.q - p.q) <= 1 && Math.abs(other.r - p.r) <= 1
+    );
+    if (hasConnected) score += 5;
+  }
+  for (const p of enemyPawns) {
+    const hasConnected = enemyPawns.some(other =>
+      other !== p && Math.abs(other.q - p.q) <= 1 && Math.abs(other.r - p.r) <= 1
+    );
+    if (hasConnected) score -= 5;
   }
 
   return score;
@@ -299,6 +359,32 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   // limited depth to avoid the "horizon effect".
   if (depth <= 0) {
     return quiesce(game, alpha, beta, maximizingFaction, currentFaction);
+  }
+
+  // Null-Move Pruning: if the current player has more than just the king,
+  // try passing the turn. If the position is still good enough for a beta
+  // cutoff, prune the tree. Uses R=2 reduction.
+  const NULL_MOVE_R = 2;
+  const canNullMove =
+    depth >= (NULL_MOVE_R + 1) &&
+    currentFaction === maximizingFaction &&
+    game.getAlivePieces().filter(p => p.faction === currentFaction).length > 1;
+
+  if (canNullMove && !isKingdomCheck(game, currentFaction)) {
+    // Make null move by advancing the turn without moving
+    const savedIdx = game.currentFactionIdx;
+    game._nextTurn();
+    const nullResult = minimax(
+      game, depth - 1 - NULL_MOVE_R, -beta, -beta + 1,
+      maximizingFaction, game.currentFaction
+    );
+    // Undo null move: restore turn
+    game.currentFactionIdx = savedIdx;
+    game.currentFaction = TURN_ORDER[savedIdx];
+
+    if (!nullResult.timeout && nullResult.score >= beta) {
+      return { score: beta, action: null };
+    }
   }
 
   // Order moves: TT move > captures > killers > history > quiet
