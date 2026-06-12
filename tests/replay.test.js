@@ -916,9 +916,8 @@ describe('Replay: Export/Import Helpers', () => {
     const mockCreateObjectURL = vi.fn(() => 'blob:test');
     const mockRevokeObjectURL = vi.fn();
     
-    global.URL.createObjectURL = mockCreateObjectURL;
-    global.URL.revokeObjectURL = mockRevokeObjectURL;
-    global.document.createElement = mockCreateElement;
+    vi.stubGlobal('URL', { createObjectURL: mockCreateObjectURL, revokeObjectURL: mockRevokeObjectURL });
+    vi.stubGlobal('document', { createElement: mockCreateElement });
     
     downloadGame(game);
     
@@ -926,9 +925,7 @@ describe('Replay: Export/Import Helpers', () => {
     expect(mockClick).toHaveBeenCalled();
     expect(mockRevokeObjectURL).toHaveBeenCalled();
     
-    delete global.URL.createObjectURL;
-    delete global.URL.revokeObjectURL;
-    delete global.document.createElement;
+    vi.unstubAllGlobals();
   });
 
   // Skip: vitest spy doesn't work with named exports from async imports
@@ -939,15 +936,13 @@ describe('Replay: Export/Import Helpers', () => {
     const serializeSpy = vi.spyOn(await import('../js/replay.js'), 'serializeGame').mockReturnValue('mocked tspn');
     
     // Mock navigator.clipboard.writeText (may not work in test env)
-    Object.defineProperty(global.navigator, 'clipboard', {
-      value: { writeText: vi.fn().mockResolvedValue(undefined) },
-      configurable: true,
-    });
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
     
     await copyGameToClipboard(game);
     expect(serializeSpy).toHaveBeenCalledWith(game);
     
     serializeSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 
   test('loadGameFromFile reads and parses', async () => {
@@ -963,13 +958,13 @@ describe('Replay: Export/Import Helpers', () => {
       readAsText: vi.fn(function() { this.onload({ target: { result: tspnContent } }); }),
     };
     
-    global.FileReader = vi.fn(() => mockReader);
+    vi.stubGlobal('FileReader', vi.fn(() => mockReader));
     
     const result = await loadGameFromFile(mockFile);
     expect(result.headers.Event).toBe('Test');
     expect(result.moves.length).toBe(1);
     
-    delete global.FileReader;
+    vi.unstubAllGlobals();
   });
 
   test('loadGameFromString parses TSPN string', () => {
