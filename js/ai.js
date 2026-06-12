@@ -6,6 +6,47 @@ import { pickBookMove, buildOpeningBook, inBook } from './opening-book.js';
 
 const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
+// ─── Dynamic Piece Values (RPS-aware) ────────────────────────────────
+/**
+ * Piece values adjusted for RPS matchups.
+ * Base values from PIECE_STRENGTH, multiplied by RPS factor:
+ * - Advantage (we beat them): 1.3x
+ * - Neutral (same faction): 1.0x
+ * - Disadvantage (they beat us): 0.7x
+ * King is always high value (game-ending).
+ */
+const RPS_VALUE_MULTIPLIER = {
+  advantage: 1.3,  // Our pieces worth more vs faction we beat
+  neutral: 1.0,    // Normal value vs same faction
+  disadvantage: 0.7, // Our pieces worth less vs faction that beats us
+};
+
+function getDynamicPieceValue(pieceType, attackingFaction, defendingFaction) {
+  const baseValue = PIECE_STRENGTH[pieceType];
+  if (pieceType === 'king') return baseValue * 100; // King always high
+  
+  const rps = getRPSResult(attackingFaction, defendingFaction);
+  return baseValue * RPS_VALUE_MULTIPLIER[rps];
+}
+
+/**
+ * Get dynamic piece value for material evaluation from perspective of `faction`.
+ * When evaluating our pieces vs enemy faction, use RPS multiplier.
+ * When evaluating enemy pieces vs our faction, use inverse RPS multiplier.
+ */
+function getMaterialValue(piece, perspectiveFaction) {
+  const baseValue = PIECE_STRENGTH[piece.type];
+  if (piece.type === 'king') return baseValue * 100;
+  
+  const rps = getRPSResult(perspectiveFaction, piece.faction);
+  // From our perspective: if we beat them (advantage), their pieces are easier to capture = lower value
+  // If they beat us (disadvantage), their pieces are more dangerous = higher value
+  const multiplier = rps === 'advantage' ? 0.85 : (rps === 'disadvantage' ? 1.15 : 1.0);
+  return baseValue * multiplier;
+}
+
+const PIECE_STRENGTH_DYNAMIC = {}; // Cache for dynamic values if needed
+
 // ─── Configuration ──────────────────────────────────────────────────
 
 let MAX_DEPTH = 3;
@@ -95,9 +136,9 @@ function evaluateBoard(game, faction) {
   const pieces = game.getAlivePieces();
   let score = 0;
 
-  // 1. Material balance
+  // 1. Material balance (RPS-aware)
   for (const p of pieces) {
-    const val = PIECE_STRENGTH[p.type] * 10;
+    const val = getMaterialValue(p, faction) * 10;
     score += (p.faction === faction ? val : -val);
   }
 

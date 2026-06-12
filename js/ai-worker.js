@@ -19,6 +19,43 @@ import { pickBookMove, buildOpeningBook, inBook } from './opening-book.js';
 
 const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
+// ─── Dynamic Piece Values (RPS-aware) ────────────────────────────────
+/**
+ * Piece values adjusted for RPS matchups.
+ * Base values from PIECE_STRENGTH, multiplied by RPS factor:
+ * - Advantage (we beat them): 1.3x
+ * - Neutral (same faction): 1.0x
+ * - Disadvantage (they beat us): 0.7x
+ * King is always high value (game-ending).
+ */
+const RPS_VALUE_MULTIPLIER = {
+  advantage: 1.3,
+  neutral: 1.0,
+  disadvantage: 0.7,
+};
+
+function getDynamicPieceValue(pieceType, attackingFaction, defendingFaction) {
+  const baseValue = PIECE_STRENGTH[pieceType];
+  if (pieceType === 'king') return baseValue * 100;
+  
+  const rps = getRPSResult(attackingFaction, defendingFaction);
+  return baseValue * RPS_VALUE_MULTIPLIER[rps];
+}
+
+/**
+ * Get dynamic piece value for material evaluation from perspective of `faction`.
+ */
+function getMaterialValue(piece, perspectiveFaction) {
+  const baseValue = PIECE_STRENGTH[piece.type];
+  if (piece.type === 'king') return baseValue * 100;
+  
+  const rps = getRPSResult(perspectiveFaction, piece.faction);
+  const multiplier = rps === 'advantage' ? 0.85 : (rps === 'disadvantage' ? 1.15 : 1.0);
+  return baseValue * multiplier;
+}
+
+const PIECE_STRENGTH_DYNAMIC = {};
+
 let MAX_DEPTH = 3;
 const TIME_LIMIT_MS = 5000;
 
@@ -125,9 +162,9 @@ function evaluateBoard(game, faction) {
   const pieces = game.pieces.filter(p => p.alive);
   let score = 0;
 
-  // Material
+  // Material (RPS-aware)
   for (const p of pieces) {
-    const val = PIECE_STRENGTH[p.type] * 10;
+    const val = getMaterialValue(p, faction) * 10;
     score += (p.faction === faction ? val : -val);
   }
 
