@@ -20,7 +20,6 @@ import {
   getDynamicPieceValue,
   getMaterialValue,
   calculateTimeBudget,
-  MAX_DEPTH,
   TIME_LIMIT_MS,
   AI_PERSONALITIES,
   getPersonalityWeights,
@@ -45,6 +44,7 @@ import {
   greedyBestMove,
   calculateBestMove,
   deserializeGame,
+  setAIDepth,
 } from './ai-core.js';
 
 // Re-export for unit testing (coverage)
@@ -54,7 +54,6 @@ export {
   getDynamicPieceValue,
   getMaterialValue,
   calculateTimeBudget,
-  MAX_DEPTH,
   TIME_LIMIT_MS,
   AI_PERSONALITIES,
   getPersonalityWeights,
@@ -91,7 +90,7 @@ self.onmessage = function(e) {
   if (type === 'calculate') {
     // Reconstruct game object from serialized state
     const game = deserializeGame(gameState);
-    if (depth !== undefined) MAX_DEPTH = depth;
+    if (depth !== undefined) setAIDepth(depth);
     
     const move = calculateBestMove(game, faction);
     
@@ -110,7 +109,7 @@ self.onmessage = function(e) {
       self.postMessage({ type: 'result', move: null });
     }
   } else if (type === 'setDepth') {
-    MAX_DEPTH = depth;
+    setAIDepth(depth);
   } else if (type === 'setPersonality') {
     // depth parameter carries personality name
     _workerPersonality = depth; 

@@ -178,7 +178,6 @@ export function getPersonalities() {
   }));
 }
 
-export { AI_PERSONALITIES };
 
 // ─── Transposition Table ──────────────────────────────────────────
 
