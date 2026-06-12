@@ -6,7 +6,7 @@
  * Format: TSPN (TriSchach Portable Notation)
  * - Header tags: [Event "..."] [Site "..."] [Date "..."] [Round "..."] 
  *   [White "Fire"] [Black "Water"] [Green "Nature"] [Result "..."] [RPS "on|off"]
- * - Moves: 1. fire_pawn_10 e4 2. water_pawn_25 e5 3. nature_pawn_40 e6 ...
+ * - Moves: 1. fire_Pawn_-4,5 water_Pawn_0,2 2. nature_Pawn_-1,1 fire_Pawn_-4,4 ...
  *   Format: <moveNumber>. <faction>_<pieceId> <targetCoord> [<rpsResult>] [<special>]
  *   Special: =Q (promotion), x (capture), # (checkmate), + (check), !? (annotations)
  */
@@ -110,9 +110,9 @@ function formatMove(move, game, moveIndex) {
     notation += ` ${rpsSymbol}`;
   }
   
-  // Add capture indicator
+  // Add capture indicator (use _x_ before coordinates for clear parsing)
   if (move.action === 'combat') {
-    notation = notation.replace('_', 'x');
+    notation = notation.replace(`_${coord}`, `_x_${coord}`);
   }
   
   // Add promotion
@@ -243,11 +243,71 @@ function parseMoveText(text) {
 
 /**
  * Parse a single move token.
- * Format: faction_PieceName_q,r [><=] [=Q] [#+] [comments]
+ * Format: faction_PieceName[_x]_q,r [><=] [=Q] [#+] [comments]
+ * Examples:
+ *   fire_Pawn_-4,5
+ *   water_Pawn_x_-6,7 >
+ *   nature_Pawn_-1,1 =
+ *   fire_Pawn_0,0 =Q+
  */
-function parseMoveToken(token) {
-  // Simple parser - in practice, moves are replayed by re-executing
-  return { san: token }; // Standard Algebraic Notation (our variant)
+export function parseMoveToken(token) {
+  // Pattern: faction_PieceName[_x]_q,r [><=] [=Q] [#+] [comments]
+  // Capture groups: faction, pieceName, isCapture, coord, rpsSymbol, promotion, check, comment
+  
+  // Remove trailing comments [...]
+  const cleanToken = token.replace(/\s*\[.*?\]\s*$/, '');
+  
+  // Handle promotions without coordinates first
+  const promoMatch = cleanToken.match(/^(\w+)_(.+?)_Promotion=Q$/);
+  if (promoMatch) {
+    return {
+      san: cleanToken,
+      raw: token,
+      faction: promoMatch[1],
+      pieceName: promoMatch[2].toLowerCase(),
+      target: null,
+      rpsResult: null,
+      promotion: true,
+      promotionType: 'queen',
+      check: false,
+      checkmate: false,
+      isCapture: false,
+    };
+  }
+  
+  // Match: faction_PieceName(optional _x)_q,r [><=] [=Q] [#+]
+  // faction is letters, then _, piece name, optional _x for capture, then _, coords
+  const match = cleanToken.match(/^(\w+)_(.+?)(?:_x)?_([+-]?\d+,[+-]?\d+)([<=>=]?)(=Q)?([#+]?)?$/);
+  
+  if (!match) {
+    // Fallback for simple notation without coordinates
+    return { san: token, raw: token };
+  }
+  
+  const [, faction, pieceName, coord, rpsSymbol, promotion, check] = match;
+  const [q, r] = coord.split(',').map(Number);
+  
+  const rpsResult = rpsSymbol === '>' ? 'advantage' : 
+                    rpsSymbol === '<' ? 'disadvantage' : 
+                    rpsSymbol === '=' ? 'neutral' : null;
+  
+  // Check if this is a capture (has _x before coordinates)
+  const fullMatch = cleanToken.match(/^(\w+)_(.+?)_x_([+-]?\d+,[+-]?\d+)/);
+  const isCapture = !!fullMatch;
+  
+  return {
+    san: cleanToken,
+    raw: token,
+    faction,
+    pieceName: pieceName.toLowerCase(),
+    target: { q: parseInt(q), r: parseInt(r) },
+    rpsResult,
+    promotion: !!promotion,
+    promotionType: promotion ? 'queen' : null,
+    check: check === '+',
+    checkmate: check === '#',
+    isCapture,
+  };
 }
 
 // ─── Replay Engine ────────────────────────────────────────────────────────
@@ -283,11 +343,101 @@ export function* replayGame(initialGame, moveHistory) {
 }
 
 /**
+ * Create a replay controller for UI interaction.
+ * Provides step-by-step control over replay.
+ */
+export class ReplayController {
+  constructor(initialGame, moveHistory) {
+    this.initialGame = cloneGameForReplay(initialGame);
+    this.moveHistory = moveHistory;
+    this.currentIndex = -1;
+    this.states = [];
+    this.precomputeStates();
+  }
+  
+  precomputeStates() {
+    let game = cloneGameForReplay(this.initialGame);
+    this.states = [cloneGameState(game)];
+    
+    for (const move of this.moveHistory) {
+      if (move.piece && move.target) {
+        game.handleCellClick(move.piece.pos);
+        const result = game.handleCellClick(move.target);
+        
+        if (result.promotion && move.promotion) {
+          game.completePromotion(move.promotionType || 'queen');
+        }
+      }
+      this.states.push(cloneGameState(game));
+    }
+  }
+  
+  getCurrentState() {
+    return this.states[this.currentIndex + 1] || this.states[0];
+  }
+  
+  getCurrentMove() {
+    return this.moveHistory[this.currentIndex] || null;
+  }
+  
+  canGoForward() {
+    return this.currentIndex < this.moveHistory.length - 1;
+  }
+  
+  canGoBack() {
+    return this.currentIndex >= 0;
+  }
+  
+  next() {
+    if (this.canGoForward()) {
+      this.currentIndex++;
+      return this.getCurrentState();
+    }
+    return null;
+  }
+  
+  previous() {
+    if (this.canGoBack()) {
+      this.currentIndex--;
+      return this.getCurrentState();
+    }
+    return null;
+  }
+  
+  goTo(index) {
+    if (index >= -1 && index < this.moveHistory.length) {
+      this.currentIndex = index;
+      return this.getCurrentState();
+    }
+    return null;
+  }
+  
+  goToStart() {
+    this.currentIndex = -1;
+    return this.getCurrentState();
+  }
+  
+  goToEnd() {
+    this.currentIndex = this.moveHistory.length - 1;
+    return this.getCurrentState();
+  }
+  
+  getTotalMoves() {
+    return this.moveHistory.length;
+  }
+  
+  getCurrentMoveNumber() {
+    return this.currentIndex + 1;
+  }
+}
+
+/**
  * Clone game for replay (immutable snapshot).
  */
 function cloneGameForReplay(game) {
-  // This would need Game constructor - simplified for now
-  return game; // In practice, create fresh Game and replay moves
+  // Create a fresh game and replay all moves
+  // For now, return the game - in practice would create fresh Game instance
+  return game;
 }
 
 /**
@@ -315,6 +465,23 @@ function cloneGameState(game) {
     },
     moveHistory: game.moveHistory,
   };
+}
+
+/**
+ * Reconstruct a game from TSPN headers and moves.
+ * Creates a fresh Game instance and replays all moves.
+ */
+export function reconstructGameFromTSPN(parsedTSPN, GameClass, boardCells) {
+  const game = new GameClass();
+  game.init(boardCells);
+  
+  // Apply RPS setting from headers
+  const rpsHeader = parsedTSPN.headers?.RPS?.toLowerCase();
+  game.rpsEnabled = rpsHeader !== 'off';
+  
+  const controller = new ReplayController(game, parsedTSPN.moves);
+  
+  return { game, controller };
 }
 
 // ─── Export/Import Helpers ────────────────────────────────────────────────

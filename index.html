@@ -94,6 +94,20 @@
           <button id="load-btn" title="Spiel aus .tspn laden">📂 Laden</button>
           <button id="copy-btn" title="Spiel in Zwischenablage kopieren">📋 Kopieren</button>
         </div>
+        <div id="replay-controls" class="controls replay-controls" style="display:none; margin-top: 0.5rem;">
+          <div class="rps-toggle-container replay-btn-group">
+            <button id="replay-first" title="Zum Anfang">⏮</button>
+            <button id="replay-prev" title="Zurück">⏪</button>
+            <button id="replay-play" title="Abspielen">▶️</button>
+            <button id="replay-pause" title="Pause" style="display:none">⏸️</button>
+            <button id="replay-next" title="Vorwärts">⏩</button>
+            <button id="replay-last" title="Zum Ende">⏭</button>
+          </div>
+          <div class="rps-toggle-container replay-info">
+            <span id="replay-move-info">Zug 0 / 0</span>
+            <input type="range" id="replay-speed" min="0.5" max="3" step="0.25" value="1" style="width:80px">
+          </div>
+        </div>
       </section>
 
       <aside id="sidebar-right" class="sidebar">

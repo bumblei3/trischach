@@ -3,7 +3,7 @@ import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
 import { calculateBestMove, evaluateBoard, setAIDepth, setAIPersonality, getAIPersonalities } from './ai.js';
 import { sounds } from './sounds.js';
 import { buildOpeningBook } from './opening-book.js';
-import { serializeGame, downloadGame, copyGameToClipboard, loadGameFromFile, parseTSPN } from './replay.js';
+import { serializeGame, downloadGame, copyGameToClipboard, loadGameFromFile, parseTSPN, reconstructGameFromTSPN, ReplayController } from './replay.js';
 
 // ─── Settings Persistence (localStorage) ────────────────────────────────
 const STORAGE_KEY = 'trischach-settings';
@@ -632,8 +632,46 @@ fileInput.addEventListener('change', async (e) => {
   try {
     const parsed = await loadGameFromFile(file);
     console.log('Loaded game:', parsed.headers);
-    // TODO: Implement full replay loading - for now just log
-    alert(`Spiel geladen: ${parsed.headers.Event || 'Unbenannt'}\nZüge: ${parsed.moves.length}`);
+    
+    // Reconstruct game from TSPN
+    const { game: replayGame, controller: replayController } = reconstructGameFromTSPN(parsed, Game, renderer.cells);
+    
+    // Stop any running auto-battle
+    autoBattleActive = false;
+    autoBattleBtn.textContent = '🤖 Auto Battle';
+    autoBattleBtn.classList.remove('active');
+    clearTimeout(autoBattleTimer);
+    
+    // Replace current game with replay game
+    Object.assign(game, replayGame);
+    game._undoStack = [];
+    
+    // Set up replay controller
+    window.replayController = replayController;
+    
+    // Re-render board
+    const boardGroup = document.getElementById('board-group');
+    boardGroup.querySelectorAll('.piece').forEach(el => el.remove());
+    renderer.pieceElements.clear();
+    for (const p of game.getAlivePieces()) renderer.renderPiece(p);
+    
+    // Clear move log and rebuild from replay
+    moveLogEl.innerHTML = '';
+    for (const move of parsed.moves) {
+      // Add simplified notation to move log
+      const entry = document.createElement('div');
+      entry.className = `move-entry ${move.faction}`;
+      entry.textContent = `${move.faction} ${move.san}`;
+      moveLogEl.appendChild(entry);
+    }
+    
+    // Show replay controls
+    showReplayControls();
+    updateReplayUI();
+    
+    // Update UI
+    updateUI();
+    
   } catch (err) {
     console.error('Load failed:', err);
     alert('Fehler beim Laden: ' + err.message);
@@ -641,6 +679,195 @@ fileInput.addEventListener('change', async (e) => {
   
   // Reset file input
   fileInput.value = '';
+});
+
+// Replay controls
+let replayPlayTimer = null;
+
+function showReplayControls() {
+  const replayControls = document.getElementById('replay-controls');
+  if (replayControls) replayControls.style.display = 'flex';
+}
+
+function hideReplayControls() {
+  const replayControls = document.getElementById('replay-controls');
+  if (replayControls) replayControls.style.display = 'none';
+}
+
+function updateReplayUI() {
+  const controller = window.replayController;
+  if (!controller) return;
+  
+  const moveInfo = document.getElementById('replay-move-info');
+  if (moveInfo) {
+    const moveNum = controller.getCurrentMoveNumber();
+    const total = controller.getTotalMoves();
+    moveInfo.textContent = `Zug ${moveNum} / ${total}`;
+  }
+  
+  const isAtEnd = !controller.canGoForward();
+  const isAtStart = !controller.canGoBack();
+  
+  const replayFirst = document.getElementById('replay-first');
+  const replayPrev = document.getElementById('replay-prev');
+  const replayNext = document.getElementById('replay-next');
+  const replayLast = document.getElementById('replay-last');
+  const replayPlay = document.getElementById('replay-play');
+  const replayPause = document.getElementById('replay-pause');
+  
+  if (replayFirst) replayFirst.disabled = isAtStart;
+  if (replayPrev) replayPrev.disabled = isAtStart;
+  if (replayNext) replayNext.disabled = isAtEnd;
+  if (replayLast) replayLast.disabled = isAtEnd;
+  if (replayPlay) replayPlay.style.display = isAtEnd ? 'none' : 'inline-block';
+  if (replayPause) replayPause.style.display = 'none';
+  
+  // Update move log highlight
+  const moveEntries = moveLogEl.querySelectorAll('.move-entry');
+  moveEntries.forEach((entry, index) => {
+    entry.classList.toggle('current-move', index === window.replayController?.getCurrentMoveNumber() - 1);
+  });
+}
+
+function replayStep(delta) {
+  const controller = window.replayController;
+  if (!controller) return;
+  
+  if (delta > 0) controller.next();
+  else controller.previous();
+  
+  // Apply state to game
+  const state = controller.getCurrentState();
+  if (state) applyGameState(state);
+  
+  updateReplayUI();
+}
+
+function replayPlay() {
+  stopReplayPlay();
+  const controller = window.replayController;
+  if (!controller || !controller.canGoForward()) return;
+  
+  const replayPlay = document.getElementById('replay-play');
+  const replayPause = document.getElementById('replay-pause');
+  if (replayPlay) replayPlay.style.display = 'none';
+  if (replayPause) replayPause.style.display = 'inline-block';
+  
+  const speed = parseFloat(document.getElementById('replay-speed')?.value || '1');
+  const delay = 1000 / speed;
+  
+  replayPlayTimer = setInterval(() => {
+    const controller = window.replayController;
+    if (!controller || !controller.canGoForward()) {
+      stopReplayPlay();
+      return;
+    }
+    controller.next();
+    const state = controller.getCurrentState();
+    if (state) applyGameState(state);
+    updateReplayUI();
+  }, delay);
+}
+
+function stopReplayPlay() {
+  if (replayPlayTimer) {
+    clearInterval(replayPlayTimer);
+    replayPlayTimer = null;
+  }
+  const replayPlay = document.getElementById('replay-play');
+  const replayPause = document.getElementById('replay-pause');
+  if (replayPlay) replayPlay.style.display = 'inline-block';
+  if (replayPause) replayPause.style.display = 'none';
+}
+
+function applyGameState(state) {
+  // Clear current pieces
+  const boardGroup = document.getElementById('board-group');
+  if (boardGroup) {
+    boardGroup.querySelectorAll('.piece').forEach(el => el.remove());
+  }
+  renderer.pieceElements.clear();
+  
+  // Apply pieces
+  for (const p of state.pieces) {
+    if (p.alive) {
+      const piece = game.pieces.find(piece => piece.id === p.id);
+      if (piece) {
+        Object.assign(piece, p);
+        renderer.renderPiece(piece);
+      }
+    }
+  }
+  
+  // Update game state
+  game.currentFaction = state.currentFaction;
+  game.currentFactionIdx = state.currentFactionIdx;
+  game.state = state.state;
+  game.eliminatedFactions = new Set(state.eliminatedFactions);
+  game.capturedPieces = {
+    fire: state.capturedPieces.fire.map(id => game.pieces.find(p => p.id === id)).filter(Boolean),
+    water: state.capturedPieces.water.map(id => game.pieces.find(p => p.id === id)).filter(Boolean),
+    nature: state.capturedPieces.nature.map(id => game.pieces.find(p => p.id === id)).filter(Boolean),
+  };
+  
+  // Update UI
+  for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+    const el = document.getElementById(`panel-${fac}`);
+    if (el && state.eliminatedFactions?.includes(fac)) {
+      el.classList.add('eliminated');
+    } else if (el) {
+      el.classList.remove('eliminated');
+    }
+  }
+  
+  updateUI();
+}
+
+// Replay controls event listeners
+const replayFirst = document.getElementById('replay-first');
+const replayPrev = document.getElementById('replay-prev');
+const replayPlayBtn = document.getElementById('replay-play');
+const replayPauseBtn = document.getElementById('replay-pause');
+const replayNext = document.getElementById('replay-next');
+const replayLast = document.getElementById('replay-last');
+const replaySpeed = document.getElementById('replay-speed');
+
+if (replayFirst) replayFirst.addEventListener('click', () => {
+  window.replayController?.goToStart();
+  applyGameState(window.replayController.getCurrentState());
+  updateReplayUI();
+});
+
+if (replayPrev) replayPrev.addEventListener('click', () => {
+  window.replayController?.previous();
+  applyGameState(window.replayController.getCurrentState());
+  updateReplayUI();
+});
+
+if (replayPlayBtn) replayPlayBtn.addEventListener('click', () => {
+  replayPlay();
+});
+
+if (replayPauseBtn) replayPauseBtn.addEventListener('click', () => {
+  stopReplayPlay();
+});
+
+if (replayNext) replayNext.addEventListener('click', () => {
+  window.replayController?.next();
+  applyGameState(window.replayController.getCurrentState());
+  updateReplayUI();
+});
+
+if (replayLast) replayLast.addEventListener('click', () => {
+  window.replayController?.goToEnd();
+  applyGameState(window.replayController.getCurrentState());
+  updateReplayUI();
+});
+
+if (replaySpeed) replaySpeed.addEventListener('input', () => {
+  if (replayPlayTimer) {
+    replayPlay();
+  }
 });
 
 // Personality selector
