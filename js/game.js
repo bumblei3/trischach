@@ -1,8 +1,10 @@
 import { FACTION, getRPSResult, FACTION_COLORS } from './board.js';
 import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.js';
 import { Hex } from './hex.js';
+import { isKingdomCheck, legalMoveCheck, isCheckmateInternal, isStalemateInternal } from './game-check.js';
 
-// ─── Check / Checkmate Detection ─────────────────────────────────────
+// Re-export for backwards compatibility
+export { isKingdomCheck as isKingInCheck, legalMoveCheck as wouldBeInCheck, isCheckmateInternal as isCheckmate, isStalemateInternal as isStalemate };
 
 export const GAME_STATE = {
   SELECT_PIECE: 'select_piece',
@@ -76,93 +78,34 @@ export class Game {
     }
   }
 
-  /**
-   * Check if the king of `faction` is currently in check.
-   * Returns true if any enemy piece can attack the king's position.
-   */
   isKingInCheck(faction) {
-    const king = this.pieces.find(p => p.faction === faction && p.type === PIECE_TYPE.KING && p.alive);
-    if (!king) return false; // King already captured (shouldn't happen normally)
-
-    const enemies = this.pieces.filter(p => p.faction !== faction && p.alive);
-    for (const enemy of enemies) {
-      const { attacks } = getValidMoves(enemy, this.boardCells, this._occupiedMap);
-      if (attacks.some(a => a.equals(king.pos))) return true;
-    }
-    return false;
+    return isKingdomCheck(this, faction);
   }
 
-  /**
-   * Check if making a move would leave `faction`'s king in check.
-   * Simulates the move, checks, then undoes.
-   * @returns {boolean}
-   */
-  wouldBeInCheck(piece, target, faction) {
-    const savedIdx = this.currentFactionIdx;
-    const undo = this.simulateMove(piece, target);
-    // simulateMove advances the turn via _nextTurn, so check with original idx
-    this.currentFactionIdx = undo.prevFactionIdx;
-    this._rebuildOccupiedMap();
-    const inCheck = this.isKingInCheck(faction);
-    this.currentFactionIdx = savedIdx;
-    this._rebuildOccupiedMap();
-    this.undoMove(undo);
-    this.currentFactionIdx = savedIdx;
-    this._rebuildOccupiedMap();
-    return inCheck;
-  }
-
-  /**
-   * Get all legal moves for a piece (excluding moves that leave own king in check).
-   */
   getLegalMoves(piece) {
     const { moves, attacks } = getValidMoves(piece, this.boardCells, this._occupiedMap);
     const legalMoves = [];
     const legalAttacks = [];
 
     for (const target of moves) {
-      if (!this.wouldBeInCheck(piece, target, piece.faction)) {
+      if (legalMoveCheck(this, piece, target, piece.faction)) {
         legalMoves.push(target);
       }
     }
     for (const target of attacks) {
-      if (!this.wouldBeInCheck(piece, target, piece.faction)) {
+      if (legalMoveCheck(this, piece, target, piece.faction)) {
         legalAttacks.push(target);
       }
     }
     return { moves: legalMoves, attacks: legalAttacks };
   }
 
-
-  /**
-   * Check if `faction` is in checkmate.
-   * Conditions: in check + no legal moves for any piece.
-   */
   isCheckmate(faction) {
-    if (!this.isKingInCheck(faction)) return false;
-    return !this._hasLegalMoves(faction);
+    return isCheckmateInternal(this, faction);
   }
 
-
-  /**
-   * Check if `faction` is in stalemate.
-   * Conditions: NOT in check + no legal moves for any piece.
-   */
   isStalemate(faction) {
-    if (this.isKingInCheck(faction)) return false;
-    return !this._hasLegalMoves(faction);
-  }
-
-  /**
-   * Check if `faction` has any legal moves at all.
-   */
-  _hasLegalMoves(faction) {
-    const myPieces = this.pieces.filter(p => p.faction === faction && p.alive);
-    for (const piece of myPieces) {
-      const { moves, attacks } = this.getLegalMoves(piece);
-      if (moves.length > 0 || attacks.length > 0) return true;
-    }
-    return false;
+    return isStalemateInternal(this, faction);
   }
 
   /**

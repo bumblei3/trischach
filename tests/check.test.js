@@ -1,5 +1,6 @@
 import { expect, test, describe, beforeEach } from 'vitest';
 import { Game } from '../js/game.js';
+import { legalMoveCheck } from '../js/game-check.js';
 import { FACTION, generateBoard } from '../js/board.js';
 import { Piece, PIECE_TYPE } from '../js/pieces.js';
 import { Hex } from '../js/hex.js';
@@ -66,9 +67,9 @@ describe('Check Detection', () => {
     game._rebuildOccupiedMap();
 
     // Moving king to (0,1) would put it in rook's line of attack
-    expect(game.wouldBeInCheck(fireKing, new Hex(0, 1), FACTION.FIRE)).toBe(true);
+    expect(legalMoveCheck(game, fireKing, new Hex(0, 1), FACTION.FIRE)).toBe(false);
     // Moving king to (1,0) is safe (rook attacks along r-axis)
-    expect(game.wouldBeInCheck(fireKing, new Hex(1, 0), FACTION.FIRE)).toBe(false);
+    expect(legalMoveCheck(game, fireKing, new Hex(1, 0), FACTION.FIRE)).toBe(true);
   });
 
   test('getLegalMoves excludes moves that leave king in check', () => {
