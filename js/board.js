@@ -165,11 +165,17 @@ export class BoardRenderer {
     txt.classList.add('piece-symbol');
     txt.textContent = piece.symbol;
     txt.style.transform = `rotate(${-this.currentRotation}deg)`;
-    txt.style.transformOrigin = '0 0'; // SVG origin is already at the piece's center due to group translation
+    txt.style.transformOrigin = '0 0';
     txt.style.transition = 'transform 0.5s ease';
     g.appendChild(txt);
-    document.getElementById('board-group').appendChild(g);
-    this.pieceElements.set(piece.id, g);
+
+    const boardGroup = document.getElementById('board-group');
+    if (boardGroup) {
+      boardGroup.appendChild(g);
+      this.pieceElements.set(piece.id, g);
+    } else {
+      console.warn('board-group not found, piece not rendered');
+    }
   }
 
   removePiece(id) {

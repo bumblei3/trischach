@@ -968,7 +968,8 @@ self.onmessage = function(e) {
   } else if (type === 'setDepth') {
     MAX_DEPTH = depth;
   } else if (type === 'initBook') {
-    buildOpeningBook(function() {});
+    // Don't build opening book in worker - piece IDs won't match main thread
+    // Worker will use greedy/minimax directly (fast enough for early game)
     _bookBuilt = true;
     self.postMessage({ type: 'bookReady' });
   }

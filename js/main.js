@@ -132,8 +132,19 @@ function initAIWorker() {
 function calculateBestMoveWorker(game, faction) {
   return new Promise((resolve) => {
     if (!aiWorker || !workerReady) {
-      // Fallback to main thread
-      resolve(calculateBestMove(game, faction));
+      // Fallback to main thread - convert to worker format
+      const move = calculateBestMove(game, faction);
+      if (move) {
+        resolve({
+          pieceId: move.piece.id,
+          targetQ: move.target.q,
+          targetR: move.target.r,
+          moveType: move.type,
+          rps: move.rps
+        });
+      } else {
+        resolve(null);
+      }
       return;
     }
     pendingWorkerCallback = resolve;
