@@ -3,6 +3,7 @@ import { Game, GAME_STATE, PROMOTION_CHOICES } from './game.js';
 import { calculateBestMove, evaluateBoard, setAIDepth } from './ai.js';
 import { sounds } from './sounds.js';
 import { buildOpeningBook } from './opening-book.js';
+import { serializeGame, downloadGame, copyGameToClipboard, loadGameFromFile, parseTSPN } from './replay.js';
 
 // ─── Settings Persistence (localStorage) ────────────────────────────────
 const STORAGE_KEY = 'trischach-settings';
@@ -81,6 +82,17 @@ const rpsToggle = document.getElementById('rps-toggle');
 const soundToggle = document.getElementById('sound-toggle');
 const rotateBtn = document.getElementById('rotate-btn');
 const moveLogEl = document.getElementById('move-log');
+
+const saveBtn = document.getElementById('save-btn');
+const loadBtn = document.getElementById('load-btn');
+const copyBtn = document.getElementById('copy-btn');
+
+// Hidden file input for loading
+const fileInput = document.createElement('input');
+fileInput.type = 'file';
+fileInput.accept = '.tspn,text/plain';
+fileInput.style.display = 'none';
+document.body.appendChild(fileInput);
 
 const renderer = new BoardRenderer(svg);
 const game = new Game();
@@ -570,6 +582,47 @@ restartBtn.addEventListener('click', () => {
   saveSettings({ ...loadSettings(), autoBattle: false });
   
   updateUI();
+});
+
+// Replay: Save game
+saveBtn.addEventListener('click', () => {
+  downloadGame(game, `trischach-${new Date().toISOString().slice(0,10)}.tspn`);
+});
+
+// Replay: Copy to clipboard
+copyBtn.addEventListener('click', async () => {
+  try {
+    await copyGameToClipboard(game);
+    copyBtn.textContent = '✅ Kopiert!';
+    setTimeout(() => { copyBtn.textContent = '📋 Kopieren'; }, 1500);
+  } catch (e) {
+    console.error('Copy failed:', e);
+    copyBtn.textContent = '❌ Fehler';
+    setTimeout(() => { copyBtn.textContent = '📋 Kopieren'; }, 1500);
+  }
+});
+
+// Replay: Load game file
+loadBtn.addEventListener('click', () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  try {
+    const parsed = await loadGameFromFile(file);
+    console.log('Loaded game:', parsed.headers);
+    // TODO: Implement full replay loading - for now just log
+    alert(`Spiel geladen: ${parsed.headers.Event || 'Unbenannt'}\nZüge: ${parsed.moves.length}`);
+  } catch (err) {
+    console.error('Load failed:', err);
+    alert('Fehler beim Laden: ' + err.message);
+  }
+  
+  // Reset file input
+  fileInput.value = '';
 });
 
 init();
