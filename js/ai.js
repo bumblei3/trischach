@@ -50,23 +50,30 @@ function evaluateBoard(game, faction) {
     score += (p.faction === faction ? val : -val);
   }
 
-  // 2. Positional bonus (center control + piece activity)
-  for (const p of pieces) {
+  // 2. Positional bonus: only evaluate mobility for own pieces (cheaper)
+  const myPieces = pieces.filter(p => p.faction === faction);
+  for (const p of myPieces) {
     const pst = PST_BONUS[p.type];
     if (!pst) continue;
     const pv = posValue(p.pos);
     const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
     const mobility = moves.length + attacks.length;
-    const bonus = pv * pst.center + mobility * pst.mobility;
-    score += (p.faction === faction ? bonus : -bonus);
+    score += pv * pst.center + mobility * pst.mobility;
+  }
+  // For enemy pieces, use a rough mobility estimate (cheap)
+  for (const p of pieces) {
+    if (p.faction === faction) continue;
+    const pv = posValue(p.pos);
+    score -= pv * 0.5; // Rough positional penalty for centralized enemies
   }
 
-  // 3. King safety
+  // 3. King safety: only check threats to our king
   const myKing = pieces.find(p => p.faction === faction && p.type === 'king');
   if (myKing) {
-    const enemyAttackers = pieces.filter(p => p.faction !== faction && p.alive);
+    // Quick threat check: count enemy pieces that can attack king's square
     let kingThreats = 0;
-    for (const enemy of enemyAttackers) {
+    for (const enemy of pieces) {
+      if (enemy.faction === faction || !enemy.alive) continue;
       const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
       if (attacks.some(a => a.equals(myKing.pos))) kingThreats++;
     }
@@ -75,7 +82,7 @@ function evaluateBoard(game, faction) {
     if (kingDist >= 6) score += 8;
   }
 
-  // 4. Threaten enemy kings
+  // 4. King threats: count pieces threatening enemy kings
   const enemyFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(f => f !== faction);
   for (const ef of enemyFactions) {
     if (game.eliminatedFactions.has(ef)) {
@@ -84,8 +91,7 @@ function evaluateBoard(game, faction) {
     }
     const eKing = pieces.find(p => p.faction === ef && p.type === 'king');
     if (eKing) {
-      const myAttackers = pieces.filter(p => p.faction === faction);
-      for (const attacker of myAttackers) {
+      for (const attacker of myPieces) {
         const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
         if (attacks.some(a => a.equals(eKing.pos))) score += 10;
       }
@@ -166,7 +172,7 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   }
 
   // Terminal conditions
-  if (depth === 0 || game.state === 'game_over') {
+  if (game.state === 'game_over') {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
 
@@ -174,6 +180,13 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
 
   if (actions.length === 0) {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
+  }
+
+  // Quiescence search: at depth 0, only evaluate if position is "quiet"
+  // (no high-value captures available). Otherwise, search captures to a
+  // limited depth to avoid the "horizon effect".
+  if (depth <= 0) {
+    return quiesce(game, alpha, beta, maximizingFaction, currentFaction);
   }
 
   let bestAction = actions[0];
@@ -228,6 +241,57 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   }
 
   return { score: bestScore, action: bestAction };
+}
+
+/**
+ * Quiescence search: searches capture chains beyond the normal depth limit
+ * to avoid the "horizon effect" where the AI misses obvious captures.
+ * Searches only attack moves (not quiet moves) to keep it fast.
+ * Limited to depth -4 (max 4 plies of quiescence).
+ */
+function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 0) {
+  // Stand pat: evaluate the current position
+  const standPat = evaluateBoard(game, maximizingFaction);
+
+  // Don't search too deep in quiescence
+  if (qDepth >= 4) {
+    return { score: standPat };
+  }
+
+  if (currentFaction === maximizingFaction) {
+    if (standPat >= beta) return { score: beta };
+    alpha = Math.max(alpha, standPat);
+
+    // Search only attacks (captures), sorted by value
+    const attackActions = getAllActions(game, currentFaction)
+      .filter(a => a.type === 'attack' && a.rps !== 'disadvantage');
+
+    for (const action of attackActions) {
+      const undo = game.simulateMove(action.piece, action.target);
+      const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
+      game.undoMove(undo);
+
+      if (result.score >= beta) return { score: beta };
+      alpha = Math.max(alpha, result.score);
+    }
+    return { score: alpha };
+  } else {
+    if (standPat <= alpha) return { score: alpha };
+    beta = Math.min(beta, standPat);
+
+    const attackActions = getAllActions(game, currentFaction)
+      .filter(a => a.type === 'attack' && a.rps !== 'disadvantage');
+
+    for (const action of attackActions) {
+      const undo = game.simulateMove(action.piece, action.target);
+      const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
+      game.undoMove(undo);
+
+      if (result.score <= alpha) return { score: alpha };
+      beta = Math.min(beta, result.score);
+    }
+    return { score: beta };
+  }
 }
 
 // ─── Iterative Deepening ────────────────────────────────────────────
