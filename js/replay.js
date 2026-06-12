@@ -85,7 +85,7 @@ export function serializeGame(game, options = {}) {
 /**
  * Format a single move for TSPN output.
  */
-function formatMove(move, game, moveIndex) {
+export function formatMove(move, game, moveIndex) {
   // Use 'to' for target position (move history uses 'to', not 'target')
   const target = move.to;
   
@@ -138,7 +138,7 @@ function formatMove(move, game, moveIndex) {
 /**
  * Get result string from game state.
  */
-function getResultString(game) {
+export function getResultString(game) {
   if (game.state !== 'game_over') return '*';
   
   const winner = game.moveHistory[game.moveHistory.length - 1]?.winner_faction;
@@ -156,14 +156,15 @@ function getResultString(game) {
 /**
  * Escape string for PGN header.
  */
-function escapePGN(str) {
+export function escapePGN(str) {
   return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, ' ');
 }
 
 /**
  * Wrap long line at maxLength.
+ * Keeps words intact - if a single word exceeds maxLength, it stays on its own line.
  */
-function wrapLine(line, maxLength) {
+export function wrapLine(line, maxLength) {
   if (line.length <= maxLength) return [line];
   
   const words = line.split(' ');
@@ -171,6 +172,16 @@ function wrapLine(line, maxLength) {
   let current = '';
   
   for (const word of words) {
+    // If a single word is longer than maxLength, put it on its own line
+    if (word.length > maxLength) {
+      if (current) {
+        lines.push(current.trim());
+        current = '';
+      }
+      lines.push(word);
+      continue;
+    }
+    
     if ((current + word).length > maxLength) {
       lines.push(current.trim());
       current = word + ' ';
@@ -223,19 +234,38 @@ export function parseTSPN(tspnString) {
 
 /**
  * Parse move text into structured move objects.
+ * Handles RPS symbols that are space-separated from moves.
  */
-function parseMoveText(text) {
+export function parseMoveText(text) {
   // Remove move numbers (1., 2., etc.)
   const cleaned = text.replace(/\d+\.\s*/g, '');
   const tokens = cleaned.split(/\s+/).filter(t => t);
   
   const moves = [];
-  for (const token of tokens) {
+  let i = 0;
+  
+  while (i < tokens.length) {
+    const token = tokens[i];
+    
+    // Skip comment annotations
     if (token.startsWith('[') && token.endsWith(']')) {
-      // Comment/elimination annotation
+      i++;
       continue;
     }
-    moves.push(parseMoveToken(token));
+    
+    // Check if next token is an RPS symbol (standalone > < =)
+    // If so, append it to current token for parseMoveToken
+    let fullToken = token;
+    if (i + 1 < tokens.length) {
+      const nextToken = tokens[i + 1];
+      if (nextToken === '>' || nextToken === '<' || nextToken === '=') {
+        fullToken = token + ' ' + nextToken;
+        i++; // consume RPS symbol
+      }
+    }
+    
+    moves.push(parseMoveToken(fullToken));
+    i++;
   }
   
   return moves;
@@ -254,17 +284,37 @@ export function parseMoveToken(token) {
   // Pattern: faction_PieceName[_x]_q,r [><=] [=Q] [#+] [comments]
   // Capture groups: faction, pieceName, isCapture, coord, rpsSymbol, promotion, check, comment
   
-  // Remove trailing comments [...]
+  // Remove trailing comments [...] - but save for raw
   const cleanToken = token.replace(/\s*\[.*?\]\s*$/, '');
   
   // Handle promotions without coordinates first
-  const promoMatch = cleanToken.match(/^(\w+)_(.+?)_Promotion=Q$/);
+  // Format: faction_PieceName_Promotion=Q OR faction_Promotion=Q
+  const promoMatch = cleanToken.match(/^([a-zA-Z]+)_(.+?)_Promotion=Q$/);
   if (promoMatch) {
+    const pieceName = promoMatch[2].toLowerCase();
     return {
       san: cleanToken,
       raw: token,
       faction: promoMatch[1],
-      pieceName: promoMatch[2].toLowerCase(),
+      pieceName: pieceName === 'promotion' ? 'promotion' : pieceName,
+      target: null,
+      rpsResult: null,
+      promotion: true,
+      promotionType: 'queen',
+      check: false,
+      checkmate: false,
+      isCapture: false,
+    };
+  }
+  
+  // Also handle faction_Promotion=Q (no pieceName)
+  const simplePromoMatch = cleanToken.match(/^([a-zA-Z]+)_Promotion=Q$/);
+  if (simplePromoMatch) {
+    return {
+      san: cleanToken,
+      raw: token,
+      faction: simplePromoMatch[1],
+      pieceName: 'promotion',
       target: null,
       rpsResult: null,
       promotion: true,
@@ -276,8 +326,9 @@ export function parseMoveToken(token) {
   }
   
   // Match: faction_PieceName(optional _x)_q,r [><=] [=Q] [#+]
-  // faction is letters, then _, piece name, optional _x for capture, then _, coords
-  const match = cleanToken.match(/^(\w+)_(.+?)(?:_x)?_([+-]?\d+,[+-]?\d+)([<=>=]?)(=Q)?([#+]?)?$/);
+  // Note: spaces before optional symbols are allowed
+  // faction is letters only (not including _), pieceName can have _
+  const match = cleanToken.match(/^([a-zA-Z]+)_(.+?)(?:_x)?_([+-]?\d+,[+-]?\d+)\s*([<=>=])?(=Q)?([#+]?)?$/);
   
   if (!match) {
     // Fallback for simple notation without coordinates
@@ -292,7 +343,7 @@ export function parseMoveToken(token) {
                     rpsSymbol === '=' ? 'neutral' : null;
   
   // Check if this is a capture (has _x before coordinates)
-  const fullMatch = cleanToken.match(/^(\w+)_(.+?)_x_([+-]?\d+,[+-]?\d+)/);
+  const fullMatch = cleanToken.match(/^([a-zA-Z]+)_(.+?)_x_([+-]?\d+,[+-]?\d+)/);
   const isCapture = !!fullMatch;
   
   return {
@@ -434,7 +485,7 @@ export class ReplayController {
 /**
  * Clone game for replay (immutable snapshot).
  */
-function cloneGameForReplay(game) {
+export function cloneGameForReplay(game) {
   // Create a fresh game and replay all moves
   // For now, return the game - in practice would create fresh Game instance
   return game;
@@ -443,7 +494,7 @@ function cloneGameForReplay(game) {
 /**
  * Clone game state for yield.
  */
-function cloneGameState(game) {
+export function cloneGameState(game) {
   return {
     pieces: game.pieces.map(p => ({
       id: p.id,

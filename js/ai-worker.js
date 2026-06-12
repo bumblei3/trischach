@@ -17,7 +17,8 @@ import { pickBookMove, buildOpeningBook, inBook } from './opening-book.js';
 // COPIED/ADAPTED FROM ai.js - keep in sync!
 // ============================================================================
 
-const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
+// Export core functions for unit testing (coverage)
+export const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 // ─── Dynamic Piece Values (RPS-aware) ────────────────────────────────
 /**
@@ -34,7 +35,7 @@ const RPS_VALUE_MULTIPLIER = {
   disadvantage: 0.7,
 };
 
-function getDynamicPieceValue(pieceType, attackingFaction, defendingFaction) {
+export function getDynamicPieceValue(pieceType, attackingFaction, defendingFaction) {
   const baseValue = PIECE_STRENGTH[pieceType];
   if (pieceType === 'king') return baseValue * 100;
   
@@ -45,7 +46,7 @@ function getDynamicPieceValue(pieceType, attackingFaction, defendingFaction) {
 /**
  * Get dynamic piece value for material evaluation from perspective of `faction`.
  */
-function getMaterialValue(piece, perspectiveFaction) {
+export function getMaterialValue(piece, perspectiveFaction) {
   const baseValue = PIECE_STRENGTH[piece.type];
   if (piece.type === 'king') return baseValue * 100;
   
@@ -61,7 +62,7 @@ const PIECE_STRENGTH_DYNAMIC = {};
  * Calculate time budget for the current move based on game phase.
  * Returns time in milliseconds.
  */
-function calculateTimeBudget(game) {
+export function calculateTimeBudget(game) {
   const pieceCount = game.pieces.filter(p => p.alive).length;
   const actions = getAllActions(game, game.currentFaction);
   const legalMoves = actions.length;
@@ -104,7 +105,7 @@ const TIME_LIMIT_MS = 5000;
 
 // ─── AI Personalities ────────────────────────────────────────────────
 // COPIED FROM ai.js - keep in sync!
-const AI_PERSONALITIES = {
+export const AI_PERSONALITIES = {
   balanced: {
     name: 'Ausgewogen', description: 'Standard-Spielweise',
     weights: { material: 1.0, positional: 1.0, kingSafety: 1.0, kingThreats: 1.0, pawnStructure: 1.0, endgame: 1.0, mobility: 1.0 },
@@ -186,7 +187,7 @@ function getPSTValue(piece) {
 }
 
 // --- Evaluation ---
-function evaluatePawnStructure(pieces, faction) {
+export function evaluatePawnStructure(pieces, faction) {
   const pawns = pieces.filter(p => p.type === 'pawn');
   const myPawns = pawns.filter(p => p.faction === faction);
   const enemyPawns = pawns.filter(p => p.faction !== faction);
@@ -241,7 +242,7 @@ function evaluatePawnStructure(pieces, faction) {
  * Applies when total pieces <= 20 (roughly endgame threshold).
  * Handles: king activity, pawn promotion pressure, 2-vs-1 dynamics, piece coordination.
  */
-function evaluateEndgame(game, pieces, faction) {
+export function evaluateEndgame(game, pieces, faction) {
   const totalPieces = pieces.length;
   const aliveFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
     .filter(f => !game.eliminatedFactions.has(f));
@@ -385,7 +386,7 @@ function evaluateEndgame(game, pieces, faction) {
   return score;
 }
 
-function evaluateBoard(game, faction) {
+export function evaluateBoard(game, faction) {
   // Get personality weights
   const W = getPersonalityWeights();
   const aggression = getPersonalityAggression();
@@ -459,7 +460,7 @@ function evaluateBoard(game, faction) {
 }
 
 // --- Move Generation ---
-function getAllActions(game, faction) {
+export function getAllActions(game, faction) {
   const pieces = game.pieces.filter(p => p.faction === faction && p.alive);
   const actions = [];
 
@@ -489,7 +490,7 @@ function getAllActions(game, faction) {
   return actions;
 }
 
-function getLegalMoves(game, piece) {
+export function getLegalMoves(game, piece) {
   const { moves, attacks } = getValidMoves(piece, game.boardCells, game._occupiedMap);
   const legalMoves = [];
   const legalAttacks = [];
@@ -502,7 +503,7 @@ function getLegalMoves(game, piece) {
   return { moves: legalMoves, attacks: legalAttacks };
 }
 
-function legalMoveCheck(game, piece, target, faction) {
+export function legalMoveCheck(game, piece, target, faction) {
   const savedIdx = game.currentFactionIdx;
   const undo = simulateMove(game, piece, target);
   game.currentFactionIdx = undo.prevFactionIdx;
@@ -517,14 +518,14 @@ function legalMoveCheck(game, piece, target, faction) {
 }
 
 // --- Game simulation ---
-function rebuildOccupiedMap(game) {
+export function rebuildOccupiedMap(game) {
   game._occupiedMap = new Map();
   for (const p of game.pieces) {
     if (p.alive) game._occupiedMap.set(p.pos.key, p);
   }
 }
 
-function simulateMove(game, piece, target) {
+export function simulateMove(game, piece, target) {
   const undo = {
     piece,
     from: new Hex(piece.pos.q, piece.pos.r),
@@ -776,7 +777,7 @@ function orderActions(actions, ttAction, depth, game) {
 let searchDeadline = 0;
 let nodesSearched = 0;
 
-function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
+export function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   nodesSearched++;
   if (nodesSearched % 1000 === 0 && Date.now() > searchDeadline) {
     return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
@@ -957,7 +958,7 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   return { score: bestScore, action: bestAction };
 }
 
-function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 0) {
+export function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 0) {
   const standPat = evaluateBoard(game, maximizingFaction);
   if (qDepth >= 4) return { score: standPat };
 
@@ -996,7 +997,7 @@ function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 
   }
 }
 
-function iterativeDeepening(game, faction) {
+export function iterativeDeepening(game, faction) {
   // Calculate adaptive time budget for this position
   const timeBudget = calculateTimeBudget(game);
   searchDeadline = Date.now() + timeBudget;
@@ -1054,7 +1055,7 @@ function iterativeDeepening(game, faction) {
   return bestResult.action;
 }
 
-function greedyBestMove(game, faction, actions) {
+export function greedyBestMove(game, faction, actions) {
   let bestActions = [];
   let bestScore = -Infinity;
 
@@ -1097,7 +1098,7 @@ function greedyBestMove(game, faction, actions) {
 // --- Entry Point ---
 let _bookBuilt = false;
 
-function calculateBestMove(game, faction) {
+export function calculateBestMove(game, faction) {
   if (!_bookBuilt) {
     buildOpeningBook(function() {});
     _bookBuilt = true;
@@ -1169,7 +1170,7 @@ self.onmessage = function(e) {
   }
 };
 
-function deserializeGame(state) {
+export function deserializeGame(state) {
   const game = {
     pieces: state.pieces.map(p => ({
       id: p.id,

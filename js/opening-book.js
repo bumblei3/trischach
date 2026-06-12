@@ -29,7 +29,7 @@ export const BOOK_INFO = {
 // ---------------------------------------------------------------------------
 // Helper: Generate board hash (must match ai.js boardHash exactly)
 // ---------------------------------------------------------------------------
-function boardHash(game) {
+export function boardHash(game) {
   const pieces = game.getAlivePieces()
     .filter(p => p.alive)
     .map(p => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
@@ -41,7 +41,7 @@ function boardHash(game) {
 // ---------------------------------------------------------------------------
 // Helper: Parse move notation "pieceId -> q,r"
 // ---------------------------------------------------------------------------
-function parseMove(game, moveStr) {
+export function parseMove(game, moveStr) {
   // Format: "pieceId -> q,r"
   const [piecePart, targetPart] = moveStr.split('->').map(s => s.trim());
   const piece = game.pieces.find(p => p.id === piecePart);
@@ -415,4 +415,4 @@ export function getBookStats() {
 // ---------------------------------------------------------------------------
 // EXPORT FOR DEBUGGING
 // ---------------------------------------------------------------------------
-export { OPENING_BOOK, boardHash, parseMove };
+export { OPENING_BOOK };

@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach, vi, afterEach } from 'vitest';
+import { expect, test, describe, beforeEach, vi, afterEach, beforeAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
@@ -8,7 +8,40 @@ const htmlPath = path.resolve(__dirname, '../index.html');
 const htmlContent = fs.readFileSync(htmlPath, 'utf-8');
 const bodyMatch = htmlContent.match(new RegExp('<body[^>]*>([\\s\\S]*)<\\/body>', 'i'));
 let bodyHTML = bodyMatch ? bodyMatch[1] : htmlContent;
-bodyHTML = bodyHTML.replace(new RegExp('<script\\\\b[^<]*(?:(?!<\\\\/script>)<[^<]*)*<\\\\/script>', 'gi'), '');
+// Remove ALL script tags (including module scripts with src)
+bodyHTML = bodyHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '');
+// Also remove self-closing script tags
+bodyHTML = bodyHTML.replace(/<script\b[^>]*\/>/gi, '');
+
+// Mock fetch globally BEFORE any module loads (happy-dom SyncFetch uses this)
+const fetchMock = vi.hoisted(() => {
+  const originalFetch = globalThis.fetch;
+  return {
+    originalFetch,
+    mockFn: async (url, opts) => {
+      if (typeof url === 'string' && url.startsWith('http://localhost:3000/')) {
+        const filePath = url.replace('http://localhost:3000/', '');
+        let content = '';
+        try {
+          content = fs.readFileSync(`./${filePath}`, 'utf8');
+        } catch (e) {
+          content = '';
+        }
+        const mime = filePath.endsWith('.css') ? 'text/css' : filePath.endsWith('.js') ? 'application/javascript' : 'text/plain';
+        return new Response(content, { headers: { 'Content-Type': mime } });
+      }
+      return originalFetch(url, opts);
+    }
+  };
+});
+
+beforeAll(() => {
+  vi.stubGlobal('fetch', fetchMock.mockFn);
+});
+
+afterEach(() => {
+  vi.clearAllTimers();
+});
 
 describe('Main UI & Events', () => {
   beforeEach(() => {
@@ -22,34 +55,10 @@ describe('Main UI & Events', () => {
       destination: {},
       currentTime: 100
     }));
-
-    // Mock fetch for static assets (CSS, JS) to avoid network requests
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch.__original = originalFetch;
-    globalThis.fetch = async (url, opts) => {
-      if (typeof url === 'string' && url.startsWith('http://localhost:3000/')) {
-        const path = url.replace('http://localhost:3000/', '');
-        let content = '';
-        try {
-          // eslint-disable-next-line no-undef
-          content = require('fs').readFileSync(`./${path}`, 'utf8');
-        } catch (e) {
-          content = '';
-        }
-        const mime = path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'application/javascript' : 'text/plain';
-        return new Response(content, { headers: { 'Content-Type': mime } });
-      }
-      // If not our mock, call original fetch
-      return globalThis.fetch.__original(url, opts);
-    };
   });
 
   afterEach(() => {
     vi.clearAllTimers();
-    // Restore fetch
-    if (globalThis.fetch && globalThis.fetch.__original) {
-      globalThis.fetch = globalThis.fetch.__original;
-    }
   });
 
   test('UI initializes correctly on load', async () => {

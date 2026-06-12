@@ -11,6 +11,8 @@ export const GAME_STATE = {
   SELECT_TARGET: 'select_target',
   PROMOTION: 'promotion',
   GAME_OVER: 'game_over',
+  DRAW_REPETITION: 'draw_repetition',
+  DRAW_50MOVE: 'draw_50move',
 };
 
 const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
@@ -36,6 +38,7 @@ export class Game {
     this.onCombat = null;
     this.onGameOver = null;
     this.onElimination = null;
+    this.onDraw = null;
     this.boardCells = null;
     this.rpsEnabled = true;
     this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
@@ -43,6 +46,8 @@ export class Game {
     this.onPromotion = null;
     this._undoStack = [];
     this.currentFaction = TURN_ORDER[0];
+    this._positionHistory = new Map(); // hash -> count for threefold repetition
+    this._halfmoveClock = 0; // 50-move rule counter (counts half-moves)
   }
 
   get currentFactionName() {
@@ -61,6 +66,8 @@ export class Game {
     this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
     this.pendingPromotion = null;
     this._rebuildOccupiedMap();
+    this._positionHistory = new Map();
+    this._halfmoveClock = 0;
   }
 
   getAlivePieces() {
