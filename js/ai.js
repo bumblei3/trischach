@@ -1,25 +1,39 @@
 import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
 
+// ─── Configuration ──────────────────────────────────────────────────
+
+let MAX_DEPTH = 3;
+const TIME_LIMIT_MS = 5000; // 5 seconds per move
+
+// ─── Transposition Table ────────────────────────────────────────────
+
+const tt = new Map();
+
+function boardHash(game) {
+  // Simple hash: piece positions + current faction
+  const pieces = game.getAlivePieces()
+    .filter(p => p.alive)
+    .map(p => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+    .sort()
+    .join('|');
+  return `${pieces}#${game.currentFactionIdx}`;
+}
+
 // ─── Heuristic Evaluation ───────────────────────────────────────────
 
-// Position value table: center hexes are more valuable
-// Precomputed for the TriSchach board (distance from center)
 function posValue(hex) {
   const dist = Math.max(Math.abs(hex.q), Math.abs(hex.r), Math.abs(-hex.q - hex.r));
-  // Closer to center = higher value (0 at edge, 5 at center)
   return 5 - dist;
 }
 
-// Piece-square tables per piece type (simplified for hex board)
-// Encourages pieces to be active and centralized
 const PST_BONUS = {
-  king:   { center: -2, mobility: 0 },   // King: stay safe early
+  king:   { center: -2, mobility: 0 },
   queen:  { center: 3,  mobility: 0.3 },
   rook:   { center: 2,  mobility: 0.2 },
   bishop: { center: 2,  mobility: 0.2 },
   knight: { center: 3,  mobility: 0.3 },
-  pawn:   { center: 4,  mobility: 0.1 },  // Pawns want to advance
+  pawn:   { center: 4,  mobility: 0.1 },
 };
 
 /**
@@ -33,55 +47,39 @@ function evaluateBoard(game, faction) {
   // 1. Material balance
   for (const p of pieces) {
     const val = PIECE_STRENGTH[p.type] * 10;
-    if (p.faction === faction) {
-      score += val;
-    } else {
-      score -= val;
-    }
+    score += (p.faction === faction ? val : -val);
   }
 
   // 2. Positional bonus (center control + piece activity)
   for (const p of pieces) {
     const pst = PST_BONUS[p.type];
     if (!pst) continue;
-
     const pv = posValue(p.pos);
     const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
     const mobility = moves.length + attacks.length;
-
     const bonus = pv * pst.center + mobility * pst.mobility;
-    if (p.faction === faction) {
-      score += bonus;
-    } else {
-      score -= bonus;
-    }
+    score += (p.faction === faction ? bonus : -bonus);
   }
 
-  // 3. King safety: penalize if our king is exposed (enemies nearby)
+  // 3. King safety
   const myKing = pieces.find(p => p.faction === faction && p.type === 'king');
   if (myKing) {
-    const enemyAttackers = pieces.filter(p =>
-      p.faction !== faction && p.alive
-    );
+    const enemyAttackers = pieces.filter(p => p.faction !== faction && p.alive);
     let kingThreats = 0;
     for (const enemy of enemyAttackers) {
       const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
-      if (attacks.some(a => a.equals(myKing.pos))) {
-        kingThreats++;
-      }
+      if (attacks.some(a => a.equals(myKing.pos))) kingThreats++;
     }
-    score -= kingThreats * 15; // Heavy penalty for each threat to our king
-
-    // Bonus for king being in a safe corner (start zone)
+    score -= kingThreats * 15;
     const kingDist = Math.max(Math.abs(myKing.pos.q), Math.abs(myKing.pos.r), Math.abs(-myKing.pos.q - myKing.pos.r));
-    if (kingDist >= 6) score += 8; // King in start zone = safer
+    if (kingDist >= 6) score += 8;
   }
 
   // 4. Threaten enemy kings
   const enemyFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(f => f !== faction);
   for (const ef of enemyFactions) {
     if (game.eliminatedFactions.has(ef)) {
-      score += 200; // Enemy eliminated = very good
+      score += 200;
       continue;
     }
     const eKing = pieces.find(p => p.faction === ef && p.type === 'king');
@@ -89,52 +87,36 @@ function evaluateBoard(game, faction) {
       const myAttackers = pieces.filter(p => p.faction === faction);
       for (const attacker of myAttackers) {
         const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
-        if (attacks.some(a => a.equals(eKing.pos))) {
-          score += 10; // We threaten their king
-        }
+        if (attacks.some(a => a.equals(eKing.pos))) score += 10;
       }
     }
   }
 
-  // 5. RPS advantage awareness: bonus for having pieces that counter
-  //    the strongest remaining enemy faction
+  // 5. RPS advantage in endgame
   const aliveEnemies = enemyFactions.filter(f => !game.eliminatedFactions.has(f));
   if (aliveEnemies.length === 1) {
-    // Endgame: focus all fire on the last enemy
-    const lastEnemy = aliveEnemies[0];
-    const rps = getRPSResult(faction, lastEnemy);
-    if (rps === 'advantage') {
-      score += 20; // We counter the last enemy
-    }
+    const rps = getRPSResult(faction, aliveEnemies[0]);
+    if (rps === 'advantage') score += 20;
   }
 
-  // 6. Pawn advancement bonus: pawns closer to promotion (r <= 0) are more valuable
+  // 6. Pawn advancement
   for (const p of pieces) {
     if (p.type !== 'pawn') continue;
     const pv = p.faction === faction ? 1 : -1;
-    if (p.r <= 0) {
-      score += pv * 15; // About to promote!
-    } else if (p.r <= 2) {
-      score += pv * 5;  // Getting close
-    }
+    if (p.r <= 0) score += pv * 15;
+    else if (p.r <= 2) score += pv * 5;
   }
 
   return score;
 }
 
-// ─── Minimax with Alpha-Beta Pruning ───────────────────────────────
+// ─── Move Generation ────────────────────────────────────────────────
 
-let MAX_DEPTH = 2; // Configurable: 2=fast, 3=stronger but slower
-
-/**
- * Get all possible actions for a faction.
- */
 function getAllActions(game, faction) {
   const pieces = game.getAlivePieces().filter(p => p.faction === faction);
   const actions = [];
 
   for (const piece of pieces) {
-    // Use getLegalMoves (checks for king safety) instead of raw getValidMoves
     const { moves, attacks } = game.getLegalMoves(piece);
     for (const target of attacks) {
       const defender = game.getPieceAt(target);
@@ -147,22 +129,42 @@ function getAllActions(game, faction) {
     }
   }
 
-  // Sort actions for better alpha-beta pruning:
-  // Attacks first (especially high-value captures), then moves
+  // Sort: attacks first (high-value captures), then moves
   actions.sort((a, b) => {
-    const aVal = a.type === 'attack' ? (a.rps !== 'disadvantage' ? PIECE_STRENGTH[game.getPieceAt(a.target)?.type || 'pawn'] + 10 : -100) : 0;
-    const bVal = b.type === 'attack' ? (b.rps !== 'disadvantage' ? PIECE_STRENGTH[game.getPieceAt(b.target)?.type || 'pawn'] + 10 : -100) : 0;
+    const aVal = a.type === 'attack'
+      ? (a.rps !== 'disadvantage' ? PIECE_STRENGTH[game.getPieceAt(a.target)?.type || 'pawn'] + 10 : -100)
+      : 0;
+    const bVal = b.type === 'attack'
+      ? (b.rps !== 'disadvantage' ? PIECE_STRENGTH[game.getPieceAt(b.target)?.type || 'pawn'] + 10 : -100)
+      : 0;
     return bVal - aVal;
   });
 
   return actions;
 }
 
-/**
- * Minimax with alpha-beta pruning.
- * Returns { score, action } where action is the best move found.
- */
+// ─── Minimax with Alpha-Beta + Transposition Table ─────────────────
+
+let searchDeadline = 0;
+let nodesSearched = 0;
+
 function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
+  // Time check
+  nodesSearched++;
+  if (nodesSearched % 1000 === 0 && Date.now() > searchDeadline) {
+    return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
+  }
+
+  // Transposition table lookup
+  const hash = boardHash(game);
+  const ttEntry = tt.get(hash);
+  if (ttEntry && ttEntry.depth >= depth) {
+    if (ttEntry.flag === 'exact') return { score: ttEntry.score, action: ttEntry.action };
+    if (ttEntry.flag === 'lower') alpha = Math.max(alpha, ttEntry.score);
+    if (ttEntry.flag === 'upper') beta = Math.min(beta, ttEntry.score);
+    if (alpha >= beta) return { score: ttEntry.score, action: ttEntry.action };
+  }
+
   // Terminal conditions
   if (depth === 0 || game.state === 'game_over') {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
@@ -171,101 +173,93 @@ function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   const actions = getAllActions(game, currentFaction);
 
   if (actions.length === 0) {
-    // No valid moves - evaluate current position
     return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
 
-  let bestAction = actions[0]; // Default to first action
+  let bestAction = actions[0];
+  let bestScore = currentFaction === maximizingFaction ? -Infinity : Infinity;
+  let flag = 'upper';
 
   if (currentFaction === maximizingFaction) {
-    // Maximizing player
-    let maxScore = -Infinity;
     for (const action of actions) {
-      // Skip suicide attacks unless no other option
-      if (action.type === 'attack' && action.rps === 'disadvantage') {
-        if (actions.length > 1) continue;
-      }
+      if (action.type === 'attack' && action.rps === 'disadvantage' && actions.length > 1) continue;
 
       const undo = game.simulateMove(action.piece, action.target);
-      const nextFaction = game.currentFaction;
-      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, nextFaction);
+      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
       game.undoMove(undo);
 
-      // Boost score for promotion moves
+      if (result.timeout) return { score: bestScore, action: bestAction, timeout: true };
+
       const adjustedScore = result.score + (undo.promoted ? 50 * (result.score >= 0 ? 1 : -1) : 0);
 
-      if (adjustedScore > maxScore) {
-        maxScore = adjustedScore;
+      if (adjustedScore > bestScore) {
+        bestScore = adjustedScore;
         bestAction = action;
       }
       alpha = Math.max(alpha, adjustedScore);
-      if (beta <= alpha) break; // Beta cutoff
+      if (alpha >= beta) { flag = 'lower'; break; }
+      if (bestScore > -Infinity) flag = 'exact';
     }
-    return { score: maxScore, action: bestAction };
   } else {
-    // Minimizing player (opponent)
-    let minScore = Infinity;
     for (const action of actions) {
-      if (action.type === 'attack' && action.rps === 'disadvantage') {
-        if (actions.length > 1) continue;
-      }
+      if (action.type === 'attack' && action.rps === 'disadvantage' && actions.length > 1) continue;
 
       const undo = game.simulateMove(action.piece, action.target);
-      const nextFaction = game.currentFaction;
-      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, nextFaction);
+      const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, game.currentFaction);
       game.undoMove(undo);
 
-      // Penalize for letting opponent promote
+      if (result.timeout) return { score: bestScore, action: bestAction, timeout: true };
+
       const adjustedScore = result.score - (undo.promoted ? 50 * (result.score >= 0 ? 1 : -1) : 0);
 
-      if (adjustedScore < minScore) {
-        minScore = adjustedScore;
+      if (adjustedScore < bestScore) {
+        bestScore = adjustedScore;
         bestAction = action;
       }
       beta = Math.min(beta, adjustedScore);
-      if (beta <= alpha) break; // Alpha cutoff
+      if (alpha >= beta) { flag = 'upper'; break; }
+      if (bestScore < Infinity) flag = 'exact';
     }
-    return { score: minScore, action: bestAction };
   }
+
+  // Store in transposition table
+  if (tt.size < 500000) {
+    tt.set(hash, { depth, score: bestScore, action: bestAction, flag });
+  }
+
+  return { score: bestScore, action: bestAction };
 }
 
-// ─── Public API ─────────────────────────────────────────────────────
+// ─── Iterative Deepening ────────────────────────────────────────────
 
-/**
- * Calculates the best move for a given faction using minimax with alpha-beta pruning.
- * Falls back to greedy heuristic if minimax is too expensive.
- */
-export function calculateBestMove(game, faction) {
-  // Safety: ensure occupied map is up to date
-  game._rebuildOccupiedMap();
+function iterativeDeepening(game, faction) {
+  searchDeadline = Date.now() + TIME_LIMIT_MS;
+  nodesSearched = 0;
+  tt.clear();
 
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
+  if (actions.length === 1) return actions[0];
 
-  // Filter out suicide attacks if alternatives exist
-  const nonSuicide = actions.filter(a => !(a.type === 'attack' && a.rps === 'disadvantage'));
-  const usableActions = nonSuicide.length > 0 ? nonSuicide : actions;
+  let bestResult = { score: -Infinity, action: actions[0] };
 
-  // For small action spaces, use minimax
-  // For large spaces (opening), limit depth or use greedy
-  const pieceCount = game.getAlivePieces().length;
-  const depth = pieceCount > 20 ? 1 : MAX_DEPTH;
+  // Iterative deepening: search depth 1, 2, 3... until time runs out
+  for (let depth = 1; depth <= MAX_DEPTH; depth++) {
+    const result = minimax(game, depth, -Infinity, Infinity, faction, faction);
 
-  if (depth === 1 || usableActions.length > 30) {
-    // Fallback to improved greedy for large search spaces
-    return greedyBestMove(game, faction, usableActions);
+    if (!result.timeout) {
+      bestResult = result;
+    } else {
+      // Time ran out - use best result from previous depth
+      break;
+    }
   }
 
-  const result = minimax(game, depth, -Infinity, Infinity, faction, faction);
-  if (!result.action) {
-    return usableActions[0];
-  }
-  return result.action;
+  return bestResult.action;
 }
 
-/**
- * Improved greedy heuristic (fallback for large search spaces).
- */
+// ─── Greedy Fallback ────────────────────────────────────────────────
+
 function greedyBestMove(game, faction, actions) {
   let bestActions = [];
   let bestScore = -Infinity;
@@ -276,18 +270,14 @@ function greedyBestMove(game, faction, actions) {
     if (action.type === 'attack') {
       const defender = game.getPieceAt(action.target);
       if (!defender) continue;
-
       if (action.rps === 'advantage' || action.rps === 'neutral') {
         score = 100 + PIECE_STRENGTH[defender.type] * 10;
-        score += (10 - PIECE_STRENGTH[action.piece.type]); // Cheap attacker bonus
-
-        // Extra bonus for king capture
+        score += (10 - PIECE_STRENGTH[action.piece.type]);
         if (defender.type === 'king') score += 500;
       } else {
-        score = -1000; // Suicide
+        score = -1000;
       }
     } else {
-      // Move: center control + advancement
       const pv = posValue(action.target);
       const distFromCenter = Math.max(
         Math.abs(action.piece.pos.q), Math.abs(action.piece.pos.r),
@@ -300,7 +290,6 @@ function greedyBestMove(game, faction, actions) {
       score = (distFromCenter - distToCenter) * 10 + pv * 2;
     }
 
-    // Small random jitter for variety
     score += Math.random() * 0.5;
 
     if (score > bestScore) {
@@ -315,12 +304,38 @@ function greedyBestMove(game, faction, actions) {
   return bestActions[Math.floor(Math.random() * bestActions.length)];
 }
 
+// ─── Public API ─────────────────────────────────────────────────────
+
 /**
- * Set the search depth for the AI (1-4).
+ * Calculates the best move for a given faction using iterative deepening
+ * minimax with alpha-beta pruning and transposition table.
+ */
+export function calculateBestMove(game, faction) {
+  game._rebuildOccupiedMap();
+
+  const actions = getAllActions(game, faction);
+  if (actions.length === 0) return null;
+
+  const nonSuicide = actions.filter(a => !(a.type === 'attack' && a.rps === 'disadvantage'));
+  const usableActions = nonSuicide.length > 0 ? nonSuicide : actions;
+
+  const pieceCount = game.getAlivePieces().length;
+
+  // Use greedy for very large search spaces (opening)
+  if (pieceCount > 24 || usableActions.length > 40) {
+    return greedyBestMove(game, faction, usableActions);
+  }
+
+  // Use iterative deepening minimax for mid/late game
+  return iterativeDeepening(game, faction);
+}
+
+/**
+ * Set the maximum search depth for the AI (1-5).
  * Higher = stronger but slower.
  */
 export function setAIDepth(depth) {
-  if (depth >= 1 && depth <= 4) {
+  if (depth >= 1 && depth <= 5) {
     MAX_DEPTH = depth;
   }
 }
