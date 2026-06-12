@@ -391,8 +391,11 @@ export class Game {
   }
 
   _nextTurn() {
+    const startIdx = this.currentFactionIdx;
     do {
       this.currentFactionIdx = (this.currentFactionIdx + 1) % 3;
+      // Safety: prevent infinite loop if all factions eliminated
+      if (this.currentFactionIdx === startIdx) break;
     } while (this.eliminatedFactions.has(TURN_ORDER[this.currentFactionIdx]));
     this.currentFaction = TURN_ORDER[this.currentFactionIdx];
   }
