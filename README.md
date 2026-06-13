@@ -8,29 +8,48 @@
 
 - **3 Fraktionen:** 🔥 Feuer, 🌊 Wasser und 🌿 Natur.
 - **Symmetrisches Spielfeld:** Ein perfektes Hexagon-Dreieck mit 3 angedockten Startzonen, basierend auf Cube-Koordinaten.
-- **Auto Battle Modus:** Eine KI mit Greedy-Heuristik lässt die Fraktionen automatisch gegeneinander antreten.
-- **Schere-Stein-Papier (RPS) Kampf:** Eine zusätzliche taktische Ebene, die klassisches Schach auf den Kopf stellt.
-- **Auditives Feedback:** Dynamische Soundeffekte für Züge, Schläge und Spielereignisse.
-- **📜 Spielverlauf:** Ein detailliertes Log aller vergangenen Züge zur besseren Übersicht.
-- **Modernes UI:** Glassmorphism-Design mit Neon-Farben, optimiert für Dark Mode.
-- **Pure Vanilla Power:** 100% HTML, CSS und JavaScript. Keine Frameworks, kein Overhead. Performantes SVG-Rendering.
+- **🤖 Engine mit Suchtiefe & Persönlichkeiten:**
+  - Alpha-Beta Minimax mit iterativem Tiefgang (1–12)
+  - Zobrist Transposition Table (262k Entries, ~80–120 Elo)
+  - SEE (Static Exchange Evaluation) RPS-aware
+  - Futility Pruning, Razoring, Null-Move Pruning (R=2)
+  - Late Move Reductions (LMR) + Probcut (~40–60 Elo)
+  - 4 KI-Persönlichkeiten: Ausgewogen, Aggressiv, Defensiv, Taktisch
+  - Adaptives Zeitmanagement & Web Worker (non-blocking)
+- **Auto Battle Modus:** Engine vs. Engine mit Turnier-System & Elo-Rating
+- **Schere-Stein-Papier (RPS) Kampf:** Zusätzliche taktische Ebene
+- **Check-Escape Move Ordering:** Priorisiert König-Züge, Angreifer-Capture, Block-Züge
+- **Check-Visualisierung:** Pulsierender König + Sound bei Schach
+- **Promotion UI:** Auto-Queen Option, Keyboard-Shortcuts (Q/R/B/N), Key-Hints
+- **📱 Vollständige Mobile/Touch Unterstützung:**
+  - Swipe-to-Rotate (2-Finger, 120°-Schritte)
+  - Long-Press / Right-Click Kontextmenü auf Figuren
+  - PWA: Installierbar, Offline-fähig (Service Worker), Push-ready
+- **📜 Spielverlauf & Replay:** TSPN-Format (Export/Import/Copy), Play/Pause/Step/Speed
+- **Auditives Feedback:** Dynamische Soundeffekte (Web Audio API)
+- **Modernes UI:** Glassmorphism-Design mit Neon-Farben, Dark Mode
+- **Pure Vanilla Power:** 100% HTML, CSS, JavaScript (ES Modules). Keine Frameworks, kein Build-Step. Performantes SVG-Rendering.
 
 ## 🎲 Spielregeln
 
 Jede Fraktion startet mit 15 Figuren (1 König, 1 Königin, 2 Türme, 2 Läufer, 2 Springer, 7 Bauern). Die Bewegungsregeln basieren auf dem klassischen Schach, adaptiert auf das Hexagon-Raster.
 
 ### Das RPS-Prinzip
+
 Das Herzstück von TriSchach:
+
 - 🔥 **Feuer** schlägt 🌿 **Natur**
 - 🌿 **Natur** schlägt 🌊 **Wasser**
 - 🌊 **Wasser** schlägt 🔥 **Feuer**
 
 **Die Kampfmechanik:**
-- **Vorteil (z.B. Feuer → Natur):** Normaler Schlag. Der Angreifer besiegt den Verteidiger.
-- **Nachteil (z.B. Feuer → Wasser):** Konter-Schlag! Der Verteidiger bleibt stehen und der **Angreifer wird geschlagen**.
+
+- **Vorteil (z.B. Feuer → Natur):** Normaler Schlag. Angreifer besiegt Verteidiger.
+- **Nachteil (z.B. Feuer → Wasser):** Konter-Schlag! Verteidiger bleibt, **Angreifer wird geschlagen**.
 - **Neutral (Gleiche Fraktion oder RPS deaktiviert):** Klassischer Schach-Schlag.
 
 ### Siegbedingung
+
 Fällt ein König, scheidet die gesamte Fraktion sofort aus. Wer als Letzter noch einen König auf dem Feld hat, gewinnt die Schlacht.
 
 ## 🚀 Installation & Start
@@ -53,23 +72,97 @@ Lokal lässt sich TriSchach in Sekunden starten:
 
 3. Öffne `http://localhost:8080/` im Browser.
 
+### PWA Installieren
+
+- **Desktop/Chrome:** Klicke auf "Installieren" in der Adressleiste
+- **Mobile Safari:** Teilen → "Zum Home-Bildschirm"
+- **Offline:** Funktioniert nach erstem Besuch komplett offline
+
 ## 🛠️ Architektur
 
 Die Codebase ist modular und ohne Build-Step aufgebaut:
 
-- `index.html`: Struktur und UI-Layout.
-- `css/style.css`: Design-System, Glassmorphism-Effekte und Animationen.
-- `js/hex.js`: Mathematische Basis für das Hex-Grid (Cube-Koordinaten).
-- `js/board.js`: Logik für das SVG-Board und die Spielfeld-Generierung.
-- `js/pieces.js`: Figuren-Eigenschaften und hex-basierte Zugmuster.
-- `js/game.js`: Zentrale State-Machine, Spielregeln und RPS-Logik.
-- `js/ai.js`: Die "Auto Battle" KI mit Greedy-Entscheidungen.
-- `js/sounds.js`: Audio-Engine für auditives Feedback.
-- `js/main.js`: Einstiegspunkt, UI-Integration und Event-Handling.
+- `index.html`: Struktur, UI-Layout, PWA Meta-Tags, SW-Registrierung
+- `manifest.json`: PWA Manifest (Icons, Shortcuts, Kategorien)
+- `sw.js`: Service Worker (Cache-First/Network-First, Background Sync, Push)
+- `css/style.css`: Design-System, Glassmorphism, Animationen, Responsive (800px Breakpoint)
+- `js/hex.ts`: Mathematische Basis für Hex-Grid (Cube-Koordinaten, TS strict)
+- `js/board.ts`: SVG-Board Renderer, Touch-Gesten (Swipe-Rotate, Long-Press), Pieces
+- `js/pieces.ts`: Figuren-Eigenschaften, hex-basierte Zugmuster
+- `js/game.ts`: Zentrale State-Machine, Spielregeln, RPS-Logik, Undo/Redo
+- `js/game-check.ts`: Schach/Checkmate/Stalemate Detection (3-Spieler)
+- `js/ai-core.ts`: Shared AI Core (Main Thread + Web Worker)
+  - Zobrist TT, SEE, Futility/Razoring, NMP, LMR, Probcut
+  - Check-Escape Move Ordering, Dynamic Piece Values (RPS-aware)
+  - Aspiration Windows, Killer Moves, History Heuristic
+  - Endgame Evaluation, Pawn Structure, Personality Weights
+- `js/ai.ts`: Main Thread Entry Point, Opening Book Integration
+- `js/ai-worker.js`: Web Worker Wrapper für non-blocking Search
+- `js/opening-book.ts`: Eröffnungsbibliothek (Generator + Weighted Random)
+- `js/replay.ts`: TSPN Format (Export/Import/Replay Controls)
+- `js/sounds.ts`: Audio Engine (Web Audio API, synthetisch)
+- `js/main.ts`: Einstiegspunkt, UI-Integration, Event-Handling, PWA SW-Registrierung
+
+## 🧪 Testing & Qualität
+
+```bash
+# Unit Tests (Vitest)
+npm test
+
+# E2E Tests (Playwright)
+npm run test:e2e
+
+# TypeScript Strict Check
+npx tsc --noEmit
+
+# Linting
+npm run lint
+```
+
+- **308 Unit Tests** ✅ (Vitest + Happy-DOM)
+- **13 E2E Tests** ✅ (Playwright Chromium)
+- **TypeScript Strict Mode** ✅ (0 Errors)
+- **ESLint** ✅ (0 Errors, nur Pre-existing Warnings)
+- **Coverage:** ~82% Statements / 89% Branches / 85% Functions
+
+### Engine Tournament (Elo-Messung)
+
+```bash
+# Quick (4 Games/Pairing, Depth 2)
+npm run tournament
+
+# Full (20 Games/Pairing, Depth 3)
+npm run tournament:large
+```
+
+elo-Hierarchie (Beispiel): Ausgewogen > Aggressiv > Defensiv > Taktisch > Random
 
 ## 🤖 CI/CD
-Dieses Projekt nutzt **GitHub Actions**, um bei jedem Push in den `main` Branch automatisch die neueste Version auf **GitHub Pages** zu deployen.
+
+Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
+
+| Job | Trigger | Beschreibung |
+|-----|---------|--------------|
+| `lint-test` | Push/PR | TypeScript, ESLint, Unit Tests (Node 18/20/22), Coverage ≥80% |
+| `codeql` | Push/PR | Security Scanning (JavaScript) |
+| `e2e-tests` | Push/PR | Playwright E2E (parallel zu lint-test) |
+| `benchmark` | Push/PR | Quick Tournament (4 Games @ Depth 2), PR-Comment |
+| `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact |
+| `release` | Tag `v*` | Auto GitHub Release mit Release Notes |
+| `deploy` | Push main | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
 
 ## 📜 Lizenz
+
 MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 
+---
+
+## 🗺️ Roadmap / Ideen
+
+- [ ] **Puzzle Mode** – "Mate in N" Generator aus Opening Book
+- [ ] **Mate-in-N Detection** – Quiescence erweitert, Eval Bar "Matt in 3"
+- [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
+- [ ] **Neural Evaluation (tiny NNUE)** – ~150-200 Elo Gewinn
+- [ ] **Parallel Search** – SharedArrayBuffer + Web Workers
+- [ ] **Pondering** – Denken während Gegnerzug
+- [ ] **Opening Book Expansion** – 50+ Zeilen aus Engine-Selbstpartien
