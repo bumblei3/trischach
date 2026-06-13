@@ -24,6 +24,10 @@ on:
         required: false
         default: '3'
 
+env:
+  # Cache keys
+  NODE_VERSION: '20'
+
 jobs:
   lint-test:
     runs-on: ubuntu-latest
@@ -41,6 +45,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Cache ESLint
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/eslint
+          key: eslint-${{ runner.os }}-${{ hashFiles('.eslintrc.*', 'package-lock.json') }}
+          restore-keys: |
+            eslint-${{ runner.os }}-
 
       - name: Run TypeScript type check
         run: npx tsc --noEmit
@@ -69,6 +81,28 @@ jobs:
       - name: Dependency audit
         run: npm audit --audit-level=high || true
         continue-on-error: true
+
+  # NEW: Security scanning with CodeQL
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      matrix:
+        language: [javascript]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
 
   e2e-tests:
     runs-on: ubuntu-latest
@@ -118,6 +152,70 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  # NEW: Performance benchmark tracking
+  benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tournament benchmark
+        env:
+          GAMES_PER_PAIRING: 4
+          AI_DEPTH: 2
+        run: |
+          node tournament.js $GAMES_PER_PAIRING $AI_DEPTH
+
+      - name: Extract performance metrics
+        run: |
+          cat tournament-results.json | jq '{
+            timestamp: .timestamp,
+            engines: .engines,
+            elo: .elo,
+            avg_nodes: .results | to_entries | map(.value | reduce .[] as $m (0; . + $m.wins + $m.draws + $m.losses)) | add / length
+          }' > benchmark-results.json
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          retention-days: 90
+
+      - name: Comment benchmark on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('tournament-results.json', 'utf8'));
+            const table = results.results ? Object.entries(results.results).map(([engine, matchups]) => {
+              const wins = Object.values(matchups).reduce((sum, m) => sum + m.wins, 0);
+              const draws = Object.values(matchups).reduce((sum, m) => sum + m.draws, 0);
+              const losses = Object.values(matchups).reduce((sum, m) => sum + m.losses, 0);
+              const elo = results.elo[engine] || 'N/A';
+              return `| ${engine} | ${elo} | ${wins} | ${draws} | ${losses} |`;
+            }).join('\n') : 'No results';
+            
+            const body = `## 🏆 Tournament Benchmark\n\n| Engine | Elo | W | D | L |\n|--------|-----|---|---|---|\n${table}\n\n*Quick benchmark: 4 games @ depth 2*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
   tournament:
     # Engine tournament for performance regression detection
     runs-on: ubuntu-latest
@@ -156,9 +254,9 @@ jobs:
             const fs = require('fs');
             const results = JSON.parse(fs.readFileSync('tournament-results.json', 'utf8'));
             const table = results.results ? Object.entries(results.results).map(([engine, matchups]) => {
-              const wins = Object.values(matchups).reduce((sum: number, m: any) => sum + m.wins, 0);
-              const draws = Object.values(matchups).reduce((sum: number, m: any) => sum + m.draws, 0);
-              const losses = Object.values(matchups).reduce((sum: number, m: any) => sum + m.losses, 0);
+              const wins = Object.values(matchups).reduce((sum, m) => sum + m.wins, 0);
+              const draws = Object.values(matchups).reduce((sum, m) => sum + m.draws, 0);
+              const losses = Object.values(matchups).reduce((sum, m) => sum + m.losses, 0);
               const elo = results.elo[engine] || 'N/A';
               return `| ${engine} | ${elo} | ${wins} | ${draws} | ${losses} |`;
             }).join('\n') : 'No results';
@@ -172,8 +270,32 @@ jobs:
               body
             });
 
+  # NEW: Release automation
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Build
+        run: npm run build 2>/dev/null || true
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            tournament-results.json
+
   deploy:
-    needs: [lint-test, e2e-tests]
+    needs: [lint-test, e2e-tests, codeql]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
