@@ -20,7 +20,7 @@ import type {
   Piece, 
   PieceType, 
   AIAction, 
-  Snapshot, 
+  AISnapshot, 
   SearchResult,
   PersonalityWeights,
   PersonalityConfig,
@@ -368,7 +368,7 @@ const QUEEN_PST = buildPST((_h, d) => (6 - d) * 5);
 const ROOK_PST = buildPST((_h, d) => (5 - d) * 4);
 const BISHOP_PST = buildPST((_h, d) => (5 - d) * 4);
 const KNIGHT_PST = buildPST((_h, d) => (6 - d) * 8);
-const PAWN_PST = buildPST((_h, d) => {
+const PAWN_PST = buildPST((_h, _d) => {
   const advancement = Math.max(0, 5 - _h.r);
   const centerCol = Math.max(0, 3 - Math.abs(_h.q));
   return advancement * 6 + centerCol * 3;
@@ -412,8 +412,8 @@ export function evaluatePawnStructure(pieces: Piece[], faction: Faction): number
   const enemyColumnCounts: Record<number, number> = {};
   for (const p of myPawns) myColumnCounts[p.pos.q] = (myColumnCounts[p.pos.q] || 0) + 1;
   for (const p of enemyPawns) enemyColumnCounts[p.pos.q] = (enemyColumnCounts[p.pos.q] || 0) + 1;
-  for (const q in myColumnCounts) if (myColumnCounts[q] > 1) score -= (myColumnCounts[q] - 1) * 10;
-  for (const q in enemyColumnCounts) if (enemyColumnCounts[q] > 1) score += (enemyColumnCounts[q] - 1) * 10;
+  for (const q in myColumnCounts) if ((myColumnCounts[q] ?? 0) > 1) score -= ((myColumnCounts[q] ?? 0) - 1) * 10;
+  for (const q in enemyColumnCounts) if ((enemyColumnCounts[q] ?? 0) > 1) score += ((enemyColumnCounts[q] ?? 0) - 1) * 10;
 
   for (const p of myPawns) {
     const hasNeighbor = myPawns.some(other => other !== p && Math.abs(other.pos.q - p.pos.q) <= 1);
@@ -641,8 +641,11 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   const aliveEnemies = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
     .filter(f => !game.eliminatedFactions.has(f) && f !== faction);
   if (aliveEnemies.length === 1) {
-    const rps = getRPSResult(faction, aliveEnemies[0]);
-    if (rps === 'advantage') score += 20 * W.endgame;
+    const enemy = aliveEnemies[0];
+    if (enemy) {
+      const rps = getRPSResult(faction, enemy);
+      if (rps === 'advantage') score += 20 * W.endgame;
+    }
   }
 
   // 6. Pawn structure
@@ -690,16 +693,17 @@ export function rebuildOccupiedMap(game: IGame): void {
   }
 }
 
-export function simulateMove(game: IGame, piece: Piece, target: HexClass): Snapshot {
-  const undo: Snapshot = {
+export function simulateMove(game: IGame, piece: Piece, target: HexClass): AISnapshot {
+  const undo: AISnapshot = {
     piece,
     from: new HexClass(piece.pos.q, piece.pos.r),
     pieceHasMoved: piece.hasMoved,
     wasAttack: false,
-    defender: null,
+    defender: undefined,
     defenderWasKilled: false,
     attackerDied: false,
-    eliminatedFaction: null,
+    // eliminatedFaction: undefined,  // omit to allow optional
+    // promotion: undefined,  // omit to allow optional
     prevFactionIdx: game.currentFactionIdx,
   };
 
@@ -741,7 +745,7 @@ export function simulateMove(game: IGame, piece: Piece, target: HexClass): Snaps
 
   const factions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
   let nextIdx = (game.currentFactionIdx + 1) % 3;
-  while (game.eliminatedFactions.has(factions[nextIdx])) {
+  while (game.eliminatedFactions.has(factions[nextIdx] ?? FACTION.FIRE)) {
     nextIdx = (nextIdx + 1) % 3;
   }
   game.currentFactionIdx = nextIdx;
@@ -750,24 +754,22 @@ export function simulateMove(game: IGame, piece: Piece, target: HexClass): Snaps
   return undo;
 }
 
-export function undoMove(game: IGame, undo: Snapshot): void {
+export function undoMove(game: IGame, undo: AISnapshot): void {
   const { piece, from, pieceHasMoved, wasAttack, defender, defenderWasKilled, attackerDied, eliminatedFaction, prevFactionIdx } = undo;
 
   piece.pos = from;
   piece.hasMoved = pieceHasMoved;
 
-  if (wasAttack) {
-    if (defenderWasKilled) {
-      defender.alive = true;
-      if (eliminatedFaction) {
-        game.eliminatedFactions.delete(eliminatedFaction);
-        for (const p of game.pieces) {
-          if (p.faction === eliminatedFaction) p.alive = true;
-        }
+  if (wasAttack && defenderWasKilled) {
+    if (defender) defender.alive = true;
+    if (eliminatedFaction) {
+      game.eliminatedFactions.delete(eliminatedFaction);
+      for (const p of game.pieces) {
+        if (p.faction === eliminatedFaction) p.alive = true;
       }
-    } else if (attackerDied) {
-      piece.alive = true;
     }
+  } else if (wasAttack && attackerDied) {
+    piece.alive = true;
   }
 
   if (undo.promotion) {
@@ -776,7 +778,7 @@ export function undoMove(game: IGame, undo: Snapshot): void {
   }
 
   game.currentFactionIdx = prevFactionIdx;
-  game.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][prevFactionIdx];
+  game.currentFaction = ([FACTION.FIRE, FACTION.WATER, FACTION.NATURE][prevFactionIdx] ?? FACTION.FIRE);
   rebuildOccupiedMap(game);
 }
 
@@ -832,11 +834,11 @@ export function minimax(game: IGame, depth: number, alpha: number, beta: number,
     const savedFactionIdx = game.currentFactionIdx;
     const factions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
     let nextIdx = (game.currentFactionIdx + 1) % 3;
-    while (game.eliminatedFactions.has(factions[nextIdx])) {
+    while (game.eliminatedFactions.has(factions[nextIdx] ?? FACTION.FIRE)) {
       nextIdx = (nextIdx + 1) % 3;
     }
     game.currentFactionIdx = nextIdx;
-    game.currentFaction = factions[nextIdx];
+    game.currentFaction = (factions[nextIdx] ?? FACTION.FIRE);
     rebuildOccupiedMap(game);
 
     const R = 2; // Null-move reduction
@@ -844,7 +846,7 @@ export function minimax(game: IGame, depth: number, alpha: number, beta: number,
 
     // Restore
     game.currentFactionIdx = savedFactionIdx;
-    game.currentFaction = factions[savedFactionIdx];
+    game.currentFaction = (factions[savedFactionIdx] ?? FACTION.FIRE);
     rebuildOccupiedMap(game);
 
     if (!nullResult.timeout && -nullResult.score >= beta) {
@@ -877,7 +879,7 @@ export function minimax(game: IGame, depth: number, alpha: number, beta: number,
     // ─── Futility Pruning (depth <= 3, quiet moves only) ─────────────
     if (isQuiet && depth <= 3) {
       const staticScore = evaluateBoard(game, maximizingFaction);
-      const futilityMargin = FUTILITY_MARGINS[depth];
+      const futilityMargin = FUTILITY_MARGINS[depth] ?? 0;
       if (staticScore + futilityMargin <= alpha) {
         continue; // Prune: even with margin, can't raise score above alpha
       }
@@ -887,7 +889,7 @@ export function minimax(game: IGame, depth: number, alpha: number, beta: number,
     let razorReduction = 0;
     if (isQuiet && depth <= 2) {
       const staticScore = evaluateBoard(game, maximizingFaction);
-      const razorMargin = RAZOR_MARGINS[depth];
+      const razorMargin = RAZOR_MARGINS[depth] ?? 0;
       if (staticScore + razorMargin <= alpha) {
         razorReduction = 1; // Reduce depth by 1 instead of pruning entirely
       }
@@ -923,10 +925,10 @@ export function minimax(game: IGame, depth: number, alpha: number, beta: number,
 
 export function quiesce(game: IGame, alpha: number, beta: number, maximizingFaction: Faction, currentFaction: Faction, qDepth = 0): SearchResult {
   const standPat = evaluateBoard(game, maximizingFaction);
-  if (qDepth >= 4) return { score: standPat };
+  if (qDepth >= 4) return { score: standPat, action: null };
 
   if (currentFaction === maximizingFaction) {
-    if (standPat >= beta) return { score: beta };
+    if (standPat >= beta) return { score: beta, action: null };
     alpha = Math.max(alpha, standPat);
 
     const attackActions = getAllActions(game, currentFaction)
@@ -937,12 +939,12 @@ export function quiesce(game: IGame, alpha: number, beta: number, maximizingFact
       const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
       undoMove(game, undo);
 
-      if (result.score >= beta) return { score: beta };
+      if (result.score >= beta) return { score: beta, action: null };
       alpha = Math.max(alpha, result.score);
     }
-    return { score: alpha };
+    return { score: alpha, action: null };
   } else {
-    if (standPat <= alpha) return { score: alpha };
+    if (standPat <= alpha) return { score: alpha, action: null };
     beta = Math.min(beta, standPat);
 
     const attackActions = getAllActions(game, currentFaction)
@@ -953,10 +955,10 @@ export function quiesce(game: IGame, alpha: number, beta: number, maximizingFact
       const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
       undoMove(game, undo);
 
-      if (result.score <= alpha) return { score: alpha };
+      if (result.score <= alpha) return { score: alpha, action: null };
       beta = Math.min(beta, result.score);
     }
-    return { score: beta };
+    return { score: beta, action: null };
   }
 }
 
@@ -971,8 +973,9 @@ export function iterativeDeepening(game: IGame, faction: Faction): AIAction | nu
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
   if (actions.length === 1) return actions[0];
-
-  let bestResult: SearchResult = { score: -Infinity, action: actions[0] };
+  let bestScore = -Infinity;
+  let bestAction: AIAction | null = null;
+  let bestResult: SearchResult = { score: -Infinity, action: null };
   let prevScore = 0;
 
   const MAX_DEPTH_CAP = 12;
@@ -1007,7 +1010,7 @@ export function iterativeDeepening(game: IGame, faction: Faction): AIAction | nu
     }
   }
 
-  return bestResult.action;
+  return bestResult.action ?? null;
 }
 
 export function greedyBestMove(game: IGame, faction: Faction, actions: AIAction[]): AIAction | null {
@@ -1143,15 +1146,6 @@ export function deserializeGame(state: {
     onDraw: null,
     onPromotion: null,
     _undoStack: [],
-    rpsEnabled: state.rpsEnabled,
-    _occupiedMap: new Map(),
-    _halfmoveClock: state._halfmoveClock || 0,
-    currentFactionIdx: state.currentFactionIdx,
-    currentFaction: state.currentFaction,
-    eliminatedFactions: new Set(state.eliminatedFactions),
-    capturedPieces: { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] },
-    _undoStack: [],
-    rpsEnabled: state.rpsEnabled,
     _positionHistory: new Map(),
     _halfmoveClock: state._halfmoveClock || 0,
   };

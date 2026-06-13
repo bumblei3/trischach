@@ -206,11 +206,25 @@ export interface Snapshot {
   defenderWasKilled?: boolean;
   attackerDied?: boolean;
   eliminatedFaction?: Faction;
-  promotion?: boolean;
+  promotion?: PieceType;
   promoted?: boolean;
   piece?: Piece;
   from?: Hex;
   pieceHasMoved?: boolean;
+}
+
+// Minimal snapshot for AI simulation (used in minimax search)
+export interface AISnapshot {
+  piece: Piece;
+  from: Hex;
+  pieceHasMoved: boolean;
+  wasAttack: boolean;
+  defender?: Piece;
+  defenderWasKilled: boolean;
+  attackerDied: boolean;
+  eliminatedFaction?: Faction;
+  promotion?: PieceType;
+  prevFactionIdx: number;
 }
 
 export interface IGame {
