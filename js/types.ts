@@ -226,6 +226,7 @@ export interface AISnapshot {
   eliminatedFaction?: Faction;
   promotion?: PieceType;
   prevFactionIdx: number;
+  prevZobristHash?: bigint;
 }
 
 export interface IGame {
@@ -252,6 +253,7 @@ export interface IGame {
   _positionHistory: Map<string, number>;
   _halfmoveClock: number;
   _occupiedMap: Map<string, Piece> | null;
+  _zobristHash?: bigint;
   init(boardCells: Map<string, Cell>): void;
   getAlivePieces(): Piece[];
   getPieceAt(hex: Hex): Piece | null;

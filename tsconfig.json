@@ -29,10 +29,11 @@
     "js/game-check.ts",
     "js/game.ts",
     "js/board.ts",
+    "js/ai-core.ts",
     "tests/**/*.ts",
     "tests-e2e/**/*.ts",
     "playwright.config.ts",
     "vitest.config.ts"
   ],
-  "exclude": ["node_modules", "dist", "js/**/*.js", "js/ai-core.ts"]
+  "exclude": ["node_modules", "dist", "js/**/*.js"]
 }
