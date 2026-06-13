@@ -206,6 +206,7 @@ export interface Snapshot {
   defenderWasKilled?: boolean;
   attackerDied?: boolean;
   eliminatedFaction?: Faction;
+  promotion?: boolean;
   promoted?: boolean;
   piece?: Piece;
   from?: Hex;
@@ -352,7 +353,7 @@ export interface AIAction {
 
 export interface SearchResult {
   score: number;
-  action: AIAction | null;
+  action?: AIAction | null;
   timeout?: boolean;
 }
 
