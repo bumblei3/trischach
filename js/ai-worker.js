@@ -46,6 +46,7 @@ import {
   iterativeDeepening,
   greedyBestMove,
   calculateBestMove,
+  setAIDepth,
   deserializeGame,
   // Pondering
   startPondering,
@@ -89,6 +90,7 @@ export {
   iterativeDeepening,
   greedyBestMove,
   calculateBestMove,
+  setAIDepth,
   deserializeGame,
   // Pondering
   startPondering,
