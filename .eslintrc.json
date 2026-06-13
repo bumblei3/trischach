@@ -12,5 +12,5 @@
     "no-unused-vars": "warn",
     "no-console": "off"
   },
-  "ignorePatterns": ["dist/", "playwright-report/", "test-results/", "coverage/"]
+  "ignorePatterns": ["dist/", "playwright-report/", "test-results/", "coverage/", "js/*.js", "js/*.js.map"]
 }
