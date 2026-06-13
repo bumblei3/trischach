@@ -105,7 +105,9 @@ export type GameState =
   | 'select_target' 
   | 'game_over' 
   | 'combat' 
-  | 'promotion';
+  | 'promotion'
+  | 'draw_repetition'
+  | 'draw_50move';
 
 export const GAME_STATE = {
   SELECT_PIECE: 'select_piece' as GameState,
@@ -113,6 +115,8 @@ export const GAME_STATE = {
   GAME_OVER: 'game_over' as GameState,
   COMBAT: 'combat' as GameState,
   PROMOTION: 'promotion' as GameState,
+  DRAW_REPETITION: 'draw_repetition' as GameState,
+  DRAW_50MOVE: 'draw_50move' as GameState,
 };
 
 export interface Cell {
@@ -147,8 +151,6 @@ export const TURN_ORDER: TurnOrder = {
   NATURE: 'nature',
 };
 
-// ─── Game Result ──────────────────────────────────────────────────
-
 export interface GameResult {
   action: 'move' | 'combat' | 'promotion' | 'select' | 'deselect';
   piece?: Piece;
@@ -161,12 +163,14 @@ export interface GameResult {
   loser?: Piece;
   promotion?: boolean;
   eliminated?: boolean;
+  elimination?: Faction;
   eliminatedFaction?: Faction;
   gameOver?: boolean;
   winner_faction?: Faction | null;
   inCheck?: boolean;
   stalemate?: boolean;
   checkmate?: Faction;
+  draw?: boolean;
   moves?: Hex[];
   attacks?: Hex[];
   rpsAttacks?: {
@@ -175,6 +179,88 @@ export interface GameResult {
     disadvantage: Hex[];
   };
 }
+
+// ─── Snapshot for Undo ──────────────────────────────────────────────
+
+export interface Snapshot {
+  pieces: Array<{
+    id: string;
+    faction: Faction;
+    type: PieceType;
+    pos: { q: number; r: number };
+    alive: boolean;
+    hasMoved: boolean;
+  }>;
+  currentFactionIdx: number;
+  eliminatedFactions: Set<Faction>;
+  capturedPieces: {
+    fire: string[];
+    water: string[];
+    nature: string[];
+  };
+  moveHistoryLength: number;
+  prevFactionIdx?: number;
+  wasAttack?: boolean;
+  defender?: Piece;
+  defenderWasKilled?: boolean;
+  attackerDied?: boolean;
+  eliminatedFaction?: Faction;
+  promoted?: boolean;
+  piece?: Piece;
+  from?: Hex;
+  pieceHasMoved?: boolean;
+}
+
+export interface IGame {
+  pieces: Piece[];
+  currentFactionIdx: number;
+  state: GameState;
+  selectedPiece: Piece | null;
+  validMoves: Hex[];
+  validAttacks: Hex[];
+  eliminatedFactions: Set<Faction>;
+  moveHistory: GameResult[];
+  onUpdate: (() => void) | null;
+  onCombat: ((result: GameResult) => void) | null;
+  onGameOver: ((winner: Faction | null) => void) | null;
+  onElimination: ((faction: Faction) => void) | null;
+  onDraw: ((type: 'repetition' | '50move') => void) | null;
+  onPromotion: ((piece: Piece) => void) | null;
+  boardCells: Map<string, Cell> | null;
+  rpsEnabled: boolean;
+  capturedPieces: Record<Faction, Piece[]>;
+  pendingPromotion: Piece | null;
+  _undoStack: Snapshot[];
+  currentFaction: Faction;
+  _positionHistory: Map<string, number>;
+  _halfmoveClock: number;
+  _occupiedMap: Map<string, Piece> | null;
+  currentFactionName: string;
+  init(boardCells: Map<string, Cell>): void;
+  getAlivePieces(): Piece[];
+  getPieceAt(hex: Hex): Piece | null;
+  _rebuildOccupiedMap(): void;
+  isKingInCheck(faction: Faction): boolean;
+  getLegalMoves(piece: Piece): { moves: Hex[]; attacks: Hex[] };
+  isCheckmate(faction: Faction): boolean;
+  isStalemate(faction: Faction): boolean;
+  isPromotion(piece: Piece, target: Hex): boolean;
+  completePromotion(newType: PieceType): GameResult | null;
+  handleCellClick(hex: Hex): GameResult | null;
+  _selectPiece(hex: Hex): GameResult;
+  _selectTarget(hex: Hex): GameResult;
+  _nextTurn(): void;
+  simulateMove(piece: Piece, target: Hex): Snapshot;
+  undoMove(undo: Snapshot): void;
+  snapshot(): Snapshot;
+  restore(snap: Snapshot): void;
+  undo(): Snapshot | null;
+  _positionHash(): string;
+  _updateDrawState(wasCapture: boolean, wasPawnMove: boolean): boolean;
+}
+
+// Export as Game for backward compatibility
+export type Game = IGame;
 
 // ─── AI Types ─────────────────────────────────────────────────────
 
