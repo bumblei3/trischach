@@ -19,6 +19,9 @@ export default defineConfig({
         'js/board.js',  // Touch handlers - tested via E2E
         'js/sounds.js',  // Audio - hard to unit test
         'js/ai-worker.js',  // Worker wrapper - tested via ai.test.js
+        'generate-*.js',  // Build scripts
+        'generate-icons.js',
+        'sw.js',  // Service worker
       ],
       thresholds: {
         lines: 80,
