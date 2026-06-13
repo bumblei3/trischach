@@ -22,6 +22,7 @@ export default defineConfig({
         'generate-*.js',  // Build scripts
         'generate-icons.js',
         'sw.js',  // Service worker
+        'js/typedefs.js',
       ],
       thresholds: {
         lines: 80,

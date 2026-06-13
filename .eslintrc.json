@@ -11,5 +11,6 @@
   "rules": {
     "no-unused-vars": "warn",
     "no-console": "off"
-  }
+  },
+  "ignorePatterns": ["dist/", "playwright-report/", "test-results/", "coverage/"]
 }

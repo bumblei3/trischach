@@ -11,7 +11,10 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "tournament": "node tournament.js",
-    "tournament:large": "node tournament.js 20 3"
+    "tournament:large": "node tournament.js 20 3",
+    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "check:js": "tsc --noEmit --skipLibCheck --allowJs --checkJs --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
@@ -22,6 +25,7 @@
     "playwright": "^1.60.0",
     "prettier": "^3.2.4",
     "serve": "^14.2.6",
+    "terser": "^5.48.0",
     "typescript": "^6.0.3",
     "vitest": "^1.6.1"
   },
