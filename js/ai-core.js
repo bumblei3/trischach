@@ -286,21 +286,243 @@ export function getPersonalities() {
 }
 
 
-// ─── Transposition Table ──────────────────────────────────────────
+// ─── Zobrist Transposition Table ────────────────────────────────────
 
-export const tt = new Map();
+// Zobrist Keys: [PIECE_TYPE][FACTION][SQUARE_INDEX] -> 64-bit random number
+// We use BigInt for 64-bit arithmetic in JavaScript
+const ZOBRIST_PIECE_TYPES = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+const ZOBRIST_FACTIONS = ['fire', 'water', 'nature'];
 
-export function boardHash(game) {
-  const pieces = game.getAlivePieces ? game.getAlivePieces() : game.pieces.filter(p => p.alive);
-  const piecesStr = pieces
-    .filter(p => p.alive)
-    .map(p => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
-    .sort()
-    .join('|');
-  const factionIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx : 
-                     (game.currentFaction ? [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].indexOf(game.currentFaction) : 0);
-  return `${piecesStr}#${factionIdx}`;
+// Board squares: axial coordinates on triangular board
+// q: -7 to 2, r: -2 to 7 (with constraints forming triangle)
+// Total valid squares = 91 (for standard TriSchach board)
+function generateValidSquares() {
+  const squares = [];
+  for (let q = -7; q <= 2; q++) {
+    for (let r = -2; r <= 7; r++) {
+      const s = -q - r;
+      // Valid triangle constraint
+      if (q >= -7 && q <= 2 && r >= -2 && r <= 7 && s >= -5 && s <= 5) {
+        squares.push(`${q},${r}`);
+      }
+    }
+  }
+  return squares;
 }
+
+const VALID_SQUARES = generateValidSquares();
+const SQUARE_TO_INDEX = new Map(VALID_SQUARES.map((sq, i) => [sq, i]));
+const NUM_SQUARES = VALID_SQUARES.length; // 91
+
+// Mersenne Twister for deterministic random 64-bit keys (seeded for reproducibility)
+class ZobristRNG {
+  constructor(seed = 0x9e3779b97f4a7c15n) {
+    this.state = seed;
+  }
+  next() {
+    // SplitMix64
+    this.state = (this.state + 0x9e3779b97f4a7c15n) & 0xFFFFFFFFFFFFFFFFn;
+    let z = this.state;
+    z = (z ^ (z >> 30n)) * 0xbf58476d1ce4e5b9n;
+    z = (z ^ (z >> 27n)) * 0x94d049bb133111ebn;
+    z = z ^ (z >> 31n);
+    return z & 0xFFFFFFFFFFFFFFFFn;
+  }
+}
+
+const zobristRng = new ZobristRNG();
+
+// Zobrist Keys: piece_key[pieceTypeIndex][factionIndex][squareIndex]
+export const ZOBRIST_PIECE_KEYS = new Array(ZOBRIST_PIECE_TYPES.length)
+  .fill(null)
+  .map(() => new Array(ZOBRIST_FACTIONS.length)
+    .fill(null)
+    .map(() => new Array(NUM_SQUARES)
+      .fill(null)
+      .map(() => zobristRng.next())));
+
+// Side-to-move keys (3 factions)
+export const ZOBRIST_SIDE_KEYS = ZOBRIST_FACTIONS.map(() => zobristRng.next());
+
+// Castling/En-passant not applicable in TriSchach, but we have:
+// - Eliminated factions (3 bits)
+export const ZOBRIST_ELIMINATED_KEYS = ZOBRIST_FACTIONS.map(() => zobristRng.next());
+
+// RPS enabled flag
+export const ZOBRIST_RPS_KEY = zobristRng.next();
+
+// Transposition Table Entry
+export class TTEntry {
+  constructor() {
+    this.key = 0n;
+    this.depth = 0;
+    this.score = 0;
+    this.flag = 'none'; // 'exact' | 'lower' | 'upper' | 'none'
+    this.bestMove = null; // { pieceId, targetKey, type, rps }
+    this.age = 0;
+  }
+}
+
+// Transposition Table with fixed-size array (power of 2 for fast modulo)
+const TT_SIZE = 1 << 18; // 262,144 entries (~2MB)
+export const tt = new Array(TT_SIZE);
+for (let i = 0; i < TT_SIZE; i++) tt[i] = new TTEntry();
+
+let ttAge = 0;
+export let ttHits = 0;
+export let ttStores = 0;
+export let ttCollisions = 0;
+
+// Compute full Zobrist hash from game state
+export function computeZobristHash(game) {
+  let hash = 0n;
+  const pieces = game.getAlivePieces ? game.getAlivePieces() : game.pieces.filter(p => p.alive);
+  
+  for (const piece of pieces) {
+    const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
+    const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
+    const sqIdx = SQUARE_TO_INDEX.get(piece.pos.key);
+    if (ptIdx >= 0 && facIdx >= 0 && sqIdx !== undefined) {
+      hash ^= ZOBRIST_PIECE_KEYS[ptIdx][facIdx][sqIdx];
+    }
+  }
+  
+  // Side to move
+  const sideIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx :
+                  (game.currentFaction ? ZOBRIST_FACTIONS.indexOf(game.currentFaction) : 0);
+  if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx];
+  
+  // Eliminated factions
+  for (const fac of ZOBRIST_FACTIONS) {
+    if (game.eliminatedFactions.has(fac)) {
+      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(fac)];
+    }
+  }
+  
+  // RPS enabled
+  if (game.rpsEnabled) hash ^= ZOBRIST_RPS_KEY;
+  
+  return hash;
+}
+
+// Incremental hash update (for make/unmake move)
+export function updateZobristHash(hash, piece, fromKey, toKey, capturedPiece, eliminatedFaction, isPromotion, oldSideIdx, newSideIdx) {
+  const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
+  const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
+  
+  // Remove piece from source square
+  const fromIdx = SQUARE_TO_INDEX.get(fromKey);
+  if (fromIdx !== undefined) hash ^= ZOBRIST_PIECE_KEYS[ptIdx][facIdx][fromIdx];
+  
+  // Add piece to destination square (handle promotion)
+  const finalType = isPromotion ? 'queen' : piece.type;
+  const finalPtIdx = ZOBRIST_PIECE_TYPES.indexOf(finalType);
+  const toIdx = SQUARE_TO_INDEX.get(toKey);
+  if (toIdx !== undefined) hash ^= ZOBRIST_PIECE_KEYS[finalPtIdx][facIdx][toIdx];
+  
+  // Remove captured piece
+  if (capturedPiece) {
+    const capPtIdx = ZOBRIST_PIECE_TYPES.indexOf(capturedPiece.type);
+    const capFacIdx = ZOBRIST_FACTIONS.indexOf(capturedPiece.faction);
+    if (capPtIdx >= 0 && capFacIdx >= 0 && toIdx !== undefined) {
+      hash ^= ZOBRIST_PIECE_KEYS[capPtIdx][capFacIdx][toIdx];
+    }
+    // If king captured -> faction eliminated
+    if (capturedPiece.type === 'king' && eliminatedFaction) {
+      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)];
+    }
+  }
+  
+  // Side to move changes
+  if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx];
+  if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx];
+  
+  return hash;
+}
+
+// TT Probe
+export function ttProbe(hash, depth, alpha, beta) {
+  const entry = tt[Number(hash & BigInt(TT_SIZE - 1))];
+  
+  if (entry.key !== hash) return null;
+  
+  ttHits++;
+  
+  if (entry.depth >= depth) {
+    if (entry.flag === 'exact') return { score: entry.score, action: entry.bestMove, flag: 'exact' };
+    if (entry.flag === 'lower') alpha = Math.max(alpha, entry.score);
+    if (entry.flag === 'upper') beta = Math.min(beta, entry.score);
+    if (alpha >= beta) return { score: entry.score, action: entry.bestMove, flag: entry.flag };
+  }
+  
+  return { alpha, beta, bestMove: entry.bestMove }; // Return bestMove for move ordering
+}
+
+// TT Store
+export function ttStore(hash, depth, score, flag, bestMove = null) {
+  const idx = Number(hash & BigInt(TT_SIZE - 1));
+  const entry = tt[idx];
+  
+  // Always replace if empty or same position (key match)
+  // Otherwise: depth-preferred replacement
+  const shouldReplace = entry.key === 0n || 
+                        entry.key === hash || 
+                        entry.depth <= depth ||
+                        entry.age < ttAge - 4; // Age-based replacement
+  
+  if (shouldReplace) {
+    if (entry.key !== 0n && entry.key !== hash) ttCollisions++;
+    entry.key = hash;
+    entry.depth = depth;
+    entry.score = score;
+    entry.flag = flag;
+    entry.bestMove = bestMove;
+    entry.age = ttAge;
+    ttStores++;
+  }
+}
+
+// New search iteration - increment age
+export function ttNewSearch() {
+  ttAge++;
+  // Optional: clear old entries every N searches to prevent stale data
+  if (ttAge % 32 === 0) {
+    for (let i = 0; i < TT_SIZE; i++) {
+      if (tt[i].age < ttAge - 8) {
+        tt[i].key = 0n;
+      }
+    }
+  }
+}
+
+// Clear entire TT
+export function ttClear() {
+  for (let i = 0; i < TT_SIZE; i++) {
+    tt[i].key = 0n;
+  }
+  ttAge = 0;
+  ttHits = 0;
+  ttStores = 0;
+  ttCollisions = 0;
+}
+
+// Get TT stats for debugging
+export function ttStats() {
+  let used = 0;
+  for (let i = 0; i < TT_SIZE; i++) if (tt[i].key !== 0n) used++;
+  return {
+    size: TT_SIZE,
+    used,
+    loadFactor: (used / TT_SIZE * 100).toFixed(1) + '%',
+    hits: ttHits,
+    stores: ttStores,
+    collisions: ttCollisions,
+    hitRate: ttStores > 0 ? (ttHits / ttStores * 100).toFixed(1) + '%' : '0%'
+  };
+}
+
+// Backward compatibility alias
+export const boardHash = computeZobristHash;
 
 // ─── Piece-Square Tables ──────────────────────────────────────────
 
@@ -783,13 +1005,15 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
   }
 
-  const hash = boardHash(game);
-  const ttEntry = tt.get(hash);
-  if (ttEntry && ttEntry.depth >= depth) {
-    if (ttEntry.flag === 'exact') return { score: ttEntry.score, action: ttEntry.action };
-    if (ttEntry.flag === 'lower') alpha = Math.max(alpha, ttEntry.score);
-    if (ttEntry.flag === 'upper') beta = Math.min(beta, ttEntry.score);
-    if (alpha >= beta) return { score: ttEntry.score, action: ttEntry.action };
+  const hash = computeZobristHash(game);
+  const ttProbeResult = ttProbe(hash, depth, alpha, beta);
+  if (ttProbeResult) {
+    if (ttProbeResult.flag === 'exact' || ttProbeResult.flag === 'lower' || ttProbeResult.flag === 'upper') {
+      return { score: ttProbeResult.score, action: ttProbeResult.action };
+    }
+    // TT hit but depth not sufficient - use narrowed bounds
+    alpha = ttProbeResult.alpha;
+    beta = ttProbeResult.beta;
   }
 
   if (game.state === 'game_over') {
@@ -836,15 +1060,23 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     }
   }
 
+  // Get TT best move for move ordering (from probe result)
+  const ttBestMove = ttProbeResult && ttProbeResult.bestMove ? ttProbeResult.bestMove : null;
+
   let bestScore = -Infinity;
   let bestAction = null;
 
   actions.sort((a, b) => {
-    // Primary: quickSee for captures (MVV-LVA + RPS aware)
+    // Primary: TT move (highest priority)
+    if (ttBestMove) {
+      const aIsTT = a.piece.id === ttBestMove.pieceId && a.target.key === ttBestMove.targetKey && a.type === ttBestMove.type;
+      const bIsTT = b.piece.id === ttBestMove.pieceId && b.target.key === ttBestMove.targetKey && b.type === ttBestMove.type;
+      if (aIsTT !== bIsTT) return aIsTT ? -1 : 1;
+    }
+    // Secondary: quickSee for captures (MVV-LVA + RPS aware)
     const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
     const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
     if (aSee !== bSee) return bSee - aSee;
-    // Secondary: TT move (handled elsewhere via killer moves priority)
     // Tertiary: Killer moves
     const aKiller = killerMoves[`${depth},${a.piece.id},${a.target.key}`] ? 10000 : 0;
     const bKiller = killerMoves[`${depth},${b.piece.id},${b.target.key}`] ? 10000 : 0;
@@ -896,12 +1128,15 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
       break;
     }
   }
-  
+
   const flag = bestScore <= alpha ? 'upper' : (bestScore >= beta ? 'lower' : 'exact');
-  if (flag !== 'upper' && flag !== 'lower') {
-    tt.set(hash, { depth, score: bestScore, action: bestAction, flag });
-  }
-  
+  ttStore(hash, depth, bestScore, flag, bestAction ? {
+    pieceId: bestAction.piece.id,
+    targetKey: bestAction.target.key,
+    type: bestAction.type,
+    rps: bestAction.rps
+  } : null);
+
   return { score: bestScore, action: bestAction };
 }
 
@@ -948,19 +1183,20 @@ export function iterativeDeepening(game, faction) {
   const timeBudget = calculateTimeBudget(game);
   searchDeadline = Date.now() + timeBudget;
   nodesSearched = 0;
-  tt.clear();
+  ttClear();
   Object.keys(killerMoves).forEach(k => delete killerMoves[k]);
   Object.keys(historyTable).forEach(k => delete historyTable[k]);
-  
+
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
   if (actions.length === 1) return actions[0];
-  
+
   let bestResult = { score: -Infinity, action: actions[0] };
   let prevScore = 0;
-  
+
   const MAX_DEPTH_CAP = 12;
   for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
+    ttNewSearch(); // Increment TT age for this depth
     if (Date.now() > searchDeadline - timeBudget * 0.2) break;
     let alpha, beta;
     if (depth <= 1) {
