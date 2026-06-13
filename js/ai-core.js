@@ -87,6 +87,113 @@ export function setAIDepth(depth) {
   MAX_DEPTH = Math.max(1, Math.min(12, depth));
 }
 
+// ─── SEE (Static Exchange Evaluation) ───────────────────────────────
+
+// Piece values for SEE (centipawns)
+export const SEE_PIECE_VALUES = {
+  king: 10000,
+  queen: 900,
+  rook: 500,
+  bishop: 300,
+  knight: 300,
+  pawn: 100,
+};
+
+export function getSeeValue(pieceType) {
+  return SEE_PIECE_VALUES[pieceType] || 0;
+}
+
+/**
+ * Static Exchange Evaluation for Trischach with RPS mechanics.
+ * Returns score in centipawns from attacker's perspective.
+ * Positive = winning capture sequence, Negative = losing.
+ */
+export function see(game, attacker, victim, attackerFaction, victimFaction, rpsResult) {
+  // RPS disadvantage = attacker dies immediately, huge penalty
+  if (rpsResult === 'disadvantage') {
+    return -getSeeValue(attacker.type) * 10;
+  }
+
+  // RPS advantage/neutral: attacker wins initial capture
+  let score = getSeeValue(victim.type) * 10;
+
+  // Simulate recapture sequence (alternating sides)
+  // We track the current "attacker" and "victim" as pieces are captured
+  // For Trischach 3-player, we simplify: assume recapture by victim's faction
+  // then counter-recapture by original attacker's faction, etc.
+
+  let currentAttacker = { ...victim, type: attacker.type }; // The piece that just moved/attacked
+  let currentVictim = { ...attacker }; // The piece that could be recaptured
+  let currentAttackerFaction = attackerFaction;
+  let currentVictimFaction = victimFaction;
+  let moveCount = 1;
+
+  // Board state simulation for SEE - we remove captured pieces
+  // Simplified: just track what's left and alternate
+  // Full implementation would need board copy; this is fast heuristic
+
+  while (moveCount < 6) { // Limit depth of SEE
+    moveCount++;
+
+    // Find best recapture for the defending side
+    let bestRecapture = -Infinity;
+    let recapturePiece = null;
+
+    // In real SEE, we'd iterate all pieces of currentVictimFaction that can capture currentAttacker
+    // Simplified: just use the victim's value as proxy for recapture quality
+    const recaptureValue = getSeeValue(currentAttacker.type);
+
+    if (recaptureValue <= 0) break; // Nothing to recapture
+
+    // Alternate: defending side recaptures
+    score -= recaptureValue * 10;
+    moveCount++;
+
+    if (moveCount >= 6) break;
+
+    // Original attacker side counter-recaptures
+    const counterValue = getSeeValue(currentVictim.type);
+    if (counterValue <= 0) break;
+    score += counterValue * 10;
+
+    // Swap roles for next iteration
+    const temp = currentAttacker;
+    currentAttacker = currentVictim;
+    currentVictim = temp;
+    const tempF = currentAttackerFaction;
+    currentAttackerFaction = currentVictimFaction;
+    currentVictimFaction = tempF;
+  }
+
+  return score;
+}
+
+/**
+ * Quick SEE for move ordering - just evaluates if capture is winning/equal/losing
+ */
+export function quickSee(game, action) {
+  if (action.type !== 'attack') return 0;
+
+  const defender = game.pieces.find(p => p.alive && p.pos.equals(action.target));
+  if (!defender) return 0;
+
+  const attackerFaction = action.piece.faction;
+  const victimFaction = defender.faction;
+  const rps = game.rpsEnabled ? getRPSResult(attackerFaction, victimFaction) : 'advantage';
+
+  if (rps === 'disadvantage') return -10000; // Suicidal
+
+  const attackerVal = getSeeValue(action.piece.type);
+  const victimVal = getSeeValue(defender.type);
+
+  // Simple MVV-LVA with RPS
+  if (rps === 'advantage') {
+    return (victimVal - attackerVal / 10) * 100;
+  }
+  // Neutral
+  return (victimVal - attackerVal / 10) * 50;
+}
+
 // ─── AI Personalities ──────────────────────────────────────────────
 
 export const AI_PERSONALITIES = {
@@ -517,17 +624,17 @@ export function getAllActions(game, faction) {
       actions.push({ piece, target, type: 'move' });
     }
   }
-  
+
   actions.sort((a, b) => {
-    const aVal = a.type === 'attack'
-      ? (a.rps !== 'disadvantage' ? PIECE_STRENGTH[game.pieces.find(p => p.alive && p.pos.equals(a.target))?.type || 'pawn'] + 10 : -100)
-      : 0;
-    const bVal = b.type === 'attack'
-      ? (b.rps !== 'disadvantage' ? PIECE_STRENGTH[game.pieces.find(p => p.alive && p.pos.equals(b.target))?.type || 'pawn'] + 10 : -100)
-      : 0;
-    return bVal - aVal;
+    // Use quickSee for capture ordering (MVV-LVA + RPS aware)
+    const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
+    const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
+    if (aSee !== bSee) return bSee - aSee;
+    // Fallback: prioritize attacks over moves
+    if (a.type !== b.type) return a.type === 'attack' ? -1 : 1;
+    return 0;
   });
-  
+
   return actions;
 }
 
@@ -662,15 +769,20 @@ export function undoMove(game, undo) {
 export const killerMoves = {};
 export const historyTable = {};
 
+// Futility margins (centipawns) - depth 1, 2, 3
+export const FUTILITY_MARGINS = [0, 150, 300, 500];
+// Razoring margins (centipawns) - depth 1, 2
+export const RAZOR_MARGINS = [0, 300, 500];
+
 let searchDeadline = 0;
-let nodesSearched = 0;
+export let nodesSearched = 0;
 
 export function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
   nodesSearched++;
   if (nodesSearched % 1000 === 0 && Date.now() > searchDeadline) {
     return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
   }
-  
+
   const hash = boardHash(game);
   const ttEntry = tt.get(hash);
   if (ttEntry && ttEntry.depth >= depth) {
@@ -679,36 +791,96 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     if (ttEntry.flag === 'upper') beta = Math.min(beta, ttEntry.score);
     if (alpha >= beta) return { score: ttEntry.score, action: ttEntry.action };
   }
-  
+
   if (game.state === 'game_over') {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
-  
+
   const actions = getAllActions(game, currentFaction);
   if (actions.length === 0) {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
-  
+
   if (depth <= 0) {
     return quiesce(game, alpha, beta, maximizingFaction, currentFaction);
   }
-  
+
+  // ─── Null-Move Pruning (R=2) ───────────────────────────────────────
+  // Only when: depth >= 3, not in check, current faction has > 1 piece
+  const inCheck = isKingdomCheck(game, currentFaction);
+  const myPieces = game.pieces.filter(p => p.faction === currentFaction && p.alive);
+  const canNullMove = depth >= 3 && !inCheck && myPieces.length > 1;
+
+  if (canNullMove) {
+    // Save current faction index, switch to next faction (pass turn)
+    const savedFactionIdx = game.currentFactionIdx;
+    const factions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
+    let nextIdx = (game.currentFactionIdx + 1) % 3;
+    while (game.eliminatedFactions.has(factions[nextIdx])) {
+      nextIdx = (nextIdx + 1) % 3;
+    }
+    game.currentFactionIdx = nextIdx;
+    game.currentFaction = factions[nextIdx];
+    rebuildOccupiedMap(game);
+
+    const R = 2; // Null-move reduction
+    const nullResult = minimax(game, depth - 1 - R, -beta, -beta + 1, maximizingFaction, game.currentFaction);
+
+    // Restore
+    game.currentFactionIdx = savedFactionIdx;
+    game.currentFaction = factions[savedFactionIdx];
+    rebuildOccupiedMap(game);
+
+    if (!nullResult.timeout && -nullResult.score >= beta) {
+      return { score: beta, action: null }; // Null-move refutation: position is too good
+    }
+  }
+
   let bestScore = -Infinity;
   let bestAction = null;
-  
+
   actions.sort((a, b) => {
+    // Primary: quickSee for captures (MVV-LVA + RPS aware)
+    const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
+    const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
+    if (aSee !== bSee) return bSee - aSee;
+    // Secondary: TT move (handled elsewhere via killer moves priority)
+    // Tertiary: Killer moves
     const aKiller = killerMoves[`${depth},${a.piece.id},${a.target.key}`] ? 10000 : 0;
     const bKiller = killerMoves[`${depth},${b.piece.id},${b.target.key}`] ? 10000 : 0;
+    // Quaternary: History heuristic
     const aHistory = historyTable[`${a.piece.id},${a.target.key}`] || 0;
     const bHistory = historyTable[`${b.piece.id},${b.target.key}`] || 0;
     return (bKiller + bHistory) - (aKiller + aHistory);
   });
-  
-  
+
+
   for (const action of actions) {
+    const isQuiet = action.type !== 'attack';
+
+    // ─── Futility Pruning (depth <= 3, quiet moves only) ─────────────
+    if (isQuiet && depth <= 3) {
+      const staticScore = evaluateBoard(game, maximizingFaction);
+      const futilityMargin = FUTILITY_MARGINS[depth];
+      if (staticScore + futilityMargin <= alpha) {
+        continue; // Prune: even with margin, can't raise score above alpha
+      }
+    }
+
+    // ─── Razoring (depth <= 2, quiet moves far below beta) ───────────
+    let razorReduction = 0;
+    if (isQuiet && depth <= 2) {
+      const staticScore = evaluateBoard(game, maximizingFaction);
+      const razorMargin = RAZOR_MARGINS[depth];
+      if (staticScore + razorMargin <= alpha) {
+        razorReduction = 1; // Reduce depth by 1 instead of pruning entirely
+      }
+    }
+
     const undo = simulateMove(game, action.piece, action.target);
     const nextFaction = game.currentFaction;
-    const result = minimax(game, depth - 1, alpha, beta, maximizingFaction, nextFaction);
+    const searchDepth = depth - 1 - razorReduction;
+    const result = minimax(game, searchDepth, alpha, beta, maximizingFaction, nextFaction);
     undoMove(game, undo);
     
     if (result.score > bestScore) {

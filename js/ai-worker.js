@@ -45,6 +45,11 @@ import {
   calculateBestMove,
   deserializeGame,
   setAIDepth,
+  // SEE (Static Exchange Evaluation)
+  SEE_PIECE_VALUES,
+  getSeeValue,
+  see,
+  quickSee,
 } from './ai-core.js';
 
 // Re-export for unit testing (coverage)
@@ -78,6 +83,11 @@ export {
   greedyBestMove,
   calculateBestMove,
   deserializeGame,
+  // SEE (Static Exchange Evaluation)
+  SEE_PIECE_VALUES,
+  getSeeValue,
+  see,
+  quickSee,
 };
 
 // ─── Worker Message Handler ────────────────────────────────────────

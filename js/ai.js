@@ -39,6 +39,13 @@ import {
   setAIPersonality,
   getAIPersonalities,
   deserializeGame,
+  // SEE (Static Exchange Evaluation)
+  SEE_PIECE_VALUES,
+  getSeeValue,
+  see,
+  quickSee,
+  // Search stats
+  nodesSearched,
 } from './ai-core.js';
 
 // Re-export for backward compatibility
@@ -76,4 +83,11 @@ export {
   calculateBestMove,
   setAIDepth,
   deserializeGame,
+  // SEE (Static Exchange Evaluation)
+  SEE_PIECE_VALUES,
+  getSeeValue,
+  see,
+  quickSee,
+  // Search stats
+  nodesSearched,
 };
