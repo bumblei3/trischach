@@ -147,6 +147,23 @@ export class BoardRenderer {
     for (const [,e] of this.hexElements) e.polygon.classList.remove('selected');
   }
 
+  /**
+   * Highlights a king that is in check by adding the 'highlight-check' class to its hex cell.
+   * @param {Hex} kingHex - The hex position of the king in check
+   */
+  highlightCheck(kingHex) {
+    const e = this.hexElements.get(kingHex.key);
+    if (e) {
+      e.polygon.classList.add('highlight-check');
+    }
+  }
+
+  clearCheck() {
+    for (const [,e] of this.hexElements) {
+      e.polygon.classList.remove('highlight-check');
+    }
+  }
+
   renderPiece(piece) {
     this.removePiece(piece.id);
     const px = hexToPixel(piece.pos, this.hexSize);

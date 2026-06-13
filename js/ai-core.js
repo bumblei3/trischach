@@ -828,6 +828,118 @@ export function evaluateBoard(game, faction) {
   return score;
 }
 
+// ─── Check Escape Detection ────────────────────────────────────────
+
+/**
+ * Determines if a move resolves check for the given faction.
+ * Returns true if the move is a check escape (king move, capture attacker, or block).
+ */
+export function isCheckEscape(game, faction, action) {
+  // Only relevant if the faction is currently in check
+  if (!isKingdomCheck(game, faction)) return false;
+  
+  // Simulate the move and check if the king is still in check
+  const undo = simulateMove(game, action.piece, action.target);
+  const stillInCheck = isKingdomCheck(game, faction);
+  undoMove(game, undo);
+  
+  return !stillInCheck;
+}
+
+/**
+ * Normalizes a hex vector to a unit step direction.
+ * Returns a Hex representing one of the 6 axial directions.
+ */
+function normalizeDirection(hex) {
+  if (hex.q === 0 && hex.r === 0) return null;
+  
+  const steps = [
+    new Hex(1, 0),   // +q
+    new Hex(0, 1),   // +r
+    new Hex(-1, 1),  // -q+r
+    new Hex(-1, 0),  // -q
+    new Hex(0, -1),  // -r
+    new Hex(1, -1),  // +q-r
+  ];
+  
+  // Check if the vector is aligned with any of the 6 directions
+  // by checking if all steps are multiples of the same unit step
+  for (const step of steps) {
+    // Check if hex is a positive multiple of this step
+    const kq = step.q !== 0 ? hex.q / step.q : null;
+    const kr = step.r !== 0 ? hex.r / step.r : null;
+    
+    // Both non-null and equal (and positive integer)
+    if (kq !== null && kr !== null && kq === kr && Number.isInteger(kq) && kq > 0) {
+      return step;
+    }
+    // Handle cases where one component is zero
+    if (kq !== null && kr === null && step.r === 0 && hex.r === 0 && Number.isInteger(kq) && kq > 0) {
+      return step;
+    }
+    if (kr !== null && kq === null && step.q === 0 && hex.q === 0 && Number.isInteger(kr) && kr > 0) {
+      return step;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Classifies a move's check-escape type for move ordering priority.
+ * Returns: 3 = captures checking piece, 2 = king moves, 1 = blocks, 0 = not check escape
+ */
+export function getCheckEscapeType(game, faction, action) {
+  if (!isKingdomCheck(game, faction)) return 0;
+  
+  // Find the checking piece(s) - enemy pieces attacking our king
+  const king = game.pieces.find(p => p.faction === faction && p.type === 'king' && p.alive);
+  if (!king) return 0;
+  
+  const checkers = game.pieces.filter(p => {
+    if (p.faction === faction || !p.alive) return false;
+    const { attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
+    return attacks.some(a => a.equals(king.pos));
+  });
+  
+  // If capturing a checking piece
+  if (action.type === 'attack') {
+    const defender = game.pieces.find(p => p.alive && p.pos.equals(action.target));
+    if (defender && checkers.some(c => c.id === defender.id)) {
+      return 3; // Capturing the checking piece - highest priority
+    }
+  }
+  
+  // If king moves
+  if (action.piece.type === 'king') {
+    return 2; // King move - high priority
+  }
+  
+  // Check if blocking a sliding attack (bishop, rook, queen)
+  // The block must be on the line between king and checker, closer than checker
+  for (const checker of checkers) {
+    if (checker.type === 'bishop' || checker.type === 'rook' || checker.type === 'queen') {
+      const kingToChecker = checker.pos.subtract(king.pos);
+      const kingToTarget = action.target.subtract(king.pos);
+      
+      // Check if they're in the same direction (king, target, checker aligned)
+      const dir = normalizeDirection(kingToChecker);
+      const targetDir = normalizeDirection(kingToTarget);
+      
+      if (dir && targetDir && dir.equals(targetDir)) {
+        // Target must be between king and checker (closer than checker)
+        const checkerDist = king.pos.distance(checker.pos);
+        const targetDist = king.pos.distance(action.target);
+        if (targetDist < checkerDist && targetDist > 0) {
+          return 1; // Blocking move
+        }
+      }
+    }
+  }
+  
+  return 0;
+}
+
 // ─── Movement Generation ──────────────────────────────────────────
 
 export function getAllActions(game, faction) {
@@ -848,6 +960,11 @@ export function getAllActions(game, faction) {
   }
 
   actions.sort((a, b) => {
+    // PRIMARY: Check escape moves (highest priority when in check)
+    const aCheckEscape = getCheckEscapeType(game, faction, a);
+    const bCheckEscape = getCheckEscapeType(game, faction, b);
+    if (aCheckEscape !== bCheckEscape) return bCheckEscape - aCheckEscape;
+    
     // Use quickSee for capture ordering (MVV-LVA + RPS aware)
     const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
     const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
@@ -1087,14 +1204,21 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
       const bIsTT = b.piece.id === ttBestMove.pieceId && b.target.key === ttBestMove.targetKey && b.type === ttBestMove.type;
       if (aIsTT !== bIsTT) return aIsTT ? -1 : 1;
     }
-    // Secondary: quickSee for captures (MVV-LVA + RPS aware)
+    // Secondary: Check escape moves (high priority when in check)
+    const inCheck = isKingdomCheck(game, currentFaction);
+    if (inCheck) {
+      const aCheckEscape = getCheckEscapeType(game, currentFaction, a);
+      const bCheckEscape = getCheckEscapeType(game, currentFaction, b);
+      if (aCheckEscape !== bCheckEscape) return bCheckEscape - aCheckEscape;
+    }
+    // Tertiary: quickSee for captures (MVV-LVA + RPS aware)
     const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
     const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
     if (aSee !== bSee) return bSee - aSee;
-    // Tertiary: Killer moves
+    // Quaternary: Killer moves
     const aKiller = killerMoves[`${depth},${a.piece.id},${a.target.key}`] ? 10000 : 0;
     const bKiller = killerMoves[`${depth},${b.piece.id},${b.target.key}`] ? 10000 : 0;
-    // Quaternary: History heuristic
+    // Quinary: History heuristic
     const aHistory = historyTable[`${a.piece.id},${a.target.key}`] || 0;
     const bHistory = historyTable[`${b.piece.id},${b.target.key}`] || 0;
     return (bKiller + bHistory) - (aKiller + aHistory);
