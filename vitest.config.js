@@ -8,6 +8,20 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/**',
+        'tests/**',
+        'tests-e2e/**',
+        '*.config.*',
+        'tournament.js',
+        'js/**/*.ts',  // TypeScript files excluded from coverage (tested via .js)
+      ],
+      thresholds: {
+        lines: 80,
+        branches: 80,
+        functions: 80,
+        statements: 80,
+      },
     },
   },
 });
