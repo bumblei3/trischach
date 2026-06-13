@@ -182,7 +182,7 @@ jobs:
             timestamp: .timestamp,
             engines: .engines,
             elo: .elo,
-            avg_nodes: .results | to_entries | map(.value | reduce .[] as $m (0; . + $m.wins + $m.draws + $m.losses)) | add / length
+            total_games: (.results | to_entries | map(.value | to_entries | map(.value | .wins + .draws + .losses) | add) | add)
           }' > benchmark-results.json
 
       - name: Upload benchmark results
