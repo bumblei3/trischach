@@ -8,7 +8,7 @@
  * Add/modify here, then both consumers stay in sync.
  */
 
-// @ts-nocheck - Temporary: Disable type checking during migration from JS
+// @ts-nocheck - Temporary: Disable type checking during final migration
 import { getValidMoves, PIECE_STRENGTH } from './pieces.ts';
 import { getRPSResult, FACTION } from './board.ts';
 import { Hex } from './hex.ts';
@@ -375,8 +375,8 @@ export function computeZobristHash(game: IGame): bigint {
   for (const piece of pieces) {
     const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
     const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
-    const sqIdx = SQUARE_TO_INDEX.get(piece.pos.key) as number;
-    if (ptIdx >= 0 && facIdx >= 0) {
+    const sqIdx = SQUARE_TO_INDEX.get(piece.pos.key);
+    if (ptIdx >= 0 && facIdx >= 0 && sqIdx !== undefined) {
       hash ^= getZobristKey(ptIdx, facIdx, sqIdx);
     }
   }
@@ -405,19 +405,19 @@ export function updateZobristHash(
   const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
   const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
   
-  const fromIdx = SQUARE_TO_INDEX.get(fromKey)!;
-  hash ^= getZobristKey(ptIdx, facIdx, fromIdx);
+  const fromIdx = SQUARE_TO_INDEX.get(fromKey);
+  if (fromIdx !== undefined) hash ^= getZobristKey(ptIdx, facIdx, fromIdx);
   
   const finalType = isPromotion ? 'queen' : piece.type;
   const finalPtIdx = ZOBRIST_PIECE_TYPES.indexOf(finalType);
-  const toIdx = SQUARE_TO_INDEX.get(toKey)!;
-  hash ^= getZobristKey(finalPtIdx, facIdx, toIdx);
+  const toIdx = SQUARE_TO_INDEX.get(toKey);
+  if (toIdx !== undefined) hash ^= getZobristKey(finalPtIdx, facIdx, toIdx);
   
   if (capturedPiece) {
     const capPtIdx = ZOBRIST_PIECE_TYPES.indexOf(capturedPiece.type);
     const capFacIdx = ZOBRIST_FACTIONS.indexOf(capturedPiece.faction);
     if (capPtIdx >= 0 && capFacIdx >= 0) {
-      hash ^= getZobristKey(capPtIdx, capFacIdx, toIdx as number);
+      hash ^= getZobristKey(capPtIdx, capFacIdx, toIdx);
     }
     if (capturedPiece.type === 'king' && eliminatedFaction) {
       const elimIdx = ZOBRIST_FACTIONS.indexOf(eliminatedFaction)!;
@@ -457,6 +457,7 @@ export function ttStore(
 ): void {
   const idx = Number(hash & BigInt(TT_SIZE - 1));
   const entry = tt[idx];
+  if (!entry) return; // Should never happen, but satisfies TypeScript
   
   const shouldReplace = entry.key === 0n || entry.key === hash || entry.depth <= depth || entry.age < ttAge - 4;
   
@@ -844,8 +845,9 @@ export function simulateMove(game: IGame, piece: Piece, target: Hex): AISnapshot
   game.currentFactionIdx = nextIdx;
   game.currentFaction = factions[nextIdx] ?? FACTION.FIRE;
   
+  const prevHash = undo.prevZobristHash ?? computeZobristHash(game);
   game._zobristHash = updateZobristHash(
-    undo.prevZobristHash,
+    prevHash,
     piece,
     undo.from.key,
     target.key,
