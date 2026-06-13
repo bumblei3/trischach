@@ -491,6 +491,11 @@ function showPromotion(piece) {
   const color = FACTION_COLORS[piece.faction];
   const names = { queen: 'Dame', rook: 'Turm', bishop: 'Läufer', knight: 'Springer' };
   const symbols = { queen: '♛', rook: '♜', bishop: '♝', knight: '♞' };
+  const keyHints = { queen: 'Q', rook: 'R', bishop: 'B', knight: 'N' };
+
+  // Load auto-queen setting
+  const settings = loadSettings();
+  const autoQueen = settings.autoQueen === true;
 
   promotionOverlay.innerHTML = `
     <div class="promotion-box">
@@ -499,31 +504,91 @@ function showPromotion(piece) {
       </div>
       <div class="promotion-choices">
         ${PROMOTION_CHOICES.map(type => `
-          <button class="promotion-choice" data-type="${type}" style="border-color:${color.primary}">
+          <button class="promotion-choice" data-type="${type}" data-key="${keyHints[type]}" style="border-color:${color.primary}" title="${names[type]} (Taste: ${keyHints[type]})">
             <span class="choice-symbol">${symbols[type]}</span>
             <span class="choice-name">${names[type]}</span>
+            <span class="choice-key">${keyHints[type]}</span>
           </button>
         `).join('')}
+      </div>
+      <div class="promotion-options">
+        <label class="auto-queen-label">
+          <input type="checkbox" id="auto-queen-checkbox" ${autoQueen ? 'checked' : ''}>
+          <span>Immer automatisch zur Dame promovieren</span>
+        </label>
       </div>
     </div>
   `;
   promotionOverlay.classList.add('visible');
 
+  // Auto-queen checkbox handler
+  const autoQueenCheckbox = document.getElementById('auto-queen-checkbox');
+  autoQueenCheckbox.addEventListener('change', (e) => {
+    const settings = loadSettings();
+    settings.autoQueen = e.target.checked;
+    saveSettings(settings);
+  });
+
+  // If auto-queen is enabled, auto-promote to queen
+  if (autoQueen) {
+    setTimeout(() => {
+      promotionOverlay.classList.remove('visible');
+      const result = game.completePromotion('queen');
+      if (result) {
+        handlePromotionResult(result, piece);
+      }
+    }, 100);
+    return;
+  }
+
+  // Click handlers for promotion choices
   promotionOverlay.querySelectorAll('.promotion-choice').forEach(btn => {
     btn.addEventListener('click', () => {
       const newType = btn.dataset.type;
       promotionOverlay.classList.remove('visible');
       const result = game.completePromotion(newType);
       if (result) {
-        addToLog(result);
-        // Re-render the promoted piece
-        renderer.removePiece(piece.id);
-        renderer.renderPiece(piece);
-        updateUI();
-        sounds.playPromotion();
+        handlePromotionResult(result, piece);
       }
     });
   });
+
+  // Keyboard shortcuts handler
+  const keyHandler = (e) => {
+    if (!promotionOverlay.classList.contains('visible')) return;
+    
+    const key = e.key.toLowerCase();
+    const keyMap = { 'q': 'queen', 'r': 'rook', 'b': 'bishop', 'n': 'knight' };
+    
+    if (keyMap[key]) {
+      e.preventDefault();
+      promotionOverlay.classList.remove('visible');
+      const result = game.completePromotion(keyMap[key]);
+      if (result) {
+        handlePromotionResult(result, piece);
+      }
+      document.removeEventListener('keydown', keyHandler);
+    }
+  };
+  
+  document.addEventListener('keydown', keyHandler);
+  
+  // Cleanup on overlay close
+  const cleanup = () => {
+    document.removeEventListener('keydown', keyHandler);
+    promotionOverlay.removeEventListener('transitionend', cleanup);
+  };
+  promotionOverlay.addEventListener('transitionend', cleanup);
+}
+
+// Shared promotion result handler
+function handlePromotionResult(result, piece) {
+  addToLog(result);
+  // Re-render the promoted piece
+  renderer.removePiece(piece.id);
+  renderer.renderPiece(piece);
+  updateUI();
+  sounds.playPromotion();
 }
 
 autoBattleBtn.addEventListener('click', () => {

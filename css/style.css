@@ -565,6 +565,42 @@ input:checked + .slider:before {
   margin-top: 0.2rem;
 }
 
+.promotion-choice .choice-key {
+  font-size: 0.55rem;
+  color: var(--text-dim);
+  opacity: 0.6;
+  margin-top: 0.15rem;
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.promotion-options {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.auto-queen-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.auto-queen-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--water);
+  cursor: pointer;
+}
+
+.auto-queen-label:hover {
+  color: var(--text);
+}
+
 /* Eval Bar */
 #eval-bar-container {
   width: 100%;
