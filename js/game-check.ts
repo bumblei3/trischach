@@ -1,4 +1,4 @@
-import { PIECE_TYPE, getValidMoves } from './pieces.js';
+import { PIECE_TYPE, getValidMoves } from './pieces.ts';
 import type { IGame, Faction, Piece, Hex } from './types.js';
 
 /**

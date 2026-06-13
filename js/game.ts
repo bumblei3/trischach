@@ -1,6 +1,6 @@
 import { Hex } from './hex.js';
 import { FACTION, getRPSResult, FACTION_COLORS } from './board.js';
-import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.js';
+import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.ts';
 import { 
   isKingdomCheck, 
   legalMoveCheck, 
