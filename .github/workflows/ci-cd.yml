@@ -9,23 +9,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  schedule:
-    # Nightly tournament run at 03:00 UTC
-    - cron: '0 3 * * *'
   workflow_dispatch:
-    # Manual trigger for tournament
-    inputs:
-      games:
-        description: 'Games per pairing'
-        required: false
-        default: '10'
-      depth:
-        description: 'AI depth'
-        required: false
-        default: '3'
 
 env:
-  # Cache keys
   NODE_VERSION: '20'
 
 jobs:
@@ -55,7 +41,7 @@ jobs:
             eslint-${{ runner.os }}-
 
       - name: Run TypeScript type check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Run linter
         run: npm run lint
@@ -82,7 +68,7 @@ jobs:
         run: npm audit --audit-level=high || true
         continue-on-error: true
 
-  # NEW: Security scanning with CodeQL
+  # Security scanning with CodeQL
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
@@ -106,7 +92,6 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
-    # Run in parallel with lint-test, no longer dependent
     steps:
       - uses: actions/checkout@v4
 
@@ -130,8 +115,8 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Build (if needed)
-        run: npm run build 2>/dev/null || true
+      - name: Build
+        run: npm run build
 
       - name: Run E2E tests
         run: npm run test:e2e
@@ -152,72 +137,8 @@ jobs:
           path: test-results/
           retention-days: 7
 
-  # NEW: Performance benchmark tracking
-  benchmark:
-    name: Performance Benchmark
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'pull_request'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run tournament benchmark
-        env:
-          GAMES_PER_PAIRING: 4
-          AI_DEPTH: 2
-        run: |
-          node tournament.js $GAMES_PER_PAIRING $AI_DEPTH
-
-      - name: Extract performance metrics
-        run: |
-          cat tournament-results.json | jq '{
-            timestamp: .timestamp,
-            engines: .engines,
-            elo: .elo,
-            total_games: (.results | to_entries | map(.value | to_entries | map(.value | .wins + .draws + .losses) | add) | add)
-          }' > benchmark-results.json
-
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-results
-          path: benchmark-results.json
-          retention-days: 90
-
-      - name: Comment benchmark on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('tournament-results.json', 'utf8'));
-            const table = results.results ? Object.entries(results.results).map(([engine, matchups]) => {
-              const wins = Object.values(matchups).reduce((sum, m) => sum + m.wins, 0);
-              const draws = Object.values(matchups).reduce((sum, m) => sum + m.draws, 0);
-              const losses = Object.values(matchups).reduce((sum, m) => sum + m.losses, 0);
-              const elo = results.elo[engine] || 'N/A';
-              return `| ${engine} | ${elo} | ${wins} | ${draws} | ${losses} |`;
-            }).join('\n') : 'No results';
-            
-            const body = `## 🏆 Tournament Benchmark\n\n| Engine | Elo | W | D | L |\n|--------|-----|---|---|---|\n${table}\n\n*Quick benchmark: 4 games @ depth 2*`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
+  # Tournament benchmark (manual/scheduled only)
   tournament:
-    # Engine tournament for performance regression detection
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
@@ -270,7 +191,7 @@ jobs:
               body
             });
 
-  # NEW: Release automation
+  # Release automation
   release:
     name: Create Release
     runs-on: ubuntu-latest
@@ -286,7 +207,7 @@ jobs:
           cache: 'npm'
       - run: npm ci
       - name: Build
-        run: npm run build 2>/dev/null || true
+        run: npm run build
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
