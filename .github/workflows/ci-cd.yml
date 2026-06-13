@@ -9,6 +9,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    # Nightly tournament run at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    # Manual trigger for tournament
+    inputs:
+      games:
+        description: 'Games per pairing'
+        required: false
+        default: '10'
+      depth:
+        description: 'AI depth'
+        required: false
+        default: '3'
 
 jobs:
   lint-test:
@@ -44,8 +58,7 @@ jobs:
           path: coverage/
           retention-days: 7
 
-      - name: Enforce coverage thresholds (Node 20 only)
-        if: matrix.node-version == '20'
+      - name: Enforce coverage thresholds
         run: |
           COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
           if (( $(echo "$COVERAGE < 80" | bc -l) )); then
@@ -53,9 +66,13 @@ jobs:
             exit 1
           fi
 
+      - name: Dependency audit
+        run: npm audit --audit-level=high || true
+        continue-on-error: true
+
   e2e-tests:
     runs-on: ubuntu-latest
-    needs: lint-test
+    # Run in parallel with lint-test, no longer dependent
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +84,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
@@ -92,6 +117,60 @@ jobs:
           name: test-results
           path: test-results/
           retention-days: 7
+
+  tournament:
+    # Engine tournament for performance regression detection
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tournament
+        env:
+          GAMES_PER_PAIRING: ${{ github.event.inputs.games || '10' }}
+          AI_DEPTH: ${{ github.event.inputs.depth || '3' }}
+        run: |
+          node tournament.js $GAMES_PER_PAIRING $AI_DEPTH
+
+      - name: Upload tournament results
+        uses: actions/upload-artifact@v4
+        with:
+          name: tournament-results
+          path: tournament-results.json
+          retention-days: 30
+
+      - name: Comment tournament results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('tournament-results.json', 'utf8'));
+            const table = results.results ? Object.entries(results.results).map(([engine, matchups]) => {
+              const wins = Object.values(matchups).reduce((sum: number, m: any) => sum + m.wins, 0);
+              const draws = Object.values(matchups).reduce((sum: number, m: any) => sum + m.draws, 0);
+              const losses = Object.values(matchups).reduce((sum: number, m: any) => sum + m.losses, 0);
+              const elo = results.elo[engine] || 'N/A';
+              return `| ${engine} | ${elo} | ${wins} | ${draws} | ${losses} |`;
+            }).join('\n') : 'No results';
+            
+            const body = `## 🏆 Tournament Results\n\n| Engine | Elo | W | D | L |\n|--------|-----|---|---|---|\n${table}\n\n*Depth: ${process.env.AI_DEPTH}, Games/pairing: ${process.env.GAMES_PER_PAIRING}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
 
   deploy:
     needs: [lint-test, e2e-tests]
