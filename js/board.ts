@@ -1,5 +1,5 @@
-import { Hex, hexToPixel, hexPolygonPoints, hexCorners } from './hex.js';
-import type { Faction, RPSResult, Cell, Zone } from './types.js';
+import { Hex, hexToPixel, hexPolygonPoints, hexCorners } from './hex.ts';
+import type { Faction, RPSResult, Cell, Zone } from './types.ts';
 
 export const ZONE: Zone = {
   TRIANGLE: 'triangle',
@@ -92,6 +92,14 @@ interface PieceElement {
   element: SVGGElement;
 }
 
+interface TouchState {
+  touches: Map<number, { clientX: number; clientY: number }>;
+  initialAngle: number;
+  initialRotation: number;
+  isRotating: boolean;
+  initialDistance: number;
+}
+
 export class BoardRenderer {
   public readonly svg: SVGSVGElement;
   public readonly hexSize: number;
@@ -99,9 +107,17 @@ export class BoardRenderer {
   public readonly hexElements: Map<string, HexElement>;
   public readonly pieceElements: Map<string, PieceElement>;
   public onCellClick: ((hex: Hex, cell: Cell) => void) | null = null;
+  public onPieceLongPress: ((piece: { id: string; type: string; faction: Faction; pos: Hex; symbol: string }, position: { clientX: number; clientY: number }) => void) | null = null;
   private _ox = 0;
   private _oy = 0;
   public currentRotation = 0;
+  private _touchState: TouchState = {
+    touches: new Map(),
+    initialAngle: 0,
+    initialRotation: 0,
+    isRotating: false,
+    initialDistance: 0,
+  };
 
   constructor(svgEl: SVGSVGElement, hexSize = 36) {
     this.svg = svgEl;
@@ -109,6 +125,86 @@ export class BoardRenderer {
     this.cells = generateBoard();
     this.hexElements = new Map();
     this.pieceElements = new Map();
+    this._setupTouchHandling();
+  }
+
+  private _setupTouchHandling(): void {
+    this.svg.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
+    this.svg.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
+    this.svg.addEventListener('touchend', (e) => this._onTouchEnd(e), { passive: false });
+    this.svg.addEventListener('touchcancel', (e) => this._onTouchEnd(e), { passive: false });
+    this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+
+  private _getTouchAngle(touch1: { clientX: number; clientY: number } | undefined, touch2: { clientX: number; clientY: number } | undefined): number {
+    if (!touch1 || !touch2) return 0;
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  }
+
+  private _getTouchDistance(touch1: { clientX: number; clientY: number } | undefined, touch2: { clientX: number; clientY: number } | undefined): number {
+    if (!touch1 || !touch2) return 0;
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  private _onTouchStart(e: TouchEvent): void {
+    for (const touch of e.changedTouches) {
+      this._touchState.touches.set(touch.identifier, {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      });
+    }
+
+    if (this._touchState.touches.size === 2) {
+      e.preventDefault();
+      const touches = Array.from(this._touchState.touches.values()) as [{ clientX: number; clientY: number }, { clientX: number; clientY: number }];
+      this._touchState.initialAngle = this._getTouchAngle(touches[0], touches[1]);
+      this._touchState.initialRotation = this.currentRotation;
+      this._touchState.isRotating = true;
+      this._touchState.initialDistance = this._getTouchDistance(touches[0], touches[1]);
+    }
+  }
+
+  private _onTouchMove(e: TouchEvent): void {
+    if (!this._touchState.isRotating || this._touchState.touches.size !== 2) return;
+
+    e.preventDefault();
+
+    for (const touch of e.changedTouches) {
+      if (this._touchState.touches.has(touch.identifier)) {
+        this._touchState.touches.set(touch.identifier, {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+      }
+    }
+
+    const touches = Array.from(this._touchState.touches.values()) as [{ clientX: number; clientY: number }, { clientX: number; clientY: number }];
+    if (touches.length !== 2) return;
+
+    const currentAngle = this._getTouchAngle(touches[0], touches[1]);
+    const angleDiff = currentAngle - this._touchState.initialAngle;
+
+    const targetRotation = this._touchState.initialRotation + angleDiff;
+
+    this.setRotation(targetRotation);
+  }
+
+  private _onTouchEnd(e: TouchEvent): void {
+    for (const touch of e.changedTouches) {
+      this._touchState.touches.delete(touch.identifier);
+    }
+
+    if (this._touchState.isRotating) {
+      this._touchState.isRotating = false;
+
+      const normalizedRotation = ((this.currentRotation % 360) + 360) % 360;
+      const snapRotation = Math.round(normalizedRotation / 120) * 120;
+      this.setRotation(snapRotation);
+    }
   }
 
   private _calcBounds(): void {
@@ -125,8 +221,6 @@ export class BoardRenderer {
     const w = maxX - minX + pad * 2, h = maxY - minY + pad * 2;
     this.svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
-    // Set rotation origin to the geometric center of the board
-    // The central triangle is perfectly symmetrical around (0, 5 * hexSize)
     const cx = this._ox;
     const cy = 5 * this.hexSize + this._oy;
     this.svg.style.transformOrigin = `${(cx / w) * 100}% ${(cy / h) * 100}%`;
@@ -207,6 +301,23 @@ export class BoardRenderer {
     }
   }
 
+  /**
+   * Highlights a king that is in check by adding the 'highlight-check' class to its hex cell.
+   * @param kingHex - The hex position of the king in check
+   */
+  public highlightCheck(kingHex: Hex): void {
+    const e = this.hexElements.get(kingHex.key);
+    if (e) {
+      e.polygon.classList.add('highlight-check');
+    }
+  }
+
+  public clearCheck(): void {
+    for (const [, e] of this.hexElements) {
+      e.polygon.classList.remove('highlight-check');
+    }
+  }
+
   public renderPiece(piece: { id: string; type: string; faction: Faction; pos: Hex; symbol: string }): void {
     this.removePiece(piece.id);
     const px = hexToPixel(piece.pos, this.hexSize);
@@ -229,6 +340,29 @@ export class BoardRenderer {
     txt.style.transition = 'transform 0.5s ease';
     g.appendChild(txt);
 
+    let pressTimer: number | null = null;
+    const onPressStart = (e: PointerEvent) => {
+      pressTimer = window.setTimeout(() => {
+        if (this.onPieceLongPress) {
+          this.onPieceLongPress(piece, { clientX: e.clientX, clientY: e.clientY });
+        }
+      }, 500);
+    };
+    const onPressEnd = () => {
+      if (pressTimer) clearTimeout(pressTimer);
+    };
+
+    g.addEventListener('pointerdown', onPressStart, { passive: true });
+    g.addEventListener('pointerup', onPressEnd);
+    g.addEventListener('pointerleave', onPressEnd);
+    g.addEventListener('pointercancel', onPressEnd);
+    g.addEventListener('contextmenu', (e: PointerEvent) => {
+      e.preventDefault();
+      if (this.onPieceLongPress) {
+        this.onPieceLongPress(piece, { clientX: e.clientX, clientY: e.clientY });
+      }
+    });
+
     const boardGroup = document.getElementById('board-group');
     if (boardGroup) {
       boardGroup.appendChild(g);
@@ -247,7 +381,6 @@ export class BoardRenderer {
     this.currentRotation = deg;
     this.svg.style.transform = `rotate(${this.currentRotation}deg)`;
     this.svg.style.transition = 'transform 0.5s ease';
-    // counter-rotate piece symbols and hex labels
     document.querySelectorAll('.piece-symbol, .hex-label').forEach((txt: Element) => {
       (txt as HTMLElement).style.transform = `rotate(${-this.currentRotation}deg)`;
     });
@@ -263,7 +396,6 @@ export class BoardRenderer {
   }
 
   private _addDefs(defs: SVGDefsElement): void {
-    // Glow filter
     const f = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
     f.id = 'glow';
     f.setAttribute('x', '-50%');
