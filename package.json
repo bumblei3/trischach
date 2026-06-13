@@ -100,7 +100,7 @@
     "istanbul-lib-source-maps": "^5.0.6",
     "istanbul-reports": "^3.2.0",
     "js-tokens": "^9.0.1",
-    "js-yaml": "^4.1.1",
+    "js-yaml": "^4.2.0",
     "json-buffer": "^3.0.1",
     "json-schema-traverse": "^0.4.1",
     "json-stable-stringify-without-jsonify": "^1.0.1",
