@@ -13,7 +13,11 @@ import {
   setAIDepth, 
   setAIPersonality, 
   getAIPersonalities,
-  buildOpeningBook
+  buildOpeningBook,
+  // Pondering
+  startPondering,
+  stopPondering,
+  isPondering
 } from './ai.ts';
 import { sounds } from './sounds.ts';
 import { 
@@ -147,6 +151,11 @@ function initAIWorker(): void {
         console.log(`AI depth ${depth}: score ${score}, nodes ${nodes}`);
       } else if (type === 'bookReady') {
         workerReady = true;
+      } else if (type === 'ponderReady') {
+        // Worker pondering ready
+      } else if (type === 'ponderResult') {
+        // Worker returned a pondered move - could use it
+        console.log('Worker ponder result:', move);
       }
     };
     aiWorker.onerror = (err: ErrorEvent) => {
@@ -395,6 +404,12 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
     sounds.playMove();
     addToLog(result);
     renderer.renderPiece(result.piece);
+    
+    // Start pondering for AI after human move
+    if (game.state !== GAME_STATE.GAME_OVER) {
+      startPondering(game, game.currentFaction);
+    }
+    
     if (result.promotion) {
       showPromotion(game.pendingPromotion);
     } else {
@@ -403,6 +418,11 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
   } else if (result.action === 'combat') {
     addToLog(result);
     showCombat(result);
+    
+    // Start pondering for AI after combat
+    if (game.state !== GAME_STATE.GAME_OVER) {
+      startPondering(game, game.currentFaction);
+    }
   }
 
   if (result.inCheck && result.action !== 'select' && result.action !== 'deselect') {
@@ -560,7 +580,21 @@ function triggerAutoMove(): void {
       return;
     }
 
-    const action = await calculateBestMoveWorker(game, game.currentFaction);
+    // Stop pondering and get the best move found
+    const ponderMove = await stopPondering();
+    
+    let action;
+    if (ponderMove) {
+      action = {
+        pieceId: ponderMove.piece.id,
+        targetQ: ponderMove.target.q,
+        targetR: ponderMove.target.r,
+        moveType: ponderMove.type,
+        rps: ponderMove.rps
+      };
+    } else {
+      action = await calculateBestMoveWorker(game, game.currentFaction);
+    }
 
     if (action) {
       const piece = game.pieces.find(p => p.id === action.pieceId);
@@ -588,9 +622,19 @@ function triggerAutoMove(): void {
             addToLog(promoResult);
           }
           updateUI();
+          
+          // Start pondering for next AI move
+          if (game.state !== 'game_over') {
+            startPondering(game, game.currentFaction);
+          }
           triggerAutoMove();
         } else {
           updateUI();
+          
+          // Start pondering for next AI move
+          if (game.state !== 'game_over') {
+            startPondering(game, game.currentFaction);
+          }
           triggerAutoMove();
         }
       } else if (result && result.action === 'combat') {
@@ -830,6 +874,10 @@ function initEventListeners(): void {
     if (autoBattleActive) {
       autoBattleBtn.textContent = '⏹ Auto Battle Stoppen';
       autoBattleBtn.classList.add('active');
+      // Start pondering for first auto-move
+      if (game.state !== 'game_over') {
+        startPondering(game, game.currentFaction);
+      }
       triggerAutoMove();
     } else {
       autoBattleBtn.textContent = '🤖 Auto Battle';
@@ -998,7 +1046,7 @@ function initEventListeners(): void {
   }
 
   function updateReplayUI(): void {
-    const controller = window.replayController as ReplayController | undefined;
+    const controller = window.replayController as any;
     if (!controller) return;
 
     const moveInfo = document.getElementById('replay-move-info') as HTMLElement;
@@ -1027,8 +1075,7 @@ function initEventListeners(): void {
 
     const moveEntries = document.querySelectorAll('.move-entry');
     moveEntries.forEach((entry, index) => {
-      const controller = window.replayController as any;
-      entry.classList.toggle('current-move', index === controller?.getCurrentMoveNumber() - 1);
+      entry.classList.toggle('current-move', index === controller.getCurrentMoveNumber() - 1);
     });
   }
 
@@ -1044,8 +1091,6 @@ function initEventListeners(): void {
 
     updateReplayUI();
   }
-
-  let replayPlayTimer: ReturnType<typeof setInterval> | null = null;
 
   function replayPlay(): void {
     stopReplayPlay();

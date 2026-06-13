@@ -39,6 +39,11 @@ import {
   setAIPersonality,
   getAIPersonalities,
   deserializeGame,
+  // Pondering
+  startPondering,
+  stopPondering,
+  getPonderMove,
+  isPondering,
   // SEE (Static Exchange Evaluation)
   SEE_PIECE_VALUES,
   getSeeValue,
@@ -83,6 +88,11 @@ export {
   calculateBestMove,
   setAIDepth,
   deserializeGame,
+  // Pondering
+  startPondering,
+  stopPondering,
+  getPonderMove,
+  isPondering,
   // SEE (Static Exchange Evaluation)
   SEE_PIECE_VALUES,
   getSeeValue,
