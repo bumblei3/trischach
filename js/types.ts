@@ -199,6 +199,7 @@ export interface Snapshot {
     nature: string[];
   };
   moveHistoryLength: number;
+  // AI simulation extras (used by game-check.ts and game.ts simulateMove)
   prevFactionIdx?: number;
   wasAttack?: boolean;
   defender?: Piece;
