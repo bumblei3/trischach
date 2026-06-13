@@ -562,9 +562,6 @@ function hideContextMenu(): void {
 
 // ─── Auto-Battle ────────────────────────────────────────────────────
 
-let autoBattleActive = false;
-let autoBattleTimer: ReturnType<typeof setTimeout> | null = null;
-
 function triggerAutoMove(): void {
   clearTimeout(autoBattleTimer);
   autoBattleTimer = setTimeout(async () => {
@@ -773,6 +770,10 @@ function showPromotion(piece: { id: string; type: string; faction: string; pos: 
       <div class="promotion-title" style="color:${color.primary}">
         Bauer promoviert! Wähle eine Figur:
       </div>
+      <div class="promotion-preview" id="promotion-preview" style="color:${color.primary}; min-height: 80px; display: flex; align-items: center; justify-content: center; margin: 10px 0;">
+        <span class="preview-symbol" style="font-size: 64px; opacity: 0.3; transition: all 0.15s ease;">${symbols.queen}</span>
+        <span class="preview-name" style="font-size: 18px; margin-left: 12px; font-weight: bold; opacity: 0; transition: opacity 0.15s ease;"></span>
+      </div>
       <div class="promotion-choices">
         ${PROMOTION_CHOICES.map(type => `
           <button class="promotion-choice" data-type="${type}" data-key="${keyHints[type]}" style="border-color:${color.primary}" title="${names[type]} (Taste: ${keyHints[type]})">
@@ -791,6 +792,30 @@ function showPromotion(piece: { id: string; type: string; faction: string; pos: 
     </div>
   `;
   promotionOverlay.classList.add('visible');
+
+  // Preview hover handlers
+  const previewEl = document.getElementById('promotion-preview');
+  const previewSymbol = previewEl?.querySelector('.preview-symbol') as HTMLElement;
+  const previewName = previewEl?.querySelector('.preview-name') as HTMLElement;
+
+  if (previewEl && previewSymbol && previewName) {
+    promotionOverlay.querySelectorAll('.promotion-choice').forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        const type = btn.dataset.type;
+        if (!type) return;
+        previewSymbol.textContent = symbols[type];
+        previewName.textContent = names[type];
+        previewSymbol.style.opacity = '1';
+        previewSymbol.style.transform = 'scale(1.2)';
+        previewName.style.opacity = '1';
+      });
+      btn.addEventListener('mouseleave', () => {
+        previewSymbol.style.opacity = '0.3';
+        previewSymbol.style.transform = 'scale(1)';
+        previewName.style.opacity = '0';
+      });
+    });
+  }
 
   const autoQueenCheckbox = document.getElementById('auto-queen-checkbox') as HTMLInputElement;
   if (autoQueenCheckbox) {
