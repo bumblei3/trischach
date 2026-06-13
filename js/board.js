@@ -324,75 +324,7 @@ export class BoardRenderer {
     const e = this.pieceElements.get(id);
     if (e) { e.remove(); this.pieceElements.delete(id); }
   }
-  
-  _onTouchStart(e) {
-    // Track all touches
-    for (const touch of e.changedTouches) {
-      this._touchState.touches.set(touch.identifier, {
-        clientX: touch.clientX,
-        clientY: touch.clientY,
-      });
-    }
-    
-    // If we have exactly 2 touches, start rotation gesture
-    if (this._touchState.touches.size === 2) {
-      e.preventDefault();
-      const touches = Array.from(this._touchState.touches.values());
-      this._touchState.initialAngle = this._getTouchAngle(touches[0], touches[1]);
-      this._touchState.initialRotation = this.currentRotation;
-      this._touchState.isRotating = true;
-      this._touchState.initialDistance = this._getTouchDistance(touches[0], touches[1]);
-    }
-  }
-  
-  _onTouchMove(e) {
-    if (!this._touchState.isRotating || this._touchState.touches.size !== 2) return;
-    
-    e.preventDefault();
-    
-    // Update touch positions
-    for (const touch of e.changedTouches) {
-      if (this._touchState.touches.has(touch.identifier)) {
-        this._touchState.touches.set(touch.identifier, {
-          clientX: touch.clientX,
-          clientY: touch.clientY,
-        });
-      }
-    }
-    
-    const touches = Array.from(this._touchState.touches.values());
-    if (touches.length !== 2) return;
-    
-    const currentAngle = this._getTouchAngle(touches[0], touches[1]);
-    const angleDiff = currentAngle - this._touchState.initialAngle;
-    
-    // Calculate rotation in 120-degree increments (3 factions)
-    // Snap to nearest 120-degree step during gesture for visual feedback
-    const targetRotation = this._touchState.initialRotation + angleDiff;
-    
-    // Optional: also detect pinch-to-zoom (not implemented, just rotation for now)
-    // const currentDistance = this._getTouchDistance(touches[0], touches[1]);
-    
-    this.setRotation(targetRotation);
-  }
-  
-  _onTouchEnd(e) {
-    // Remove ended touches
-    for (const touch of e.changedTouches) {
-      this._touchState.touches.delete(touch.identifier);
-    }
-    
-    // If we were rotating and now have less than 2 touches, snap to nearest 120°
-    if (this._touchState.isRotating) {
-      this._touchState.isRotating = false;
-      
-      // Snap to nearest 120-degree increment
-      const normalizedRotation = ((this.currentRotation % 360) + 360) % 360;
-      const snapRotation = Math.round(normalizedRotation / 120) * 120;
-      this.setRotation(snapRotation);
-    }
-  }
-  
+
   setRotation(deg) {
     this.currentRotation = deg;
     this.svg.style.transform = `rotate(${this.currentRotation}deg)`;

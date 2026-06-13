@@ -1,4 +1,5 @@
 // TriSchach Service Worker
+/* eslint-env serviceworker */
 // Provides offline support and caching for PWA
 
 const CACHE_NAME = 'trischach-v1';
