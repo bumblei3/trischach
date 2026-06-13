@@ -15,6 +15,10 @@ export default defineConfig({
         '*.config.*',
         'tournament.js',
         'js/**/*.ts',  // TypeScript files excluded from coverage (tested via .js)
+        'js/main.js',  // UI code - tested via E2E
+        'js/board.js',  // Touch handlers - tested via E2E
+        'js/sounds.js',  // Audio - hard to unit test
+        'js/ai-worker.js',  // Worker wrapper - tested via ai.test.js
       ],
       thresholds: {
         lines: 80,
