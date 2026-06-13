@@ -336,8 +336,153 @@ renderer.onCellClick = (hex) => {
   if (result.action === 'select' || result.action === 'deselect') updateUI();
 };
 
+// Piece long-press context menu
+let contextMenuPiece = null;
+let contextMenuActions = null;
+
+renderer.onPieceLongPress = (piece, position) => {
+  if (game.state === GAME_STATE.GAME_OVER) return;
+  if (piece.faction !== game.currentFaction) return; // Only allow for current player's pieces
+  
+  contextMenuPiece = piece;
+  showContextMenu(piece, position);
+};
+
+function showContextMenu(piece, position) {
+  // Remove existing context menu
+  const existing = document.getElementById('piece-context-menu');
+  if (existing) existing.remove();
+  
+  // Get legal moves for this piece
+  const { moves, attacks } = game.getLegalMoves(piece);
+  const hasMoves = moves.length > 0 || attacks.length > 0;
+  
+  const menu = document.createElement('div');
+  menu.id = 'piece-context-menu';
+  menu.className = 'piece-context-menu';
+  menu.style.left = `${position.clientX}px`;
+  menu.style.top = `${position.clientY}px`;
+  
+  // Build menu items
+  let itemsHtml = '';
+  itemsHtml += `<div class="context-menu-header">${piece.symbol} ${piece.type} (${piece.faction})</div>`;
+  itemsHtml += '<div class="context-menu-divider"></div>';
+  
+  if (hasMoves) {
+    itemsHtml += `<button class="context-menu-item" data-action="show-moves">
+      <span class="context-menu-icon">🎯</span> Mögliche Züge anzeigen
+    </button>`;
+  }
+  
+  itemsHtml += `<button class="context-menu-item" data-action="undo">
+    <span class="context-menu-icon">↩️</span> Zug zurücknehmen
+  </button>`;
+  
+  itemsHtml += `<button class="context-menu-item" data-action="save">
+    <span class="context-menu-icon">💾</span> Spiel speichern
+  </button>`;
+  
+  itemsHtml += `<button class="context-menu-item" data-action="copy">
+    <span class="context-menu-icon">📋</span> TSPN kopieren
+  </button>`;
+  
+  itemsHtml += '<div class="context-menu-divider"></div>';
+  itemsHtml += `<button class="context-menu-item context-menu-danger" data-action="deselect">
+    <span class="context-menu-icon">✕</span> Abbrechen
+  </button>`;
+  
+  menu.innerHTML = itemsHtml;
+  document.body.appendChild(menu);
+  
+  // Position adjustment to keep menu in viewport
+  requestAnimationFrame(() => {
+    const rect = menu.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    if (rect.right > viewportWidth - 10) {
+      menu.style.left = `${viewportWidth - rect.width - 10}px`;
+    }
+    if (rect.bottom > viewportHeight - 10) {
+      menu.style.top = `${viewportHeight - rect.height - 10}px`;
+    }
+  });
+  
+  // Event listeners for menu items
+  menu.querySelectorAll('.context-menu-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      handleContextMenuAction(btn.dataset.action, piece);
+      hideContextMenu();
+    });
+  });
+  
+  // Close on outside click
+  const closeOnClick = (e) => {
+    if (!menu.contains(e.target)) {
+      hideContextMenu();
+      document.removeEventListener('click', closeOnClick);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', closeOnClick), 0);
+}
+
+function handleContextMenuAction(action, piece) {
+  switch (action) {
+    case 'show-moves':
+      // Select piece and show its moves
+      const selectResult = game.handleCellClick(piece.pos);
+      if (selectResult && selectResult.action === 'select') {
+        renderer.clearHighlights();
+        renderer.selectCell(piece.pos);
+        renderer.highlightCells(selectResult.moves, 'highlight-move');
+        if (game.rpsEnabled && selectResult.rpsAttacks) {
+          renderer.highlightCells(selectResult.rpsAttacks.advantage, 'highlight-attack-advantage');
+          renderer.highlightCells(selectResult.rpsAttacks.disadvantage, 'highlight-attack-disadvantage');
+          renderer.highlightCells(selectResult.rpsAttacks.neutral, 'highlight-attack');
+        } else {
+          renderer.highlightCells(selectResult.attacks, 'highlight-attack');
+        }
+        updateUI();
+      }
+      break;
+    case 'undo':
+      const snap = game.undo();
+      if (snap) {
+        updateUI();
+      }
+      break;
+    case 'save':
+      // Click save - should trigger download
+      const downloadPromise = new Promise(resolve => {
+        const tempClick = () => {
+          const download = Array.from(document.querySelectorAll('a')).find(a => a.download && a.href);
+          if (download) resolve(download);
+        };
+        // Trigger save button click
+        saveBtn.click();
+        setTimeout(() => {
+          // The save button triggers a download event
+          resolve();
+        }, 100);
+      });
+      downloadPromise;
+      break;
+    case 'copy':
+      // Grant clipboard permission and copy
+      navigator.clipboard.writeText(window.replayController?.exportTSPN() || '').then(() => {
+        // Could show a toast notification
+        console.log('TSPN copied to clipboard');
+      });
+      break;
+  }
+}
+
+function hideContextMenu() {
+  const existing = document.getElementById('piece-context-menu');
+  if (existing) existing.remove();
+}
+
 function triggerAutoMove() {
-  if (!autoBattleActive || game.state === GAME_STATE.GAME_OVER) return;
 
   clearTimeout(autoBattleTimer);
   autoBattleTimer = setTimeout(async () => {

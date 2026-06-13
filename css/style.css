@@ -781,3 +781,69 @@ input:checked + .slider:before {
   #eval-bar { height: 6px; }
   .eval-label { font-size: 0.75rem; }
 }
+
+/* Piece Context Menu */
+.piece-context-menu {
+  position: fixed;
+  z-index: 2000;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0;
+  min-width: 220px;
+  max-width: 280px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: context-menu-appear 0.15s ease;
+}
+
+@keyframes context-menu-appear {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.context-menu-header {
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.context-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.3rem 0;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 1rem;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.context-menu-item:hover {
+  background: var(--glass);
+}
+
+.context-menu-item.context-menu-danger {
+  color: var(--fire);
+}
+
+.context-menu-item.context-menu-danger:hover {
+  background: rgba(255, 69, 0, 0.1);
+}
+
+.context-menu-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}

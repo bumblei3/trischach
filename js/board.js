@@ -64,8 +64,108 @@ export class BoardRenderer {
     this.onCellClick = null;
     this._ox = 0; this._oy = 0;
     this.currentRotation = 0;
+    
+    // Touch gesture handling for board rotation
+    this._touchState = {
+      touches: new Map(),
+      initialAngle: 0,
+      initialRotation: 0,
+      isRotating: false,
+    };
+    this._setupTouchHandling();
   }
-
+  
+  _setupTouchHandling() {
+    // Handle touch events for 2-finger rotation gesture
+    this.svg.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
+    this.svg.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
+    this.svg.addEventListener('touchend', (e) => this._onTouchEnd(e), { passive: false });
+    this.svg.addEventListener('touchcancel', (e) => this._onTouchEnd(e), { passive: false });
+    
+    // Also prevent default context menu on long press
+    this.svg.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  
+  _getTouchAngle(touch1, touch2) {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  }
+  
+  _getTouchDistance(touch1, touch2) {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+  
+  _onTouchStart(e) {
+    // Track all touches
+    for (const touch of e.changedTouches) {
+      this._touchState.touches.set(touch.identifier, {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      });
+    }
+    
+    // If we have exactly 2 touches, start rotation gesture
+    if (this._touchState.touches.size === 2) {
+      e.preventDefault();
+      const touches = Array.from(this._touchState.touches.values());
+      this._touchState.initialAngle = this._getTouchAngle(touches[0], touches[1]);
+      this._touchState.initialRotation = this.currentRotation;
+      this._touchState.isRotating = true;
+      this._touchState.initialDistance = this._getTouchDistance(touches[0], touches[1]);
+    }
+  }
+  
+  _onTouchMove(e) {
+    if (!this._touchState.isRotating || this._touchState.touches.size !== 2) return;
+    
+    e.preventDefault();
+    
+    // Update touch positions
+    for (const touch of e.changedTouches) {
+      if (this._touchState.touches.has(touch.identifier)) {
+        this._touchState.touches.set(touch.identifier, {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+      }
+    }
+    
+    const touches = Array.from(this._touchState.touches.values());
+    if (touches.length !== 2) return;
+    
+    const currentAngle = this._getTouchAngle(touches[0], touches[1]);
+    const angleDiff = currentAngle - this._touchState.initialAngle;
+    
+    // Calculate rotation in 120-degree increments (3 factions)
+    // Snap to nearest 120-degree step during gesture for visual feedback
+    const targetRotation = this._touchState.initialRotation + angleDiff;
+    
+    // Optional: also detect pinch-to-zoom (not implemented, just rotation for now)
+    // const currentDistance = this._getTouchDistance(touches[0], touches[1]);
+    
+    this.setRotation(targetRotation);
+  }
+  
+  _onTouchEnd(e) {
+    // Remove ended touches
+    for (const touch of e.changedTouches) {
+      this._touchState.touches.delete(touch.identifier);
+    }
+    
+    // If we were rotating and now have less than 2 touches, snap to nearest 120°
+    if (this._touchState.isRotating) {
+      this._touchState.isRotating = false;
+      
+      // Snap to nearest 120-degree increment
+      const normalizedRotation = ((this.currentRotation % 360) + 360) % 360;
+      const snapRotation = Math.round(normalizedRotation / 120) * 120;
+      this.setRotation(snapRotation);
+    }
+  }
+  
   _calcBounds() {
     let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
     for (const [,c] of this.cells) {
@@ -185,7 +285,32 @@ export class BoardRenderer {
     txt.style.transformOrigin = '0 0';
     txt.style.transition = 'transform 0.5s ease';
     g.appendChild(txt);
-
+    
+    // Long-press / right-click context menu for pieces
+    let pressTimer = null;
+    const onPressStart = (e) => {
+      pressTimer = setTimeout(() => {
+        if (this.onPieceLongPress) {
+          this.onPieceLongPress(piece, { clientX: e.clientX, clientY: e.clientY });
+        }
+      }, 500); // 500ms for long press
+    };
+    const onPressEnd = () => {
+      if (pressTimer) clearTimeout(pressTimer);
+    };
+    
+    g.addEventListener('pointerdown', onPressStart, { passive: true });
+    g.addEventListener('pointerup', onPressEnd);
+    g.addEventListener('pointerleave', onPressEnd);
+    g.addEventListener('pointercancel', onPressEnd);
+    // Context menu (right-click / long-press on desktop)
+    g.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (this.onPieceLongPress) {
+        this.onPieceLongPress(piece, { clientX: e.clientX, clientY: e.clientY });
+      }
+    });
+    
     const boardGroup = document.getElementById('board-group');
     if (boardGroup) {
       boardGroup.appendChild(g);
@@ -199,7 +324,75 @@ export class BoardRenderer {
     const e = this.pieceElements.get(id);
     if (e) { e.remove(); this.pieceElements.delete(id); }
   }
-
+  
+  _onTouchStart(e) {
+    // Track all touches
+    for (const touch of e.changedTouches) {
+      this._touchState.touches.set(touch.identifier, {
+        clientX: touch.clientX,
+        clientY: touch.clientY,
+      });
+    }
+    
+    // If we have exactly 2 touches, start rotation gesture
+    if (this._touchState.touches.size === 2) {
+      e.preventDefault();
+      const touches = Array.from(this._touchState.touches.values());
+      this._touchState.initialAngle = this._getTouchAngle(touches[0], touches[1]);
+      this._touchState.initialRotation = this.currentRotation;
+      this._touchState.isRotating = true;
+      this._touchState.initialDistance = this._getTouchDistance(touches[0], touches[1]);
+    }
+  }
+  
+  _onTouchMove(e) {
+    if (!this._touchState.isRotating || this._touchState.touches.size !== 2) return;
+    
+    e.preventDefault();
+    
+    // Update touch positions
+    for (const touch of e.changedTouches) {
+      if (this._touchState.touches.has(touch.identifier)) {
+        this._touchState.touches.set(touch.identifier, {
+          clientX: touch.clientX,
+          clientY: touch.clientY,
+        });
+      }
+    }
+    
+    const touches = Array.from(this._touchState.touches.values());
+    if (touches.length !== 2) return;
+    
+    const currentAngle = this._getTouchAngle(touches[0], touches[1]);
+    const angleDiff = currentAngle - this._touchState.initialAngle;
+    
+    // Calculate rotation in 120-degree increments (3 factions)
+    // Snap to nearest 120-degree step during gesture for visual feedback
+    const targetRotation = this._touchState.initialRotation + angleDiff;
+    
+    // Optional: also detect pinch-to-zoom (not implemented, just rotation for now)
+    // const currentDistance = this._getTouchDistance(touches[0], touches[1]);
+    
+    this.setRotation(targetRotation);
+  }
+  
+  _onTouchEnd(e) {
+    // Remove ended touches
+    for (const touch of e.changedTouches) {
+      this._touchState.touches.delete(touch.identifier);
+    }
+    
+    // If we were rotating and now have less than 2 touches, snap to nearest 120°
+    if (this._touchState.isRotating) {
+      this._touchState.isRotating = false;
+      
+      // Snap to nearest 120-degree increment
+      const normalizedRotation = ((this.currentRotation % 360) + 360) % 360;
+      const snapRotation = Math.round(normalizedRotation / 120) * 120;
+      this.setRotation(snapRotation);
+    }
+  }
+  
   setRotation(deg) {
     this.currentRotation = deg;
     this.svg.style.transform = `rotate(${this.currentRotation}deg)`;
