@@ -996,6 +996,20 @@ export const FUTILITY_MARGINS = [0, 150, 300, 500];
 // Razoring margins (centipawns) - depth 1, 2
 export const RAZOR_MARGINS = [0, 300, 500];
 
+// ─── Late Move Reductions (LMR) ──────────────────────────────────────
+// Reduce depth for moves later in the move list (less likely to be best)
+// Formula: reduction = log2(depth) * log2(moveIndex) / scalingFactor
+export const LMR_BASE_REDUCTION = 0.6;  // Base reduction factor
+export const LMR_MIN_DEPTH = 3;          // Minimum depth to apply LMR
+export const LMR_MOVE_THRESHOLD = 3;     // First N moves get full depth
+
+// ─── Probcut ─────────────────────────────────────────────────────────
+// At high depths, if static eval suggests a move is way above beta,
+// do a reduced-depth search to verify before full search
+export const PROBCUT_DEPTH = 5;          // Minimum depth for probcut
+export const PROBCUT_MARGIN = 150;       // Centipawns above beta to trigger
+export const PROBCUT_REDUCTION = 3;      // Depth reduction for probcut search
+
 let searchDeadline = 0;
 export let nodesSearched = 0;
 
@@ -1087,7 +1101,11 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
   });
 
 
-  for (const action of actions) {
+  // Convert to array and track move index for LMR
+  const actionsArray = [...actions];
+
+  for (let moveIndex = 0; moveIndex < actionsArray.length; moveIndex++) {
+    const action = actionsArray[moveIndex];
     const isQuiet = action.type !== 'attack';
 
     // ─── Futility Pruning (depth <= 3, quiet moves only) ─────────────
@@ -1109,12 +1127,60 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
       }
     }
 
-    const undo = simulateMove(game, action.piece, action.target);
-    const nextFaction = game.currentFaction;
-    const searchDepth = depth - 1 - razorReduction;
-    const result = minimax(game, searchDepth, alpha, beta, maximizingFaction, nextFaction);
-    undoMove(game, undo);
+    // ─── Late Move Reductions (LMR) ────────────────────────────────────
+    // Reduce depth for later moves (less likely to be best)
+    // Skip LMR for: first few moves, captures, depth too low
+    let lmrReduction = 0;
+    if (depth >= LMR_MIN_DEPTH && moveIndex >= LMR_MOVE_THRESHOLD && isQuiet) {
+      const lmrFactor = Math.log2(depth) * Math.log2(moveIndex + 1) * LMR_BASE_REDUCTION;
+      lmrReduction = Math.min(Math.floor(lmrFactor), depth - 1); // Cap at depth-1
+    }
+
+    // ─── Probcut ───────────────────────────────────────────────────────
+    // If static eval suggests score >> beta, do a reduced-depth probe search
+    let probcutScore = null;
+    if (depth >= PROBCUT_DEPTH && !isQuiet && !inCheck) {
+      const staticScore = evaluateBoard(game, maximizingFaction);
+      if (staticScore >= beta + PROBCUT_MARGIN) {
+        // Probe with reduced depth
+        const probeDepth = depth - PROBCUT_REDUCTION;
+        const undo = simulateMove(game, action.piece, action.target);
+        const nextFaction = game.currentFaction;
+        const probeResult = minimax(game, probeDepth, beta - 1, beta, maximizingFaction, nextFaction);
+        undoMove(game, undo);
+        
+        if (!probeResult.timeout && probeResult.score >= beta) {
+          // Probcut confirmed: this move beats beta, return beta immediately
+          probcutScore = beta;
+        }
+      }
+    }
+
+    // If probcut didn't trigger or wasn't applicable, do normal search
+    let searchDepth = depth - 1 - razorReduction - lmrReduction;
+    let result;
     
+    if (probcutScore !== null) {
+      result = { score: probcutScore };
+    } else {
+      const undo = simulateMove(game, action.piece, action.target);
+      const nextFaction = game.currentFaction;
+      result = minimax(game, searchDepth, alpha, beta, maximizingFaction, nextFaction);
+      undoMove(game, undo);
+    }
+
+    // LMR re-search: if reduced search beats alpha, re-search at full depth
+    // (Only if LMR was applied and we didn't already hit beta)
+    if (lmrReduction > 0 && !result.timeout && result.score > alpha && result.score < beta) {
+      const undo = simulateMove(game, action.piece, action.target);
+      const nextFaction = game.currentFaction;
+      const fullDepthResult = minimax(game, depth - 1 - razorReduction, alpha, beta, maximizingFaction, nextFaction);
+      undoMove(game, undo);
+      if (!fullDepthResult.timeout) {
+        result = fullDepthResult;
+      }
+    }
+
     if (result.score > bestScore) {
       bestScore = result.score;
       bestAction = action;
