@@ -121,6 +121,15 @@ export function calculateTimeBudget(game: IGame): number {
   return budget;
 }
 
+export function rebuildOccupiedMap(game: IGame): void {
+  game._occupiedMap = new Map();
+  for (const piece of game.pieces) {
+    if (piece.alive) {
+      game._occupiedMap.set(piece.pos.key, piece);
+    }
+  }
+}
+
 // ─── Configuration ────────────────────────────────────────────
 
 export let MAX_DEPTH = 3;
@@ -380,20 +389,20 @@ export function computeZobristHash(game: IGame): bigint {
       hash ^= getZobristKey(ptIdx, facIdx, sqIdx);
     }
   }
-  
+
   const sideIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx :
                   (game.currentFaction ? ZOBRIST_FACTIONS.indexOf(game.currentFaction) : 0);
-  if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx];
-  
+  if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx] as bigint;
+
   for (const fac of ZOBRIST_FACTIONS) {
     if (game.eliminatedFactions.has(fac)) {
-      const elimIdx = ZOBRIST_FACTIONS.indexOf(fac)!;
-      hash ^= ZOBRIST_ELIMINATED_KEYS[elimIdx];
+      const elimIdx = ZOBRIST_FACTIONS.indexOf(fac);
+      if (elimIdx >= 0) hash ^= ZOBRIST_ELIMINATED_KEYS[elimIdx] as bigint;
     }
   }
-  
+
   if (game.rpsEnabled) hash ^= ZOBRIST_RPS_KEY;
-  
+
   return hash;
 }
 
@@ -404,50 +413,58 @@ export function updateZobristHash(
 ): bigint {
   const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
   const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
-  
+
   const fromIdx = SQUARE_TO_INDEX.get(fromKey);
   if (fromIdx !== undefined) hash ^= getZobristKey(ptIdx, facIdx, fromIdx);
-  
+
   const finalType = isPromotion ? 'queen' : piece.type;
   const finalPtIdx = ZOBRIST_PIECE_TYPES.indexOf(finalType);
   const toIdx = SQUARE_TO_INDEX.get(toKey);
   if (toIdx !== undefined) hash ^= getZobristKey(finalPtIdx, facIdx, toIdx);
-  
+
   if (capturedPiece) {
     const capPtIdx = ZOBRIST_PIECE_TYPES.indexOf(capturedPiece.type);
     const capFacIdx = ZOBRIST_FACTIONS.indexOf(capturedPiece.faction);
-    if (capPtIdx >= 0 && capFacIdx >= 0) {
+    if (capPtIdx >= 0 && capFacIdx >= 0 && toIdx !== undefined) {
       hash ^= getZobristKey(capPtIdx, capFacIdx, toIdx);
     }
     if (capturedPiece.type === 'king' && eliminatedFaction) {
-      const elimIdx = ZOBRIST_FACTIONS.indexOf(eliminatedFaction)!;
-      hash ^= ZOBRIST_ELIMINATED_KEYS[elimIdx];
+      const elimIdx = ZOBRIST_FACTIONS.indexOf(eliminatedFaction);
+      if (elimIdx >= 0) hash ^= ZOBRIST_ELIMINATED_KEYS[elimIdx];
     }
   }
-  
+
   if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx];
   if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx];
-  
+
   return hash;
 }
 
-export function ttProbe(hash: bigint, depth: number, alpha: number, beta: number): 
-  { score: number; action: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps: 'advantage' | 'neutral' | 'disadvantage' } | null; flag: 'exact' | 'lower' | 'upper' } |
-  { alpha: number; beta: number; bestMove: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps: 'advantage' | 'neutral' | 'disadvantage' } | null } | null {
+export type TTProbeResult = {
+  kind: 'exact' | 'lower' | 'upper' | 'bounds' | 'none';
+  score?: number;
+  action?: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps: 'advantage' | 'neutral' | 'disadvantage' } | null;
+  flag?: 'exact' | 'lower' | 'upper';
+  alpha?: number;
+  beta?: number;
+  bestMove?: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps: 'advantage' | 'neutral' | 'disadvantage' } | null;
+};
+
+export function ttProbe(hash: bigint, depth: number, alpha: number, beta: number): TTProbeResult {
   const entry = tt[Number(hash & BigInt(TT_SIZE - 1))];
-  
-  if (!entry || entry.key !== hash) return null;
-  
+
+  if (!entry || entry.key !== hash) return { kind: 'none' };
+
   ttHits++;
-  
+
   if (entry.depth >= depth) {
-    if (entry.flag === 'exact') return { score: entry.score, action: entry.bestMove, flag: 'exact' };
+    if (entry.flag === 'exact') return { kind: 'exact', score: entry.score, action: entry.bestMove, flag: 'exact' };
     if (entry.flag === 'lower') alpha = Math.max(alpha, entry.score);
     if (entry.flag === 'upper') beta = Math.min(beta, entry.score);
-    if (alpha >= beta) return { score: entry.score, action: entry.bestMove, flag: entry.flag };
+    if (alpha >= beta) return { kind: entry.flag, score: entry.score, action: entry.bestMove, flag: entry.flag };
   }
-  
-  return { alpha, beta, bestMove: entry.bestMove };
+
+  return { kind: 'bounds', alpha, beta, bestMove: entry.bestMove };
 }
 
 export function ttStore(
@@ -921,13 +938,11 @@ export function minimax(game: IGame, depth: number, alpha: number, beta: number,
   const hash = game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game);
   const ttProbeResult = ttProbe(hash, depth, alpha, beta);
   
-  if (ttProbeResult) {
-    if (ttProbeResult.flag === 'exact' || ttProbeResult.flag === 'lower' || ttProbeResult.flag === 'upper') {
-      return { score: ttProbeResult.score, action: ttProbeResult.action };
-    }
-    alpha = ttProbeResult.alpha;
-    beta = ttProbeResult.beta;
+  if (ttProbeResult.kind === 'exact' || ttProbeResult.kind === 'lower' || ttProbeResult.kind === 'upper') {
+    return { score: ttProbeResult.score as number, action: ttProbeResult.action as any };
   }
+  alpha = ttProbeResult.alpha as number;
+  beta = ttProbeResult.beta as number;
 
   if (game.state === 'game_over') {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
