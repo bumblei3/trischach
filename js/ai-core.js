@@ -1024,22 +1024,23 @@ export function simulateMove(game, piece, target) {
     attackerDied: false,
     eliminatedFaction: null,
     prevFactionIdx: game.currentFactionIdx,
+    prevZobristHash: game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game),
   };
-  
+
   const defender = game._occupiedMap.get(target.key);
-  
+
   if (defender) {
     undo.wasAttack = true;
     undo.defender = defender;
-    
+
     const rps = game.rpsEnabled ? getRPSResult(piece.faction, defender.faction) : 'advantage';
-    
+
     if (rps === 'advantage' || rps === 'neutral') {
       defender.alive = false;
       undo.defenderWasKilled = true;
       piece.pos = target;
       piece.hasMoved = true;
-      
+
       if (defender.type === 'king') {
         undo.eliminatedFaction = defender.faction;
         game.eliminatedFactions.add(defender.faction);
@@ -1055,13 +1056,15 @@ export function simulateMove(game, piece, target) {
     piece.pos = target;
     piece.hasMoved = true;
   }
-  
-  if (piece.type === 'pawn' && piece.pos.r <= 0) {
+
+  const isPromotion = piece.type === 'pawn' && piece.pos.r <= 0;
+  if (isPromotion) {
     undo.promotion = piece.type;
     piece.type = 'queen';
     piece.symbol = 'Q';
   }
-  
+
+  const oldSideIdx = game.currentFactionIdx;
   const factions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
   let nextIdx = (game.currentFactionIdx + 1) % 3;
   while (game.eliminatedFactions.has(factions[nextIdx])) {
@@ -1069,16 +1072,29 @@ export function simulateMove(game, piece, target) {
   }
   game.currentFactionIdx = nextIdx;
   game.currentFaction = factions[nextIdx];
-  
+
+  // Incremental Zobrist hash update
+  game._zobristHash = updateZobristHash(
+    undo.prevZobristHash,
+    piece,
+    undo.from.key,
+    target.key,
+    defender,
+    undo.eliminatedFaction,
+    isPromotion,
+    oldSideIdx,
+    game.currentFactionIdx
+  );
+
   return undo;
 }
 
 export function undoMove(game, undo) {
-  const { piece, from, pieceHasMoved, wasAttack, defender, defenderWasKilled, attackerDied, eliminatedFaction, prevFactionIdx } = undo;
-  
+  const { piece, from, pieceHasMoved, wasAttack, defender, defenderWasKilled, attackerDied, eliminatedFaction, prevFactionIdx, prevZobristHash } = undo;
+
   piece.pos = from;
   piece.hasMoved = pieceHasMoved;
-  
+
   if (wasAttack) {
     if (defenderWasKilled) {
       defender.alive = true;
@@ -1092,15 +1108,20 @@ export function undoMove(game, undo) {
       piece.alive = true;
     }
   }
-  
+
   if (undo.promotion) {
     piece.type = undo.promotion;
     piece.symbol = piece.faction === 'fire' ? 'P' : (piece.faction === 'water' ? 'P' : 'P');
   }
-  
+
   game.currentFactionIdx = prevFactionIdx;
   game.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][prevFactionIdx];
   rebuildOccupiedMap(game);
+
+  // Restore Zobrist hash (incremental reverse)
+  if (prevZobristHash !== undefined) {
+    game._zobristHash = prevZobristHash;
+  }
 }
 
 // ─── Search Algorithms ────────────────────────────────────────────
@@ -1136,7 +1157,8 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
   }
 
-  const hash = computeZobristHash(game);
+  // Use incremental Zobrist hash if available, otherwise compute
+  const hash = game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game);
   const ttProbeResult = ttProbe(hash, depth, alpha, beta);
   if (ttProbeResult) {
     if (ttProbeResult.flag === 'exact' || ttProbeResult.flag === 'lower' || ttProbeResult.flag === 'upper') {
@@ -1373,7 +1395,7 @@ export function iterativeDeepening(game, faction) {
   const timeBudget = calculateTimeBudget(game);
   searchDeadline = Date.now() + timeBudget;
   nodesSearched = 0;
-  ttClear();
+  // Keep TT across moves - only age out old entries via ttNewSearch()
   Object.keys(killerMoves).forEach(k => delete killerMoves[k]);
   Object.keys(historyTable).forEach(k => delete historyTable[k]);
 
