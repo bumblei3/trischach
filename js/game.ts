@@ -1,12 +1,12 @@
-import { Hex } from './hex.js';
-import { FACTION, getRPSResult, FACTION_COLORS } from './board.js';
+import { Hex } from './hex.ts';
+import { FACTION, getRPSResult, FACTION_COLORS } from './board.ts';
 import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.ts';
 import { 
   isKingdomCheck, 
   legalMoveCheck, 
   isCheckmateInternal, 
   isStalemateInternal 
-} from './game-check.js';
+} from './game-check.ts';
 import type { 
   Faction, 
   PieceType, 
@@ -14,10 +14,10 @@ import type {
   GameResult, 
   Cell,
   Piece,
-  Hex,
   Snapshot,
+  AISnapshot,
   IGame 
-} from './types.js';
+} from './types.ts';
 
 // Re-export for backwards compatibility
 export { 
@@ -46,29 +46,6 @@ export const PROMOTION_CHOICES: readonly PieceType[] = [
   PIECE_TYPE.KNIGHT
 ] as const;
 
-interface Snapshot {
-  pieces: Array<{
-    id: string;
-    faction: Faction;
-    type: PieceType;
-    pos: { q: number; r: number };
-    alive: boolean;
-    hasMoved: boolean;
-  }>;
-  currentFactionIdx: number;
-  eliminatedFactions: Set<Faction>;
-  capturedPieces: {
-    fire: string[];
-    water: string[];
-    nature: string[];
-  };
-  moveHistoryLength: number;
-}
-
-interface PositionHistoryEntry {
-  count: number;
-}
-
 export class Game {
   public pieces: Piece[] = [];
   public currentFactionIdx = 0;
@@ -90,19 +67,19 @@ export class Game {
   public boardCells: Map<string, Cell> | null = null;
   public rpsEnabled = true;
   public capturedPieces: Record<Faction, Piece[]> = {
-    [FACTION.FIRE]: [],
-    [FACTION.WATER]: [],
-    [FACTION.NATURE]: []
-  };
+    [FACTION.FIRE]: [] as Piece[],
+    [FACTION.WATER]: [] as Piece[],
+    [FACTION.NATURE]: [] as Piece[],
+  } as Record<Faction, Piece[]>;
   public pendingPromotion: Piece | null = null;
   private _undoStack: Snapshot[] = [];
-  public currentFaction: Faction = TURN_ORDER[0];
-  private _positionHistory = new Map<string, number>();
-  private _halfmoveClock = 0;
-  private _occupiedMap: Map<string, Piece> | null = null;
+  public currentFaction: Faction = TURN_ORDER[0] as Faction;
+  public _positionHistory = new Map<string, number>();
+  public _halfmoveClock = 0;
+  public _occupiedMap: Map<string, Piece> | null = null;
 
   constructor() {
-    this.currentFaction = TURN_ORDER[0];
+    this.currentFaction = TURN_ORDER[0] as Faction;
   }
 
   get currentFactionName(): string {
@@ -113,17 +90,16 @@ export class Game {
     this.boardCells = boardCells;
     this.pieces = createInitialPieces();
     this.currentFactionIdx = 0;
-    this.currentFaction = TURN_ORDER[0];
+    this.currentFaction = TURN_ORDER[0] as Faction;
     this.state = GAME_STATE.SELECT_PIECE;
     this.eliminatedFactions.clear();
     this.moveHistory = [];
-    this.selectedPiece = null;
-    this.capturedPieces = {
-      [FACTION.FIRE]: [],
-      [FACTION.WATER]: [],
-      [FACTION.NATURE]: []
-    };
     this.pendingPromotion = null;
+    this.capturedPieces = {
+      [FACTION.FIRE]: [] as Piece[],
+      [FACTION.WATER]: [] as Piece[],
+      [FACTION.NATURE]: [] as Piece[],
+    } as Record<Faction, Piece[]>;
     this._rebuildOccupiedMap();
     this._positionHistory = new Map();
     this._halfmoveClock = 0;
@@ -145,7 +121,7 @@ export class Game {
   }
 
   isKingInCheck(faction: Faction): boolean {
-    return isKingdomCheck(this, faction);
+    return isKingdomCheck(this as IGame, faction);
   }
 
   getLegalMoves(piece: Piece): { moves: Hex[]; attacks: Hex[] } {
@@ -154,12 +130,12 @@ export class Game {
     const legalAttacks: Hex[] = [];
 
     for (const target of moves) {
-      if (legalMoveCheck(this, piece, target, piece.faction)) {
+      if (legalMoveCheck(this as IGame, piece, target, piece.faction)) {
         legalMoves.push(target);
       }
     }
     for (const target of attacks) {
-      if (legalMoveCheck(this, piece, target, piece.faction)) {
+      if (legalMoveCheck(this as IGame, piece, target, piece.faction)) {
         legalAttacks.push(target);
       }
     }
@@ -167,24 +143,19 @@ export class Game {
   }
 
   isCheckmate(faction: Faction): boolean {
-    return isCheckmateInternal(this, faction);
+    return isCheckmateInternal(this as IGame, faction);
   }
 
   isStalemate(faction: Faction): boolean {
-    return isStalemateInternal(this, faction);
+    return isStalemateInternal(this as IGame, faction);
   }
 
-  /**
-   * Check if a pawn move to target triggers promotion.
-   * Rule: pawn promotes when reaching r <= 0 (upper half of central triangle).
-   */
+  /** Check if a pawn move to target triggers promotion. */
   isPromotion(piece: Piece, target: Hex): boolean {
     return piece.type === PIECE_TYPE.PAWN && target.r <= 0;
   }
 
-  /**
-   * Complete a pending promotion by transforming the pawn into the chosen type.
-   */
+  /** Complete a pending promotion by transforming the pawn into the chosen type. */
   completePromotion(newType: PieceType): GameResult | null {
     this._undoStack.push(this.snapshot());
     const piece = this.pendingPromotion;
@@ -422,12 +393,14 @@ export class Game {
 
   _nextTurn(): void {
     const startIdx = this.currentFactionIdx;
+    let nextFaction = TURN_ORDER[(this.currentFactionIdx + 1) % 3] as Faction;
     do {
       this.currentFactionIdx = (this.currentFactionIdx + 1) % 3;
       // Safety: prevent infinite loop if all factions eliminated
       if (this.currentFactionIdx === startIdx) break;
-    } while (this.eliminatedFactions.has(TURN_ORDER[this.currentFactionIdx]));
-    this.currentFaction = TURN_ORDER[this.currentFactionIdx];
+      nextFaction = TURN_ORDER[this.currentFactionIdx] as Faction;
+    } while (this.eliminatedFactions.has(nextFaction));
+    this.currentFaction = nextFaction;
   }
 
   /**
@@ -435,16 +408,16 @@ export class Game {
    * Returns an undo object that can be passed to undoMove().
    * Does NOT call callbacks, does NOT push to moveHistory.
    */
-  simulateMove(piece: Piece, target: Hex): Snapshot {
-    const undo: Snapshot = {
+  simulateMove(piece: Piece, target: Hex): AISnapshot {
+    const undo: AISnapshot = {
       piece,
       from: new Hex(piece.pos.q, piece.pos.r),
       pieceHasMoved: piece.hasMoved,
       wasAttack: false,
-      defender: null,
+      defender: undefined,
       defenderWasKilled: false,
       attackerDied: false,
-      eliminatedFaction: null,
+      eliminatedFaction: undefined,
       prevFactionIdx: this.currentFactionIdx,
     };
 
@@ -495,7 +468,7 @@ export class Game {
     // Check for pawn promotion (for AI evaluation)
     // Only if the pawn is still alive (didn't die from disadvantage)
     if (piece.alive && piece.type === PIECE_TYPE.PAWN && target.r <= 0) {
-      undo.promoted = true;
+      undo.promotion = piece.type;
     }
 
     this._rebuildOccupiedMap();
@@ -506,10 +479,10 @@ export class Game {
   /**
    * Undo a simulated move using the undo object from simulateMove().
    */
-  undoMove(undo: Snapshot): void {
+  undoMove(undo: AISnapshot): void {
     // Restore turn
     this.currentFactionIdx = undo.prevFactionIdx;
-    this.currentFaction = TURN_ORDER[this.currentFactionIdx];
+    this.currentFaction = TURN_ORDER[this.currentFactionIdx] as Faction;
 
     // Undo elimination
     if (undo.eliminatedFaction) {
@@ -553,6 +526,7 @@ export class Game {
 
   /**
    * Create a snapshot of the game state for undo functionality.
+   * @returns Full game snapshot for undo/restore
    */
   snapshot(): Snapshot {
     return {
@@ -577,6 +551,7 @@ export class Game {
 
   /**
    * Restore game state from a snapshot.
+   * @param snap - The snapshot object
    */
   restore(snap: Snapshot): void {
     // Restore pieces
@@ -591,14 +566,14 @@ export class Game {
       }
     });
     this.currentFactionIdx = snap.currentFactionIdx;
-    this.currentFaction = TURN_ORDER[this.currentFactionIdx];
+    this.currentFaction = TURN_ORDER[this.currentFactionIdx] as Faction;
     this.eliminatedFactions = new Set(snap.eliminatedFactions);
     // restore capturedPieces
     for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
       this.capturedPieces[fac] = [];
     }
     for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
-      const ids = snap.capturedPieces[fac.toLowerCase() as keyof typeof snap.capturedPieces];
+      const ids = snap.capturedPieces[fac.toLowerCase() as 'fire' | 'water' | 'nature'];
       for (const id of ids) {
         const piece = this.pieces.find(p => p.id === id);
         if (piece) this.capturedPieces[fac].push(piece);
@@ -616,6 +591,7 @@ export class Game {
 
   /**
    * Undo the last move, returning the snapshot restored.
+   * @returns The snapshot that was restored, or null if nothing to undo
    */
   undo(): Snapshot | null {
     if (this._undoStack.length === 0) return null;

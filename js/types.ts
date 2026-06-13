@@ -5,6 +5,8 @@
 
 // ─── Hex Coordinates ────────────────────────────────────────────────
 
+import { Hex as HexClass } from './hex.ts';
+
 export interface Hex {
   readonly q: number;
   readonly r: number;
@@ -20,12 +22,10 @@ export interface Hex {
   toString(): string;
 }
 
-export const Hex: {
-  new (q: number, r: number): Hex;
-} = undefined as any; // Actual implementation in hex.ts
+export const Hex = HexClass;
 
 export function createHex(q: number, r: number): Hex {
-  return new (Hex as any)(q, r);
+  return new Hex(q, r);
 }
 
 // ─── Factions & RPS ────────────────────────────────────────────────
@@ -154,8 +154,9 @@ export const TURN_ORDER: TurnOrder = {
 export interface GameResult {
   action: 'move' | 'combat' | 'promotion' | 'select' | 'deselect';
   piece?: Piece;
-  from?: Hex;
-  to?: Hex;
+  from?: Hex | string;
+  to?: Hex | string;
+  type?: PieceType;
   notation?: string;
   defender?: Piece;
   rpsResult?: RPSResult;
@@ -168,7 +169,7 @@ export interface GameResult {
   gameOver?: boolean;
   winner_faction?: Faction | null;
   inCheck?: boolean;
-  stalemate?: boolean;
+  stalemate?: Faction;
   checkmate?: Faction;
   draw?: boolean;
   moves?: Hex[];
@@ -177,7 +178,7 @@ export interface GameResult {
     advantage: Hex[];
     neutral: Hex[];
     disadvantage: Hex[];
-  };
+  } | null;
 }
 
 // ─── Snapshot for Undo ──────────────────────────────────────────────
@@ -246,12 +247,11 @@ export interface IGame {
   rpsEnabled: boolean;
   capturedPieces: Record<Faction, Piece[]>;
   pendingPromotion: Piece | null;
-  _undoStack: Snapshot[];
   currentFaction: Faction;
+  currentFactionName: string;
   _positionHistory: Map<string, number>;
   _halfmoveClock: number;
   _occupiedMap: Map<string, Piece> | null;
-  currentFactionName: string;
   init(boardCells: Map<string, Cell>): void;
   getAlivePieces(): Piece[];
   getPieceAt(hex: Hex): Piece | null;
@@ -266,8 +266,8 @@ export interface IGame {
   _selectPiece(hex: Hex): GameResult;
   _selectTarget(hex: Hex): GameResult;
   _nextTurn(): void;
-  simulateMove(piece: Piece, target: Hex): Snapshot;
-  undoMove(undo: Snapshot): void;
+  simulateMove(piece: Piece, target: Hex): AISnapshot;
+  undoMove(undo: AISnapshot): void;
   snapshot(): Snapshot;
   restore(snap: Snapshot): void;
   undo(): Snapshot | null;
