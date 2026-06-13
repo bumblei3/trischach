@@ -1,0 +1,133 @@
+{
+  "timestamp": "2026-06-13T10:51:06.763Z",
+  "config": {
+    "GAMES_PER_PAIRING": 2,
+    "AI_DEPTH": 2
+  },
+  "engines": [
+    "tactical",
+    "balanced",
+    "defensive",
+    "aggressive",
+    "random"
+  ],
+  "elo": {
+    "balanced": 1218,
+    "aggressive": 1192,
+    "defensive": 1196,
+    "tactical": 1226,
+    "random": 1168
+  },
+  "results": {
+    "balanced": {
+      "aggressive": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      },
+      "defensive": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      },
+      "tactical": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      "random": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      }
+    },
+    "aggressive": {
+      "balanced": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      },
+      "defensive": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      "tactical": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      },
+      "random": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      }
+    },
+    "defensive": {
+      "balanced": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      },
+      "aggressive": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      "tactical": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      },
+      "random": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      }
+    },
+    "tactical": {
+      "balanced": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      "aggressive": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      },
+      "defensive": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      },
+      "random": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      }
+    },
+    "random": {
+      "balanced": {
+        "wins": 2,
+        "draws": 1,
+        "losses": 1
+      },
+      "aggressive": {
+        "wins": 2,
+        "draws": 0,
+        "losses": 2
+      },
+      "defensive": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      },
+      "tactical": {
+        "wins": 1,
+        "draws": 1,
+        "losses": 2
+      }
+    }
+  }
+}
