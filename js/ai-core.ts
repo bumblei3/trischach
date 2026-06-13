@@ -13,6 +13,7 @@ import { getRPSResult, FACTION } from './board.js';
 import { Hex as HexClass } from './hex.js';
 import { isKingdomCheck } from './game-check.js';
 import { pickBookMove, buildOpeningBook } from './opening-book.js';
+// @ts-ignore - no declaration file for opening-book.js
 import type { 
   IGame, 
   Faction, 
@@ -23,12 +24,39 @@ import type {
   SearchResult,
   PersonalityWeights,
   PersonalityConfig,
-  AIPersonality,
-  Hex
+  AIPersonality
 } from './types.js';
 
 // Forward declare to resolve circular dependency
-export function getAllActions(game: IGame, faction: Faction): AIAction[];
+export function getAllActions(game: IGame, faction: Faction): AIAction[] {
+  const pieces = game.pieces.filter(p => p.faction === faction && p.alive);
+  const actions: AIAction[] = [];
+
+  for (const piece of pieces) {
+    const { moves, attacks } = getLegalMoves(game, piece);
+    for (const target of attacks) {
+      const defender = game.pieces.find(p => p.alive && p.pos.equals(target));
+      if (!defender) continue;
+      const rps = game.rpsEnabled ? getRPSResult(faction, defender.faction) : 'advantage';
+      actions.push({ piece, target, type: 'attack', rps });
+    }
+    for (const target of moves) {
+      actions.push({ piece, target, type: 'move' });
+    }
+  }
+
+  actions.sort((a, b) => {
+    // Use quickSee for capture ordering (MVV-LVA + RPS aware)
+    const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
+    const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
+    if (aSee !== bSee) return bSee - aSee;
+    // Fallback: prioritize attacks over moves
+    if (a.type !== b.type) return a.type === 'attack' ? -1 : 1;
+    return 0;
+  });
+
+  return actions;
+}
 
 // ─── Constants ────────────────────────────────────────────────────
 
@@ -125,7 +153,7 @@ export function getSeeValue(pieceType: PieceType): number {
  * Positive = winning capture sequence, Negative = losing.
  */
 export function see(
-  game: IGame, 
+  _game: IGame, 
   attacker: Piece, 
   victim: Piece, 
   attackerFaction: Faction, 
@@ -157,10 +185,6 @@ export function see(
 
   while (moveCount < 6) { // Limit depth of SEE
     moveCount++;
-
-    // Find best recapture for the defending side
-    let bestRecapture = -Infinity;
-    let recapturePiece: Piece | null = null;
 
     // In real SEE, we'd iterate all pieces of currentVictimFaction that can capture currentAttacker
     // Simplified: just use the victim's value as proxy for recapture quality
@@ -339,14 +363,14 @@ export function buildPST(calcFn: (hex: HexClass, d: number) => number): Map<stri
   return table;
 }
 
-const KING_PST = buildPST((h, d) => d * 3);
-const QUEEN_PST = buildPST((h, d) => (6 - d) * 5);
-const ROOK_PST = buildPST((h, d) => (5 - d) * 4);
-const BISHOP_PST = buildPST((h, d) => (5 - d) * 4);
-const KNIGHT_PST = buildPST((h, d) => (6 - d) * 8);
-const PAWN_PST = buildPST((h, d) => {
-  const advancement = Math.max(0, 5 - h.r);
-  const centerCol = Math.max(0, 3 - Math.abs(h.q));
+const KING_PST = buildPST((_h, d) => d * 3);
+const QUEEN_PST = buildPST((_h, d) => (6 - d) * 5);
+const ROOK_PST = buildPST((_h, d) => (5 - d) * 4);
+const BISHOP_PST = buildPST((_h, d) => (5 - d) * 4);
+const KNIGHT_PST = buildPST((_h, d) => (6 - d) * 8);
+const PAWN_PST = buildPST((_h, d) => {
+  const advancement = Math.max(0, 5 - _h.r);
+  const centerCol = Math.max(0, 3 - Math.abs(_h.q));
   return advancement * 6 + centerCol * 3;
 });
 
@@ -628,36 +652,6 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   score += evaluateEndgame(game, pieces.filter(p => p.alive), faction) * W.endgame;
 
   return score;
-}
-
-export function getAllActions(game: IGame, faction: Faction): AIAction[] {
-  const pieces = game.pieces.filter(p => p.faction === faction && p.alive);
-  const actions: AIAction[] = [];
-
-  for (const piece of pieces) {
-    const { moves, attacks } = getLegalMoves(game, piece);
-    for (const target of attacks) {
-      const defender = game.pieces.find(p => p.alive && p.pos.equals(target));
-      if (!defender) continue;
-      const rps = game.rpsEnabled ? getRPSResult(faction, defender.faction) : 'advantage';
-      actions.push({ piece, target, type: 'attack', rps });
-    }
-    for (const target of moves) {
-      actions.push({ piece, target, type: 'move' });
-    }
-  }
-
-  actions.sort((a, b) => {
-    // Use quickSee for capture ordering (MVV-LVA + RPS aware)
-    const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
-    const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
-    if (aSee !== bSee) return bSee - aSee;
-    // Fallback: prioritize attacks over moves
-    if (a.type !== b.type) return a.type === 'attack' ? -1 : 1;
-    return 0;
-  });
-
-  return actions;
 }
 
 export function getLegalMoves(game: IGame, piece: Piece): { moves: HexClass[]; attacks: HexClass[] } {
