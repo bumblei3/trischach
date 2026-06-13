@@ -12,8 +12,8 @@ import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
 import { Hex as HexClass } from './hex.js';
 import { isKingdomCheck } from './game-check.js';
+// @ts-ignore
 import { pickBookMove, buildOpeningBook } from './opening-book.js';
-// @ts-ignore - no declaration file for opening-book.js
 import type { 
   IGame, 
   Faction, 
@@ -26,7 +26,6 @@ import type {
   PersonalityConfig,
   AIPersonality
 } from './types.js';
-
 // Forward declare to resolve circular dependency
 export function getAllActions(game: IGame, faction: Faction): AIAction[] {
   const pieces = game.pieces.filter(p => p.faction === faction && p.alive);
@@ -699,7 +698,6 @@ export function simulateMove(game: IGame, piece: Piece, target: HexClass): AISna
     from: new HexClass(piece.pos.q, piece.pos.r),
     pieceHasMoved: piece.hasMoved,
     wasAttack: false,
-    defender: undefined,
     defenderWasKilled: false,
     attackerDied: false,
     // eliminatedFaction: undefined,  // omit to allow optional
@@ -749,7 +747,7 @@ export function simulateMove(game: IGame, piece: Piece, target: HexClass): AISna
     nextIdx = (nextIdx + 1) % 3;
   }
   game.currentFactionIdx = nextIdx;
-  game.currentFaction = factions[nextIdx];
+  game.currentFaction = factions[nextIdx] ?? FACTION.FIRE;
 
   return undo;
 }
@@ -972,9 +970,7 @@ export function iterativeDeepening(game: IGame, faction: Faction): AIAction | nu
 
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
-  if (actions.length === 1) return actions[0];
-  let bestScore = -Infinity;
-  let bestAction: AIAction | null = null;
+  if (actions.length === 1) return actions[0] ?? null;
   let bestResult: SearchResult = { score: -Infinity, action: null };
   let prevScore = 0;
 
@@ -1013,7 +1009,7 @@ export function iterativeDeepening(game: IGame, faction: Faction): AIAction | nu
   return bestResult.action ?? null;
 }
 
-export function greedyBestMove(game: IGame, faction: Faction, actions: AIAction[]): AIAction | null {
+export function greedyBestMove(game: IGame, _faction: Faction, actions: AIAction[]): AIAction | null {
   let bestActions: AIAction[] = [];
   let bestScore = -Infinity;
 
@@ -1050,7 +1046,7 @@ export function greedyBestMove(game: IGame, faction: Faction, actions: AIAction[
     }
   }
   if (bestActions.length === 0) return null;
-  return bestActions[Math.floor(Math.random() * bestActions.length)];
+  return bestActions[Math.floor(Math.random() * bestActions.length)] ?? null;
 }
 
 // ─── Entry Point ──────────────────────────────────────────────
@@ -1112,7 +1108,8 @@ export function deserializeGame(state: {
   capturedPieces: Record<string, string[]>;
   _halfmoveClock?: number;
 }): IGame {
-  const game: IGame = {
+  // Build game object in two steps to avoid circular reference in initializer
+  const game: Partial<IGame> = {
     pieces: state.pieces.map(p => ({
       id: p.id,
       type: p.type,
@@ -1129,11 +1126,7 @@ export function deserializeGame(state: {
     rpsEnabled: state.rpsEnabled,
     boardCells: new Map(),
     _occupiedMap: new Map(),
-    capturedPieces: {
-      [FACTION.FIRE]: state.capturedPieces.fire.map(id => game.pieces.find(p => p.id === id)!).filter(Boolean),
-      [FACTION.WATER]: state.capturedPieces.water.map(id => game.pieces.find(p => p.id === id)!).filter(Boolean),
-      [FACTION.NATURE]: state.capturedPieces.nature.map(id => game.pieces.find(p => p.id === id)!).filter(Boolean),
-    },
+    capturedPieces: { fire: [], water: [], nature: [] },
     moveHistory: [],
     _positionHistory: new Map(),
     _halfmoveClock: state._halfmoveClock || 0,
@@ -1146,9 +1139,15 @@ export function deserializeGame(state: {
     onDraw: null,
     onPromotion: null,
     _undoStack: [],
-    _positionHistory: new Map(),
-    _halfmoveClock: state._halfmoveClock || 0,
   };
-  rebuildOccupiedMap(game);
-  return game;
+  
+  // Now populate capturedPieces using the game object
+  game.capturedPieces = {
+    fire: (state.capturedPieces.fire ?? []).map(id => game.pieces!.find(p => p.id === id)!).filter((p): p is Piece => p !== undefined),
+    water: (state.capturedPieces.water ?? []).map(id => game.pieces!.find(p => p.id === id)!).filter((p): p is Piece => p !== undefined),
+    nature: (state.capturedPieces.nature ?? []).map(id => game.pieces!.find(p => p.id === id)!).filter((p): p is Piece => p !== undefined),
+  };
+  
+  rebuildOccupiedMap(game as IGame);
+  return game as IGame;
 }
