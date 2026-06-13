@@ -1,5 +1,5 @@
 import { PIECE_TYPE, getValidMoves } from './pieces.js';
-import type { IGame, Faction } from './types.js';
+import type { IGame, Faction, Piece, Hex } from './types.js';
 
 /**
  * Check if the king of `faction` is currently in check.
