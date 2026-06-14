@@ -406,6 +406,21 @@ function getZobristPieceKeyAt(ptIdx: number, facIdx: number, sqIdx: number): big
   return factionKeys[sqIdx] as bigint;
 }
 
+// ─── Helper: Reconstruct full AIAction from TT storage ─────────────
+
+function reconstructAction(game: IGame, storedMove: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps?: RPSResult } | null): AIAction | null {
+  if (!storedMove) return null;
+  const piece = game.pieces.find(p => p.id === storedMove.pieceId && p.alive);
+  if (!piece) return null;
+  // Parse targetKey (format "q,r")
+  const parts = storedMove.targetKey.split(',');
+  const q = parseInt(parts[0]!, 10);
+  const r = parseInt(parts[1]!, 10);
+  if (isNaN(q) || isNaN(r)) return null;
+  const target = new Hex(q, r);
+  return { piece, target, type: storedMove.type, rps: storedMove.rps };
+}
+
 // Transposition Table Entry
 export class TTEntry {
   key: bigint = 0n;
@@ -512,11 +527,31 @@ export function updateZobristHash(
   return hash;
 }
 
+// TT Probe result types
+interface TTProbeHit {
+  score: number;
+  action: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps?: RPSResult } | null;
+  flag: 'exact' | 'lower' | 'upper';
+}
+
+interface TTProbeBounds {
+  alpha: number;
+  beta: number;
+  bestMove: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps?: RPSResult } | null;
+}
+
+type TTProbeResult = TTProbeHit | TTProbeBounds | null;
+
+function isTTProbeHit(result: TTProbeResult): result is TTProbeHit {
+  return result !== null && 'flag' in result;
+}
+
+function isTTProbeBounds(result: TTProbeResult): result is TTProbeBounds {
+  return result !== null && 'alpha' in result;
+}
+
 // TT Probe
-export function ttProbe(hash: bigint, depth: number, alpha: number, beta: number):
-  | { score: number; action: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps?: RPSResult } | null; flag: 'exact' | 'lower' | 'upper' }
-  | { alpha: number; beta: number; bestMove: { pieceId: string; targetKey: string; type: 'move' | 'attack'; rps?: RPSResult } | null }
-  | null {
+export function ttProbe(hash: bigint, depth: number, alpha: number, beta: number): TTProbeResult {
   const idx = Number(hash & BigInt(TT_SIZE - 1));
   const entry = tt[idx]!;
   // entry is always initialized (TTEntry constructor called for all slots)
@@ -1238,10 +1273,10 @@ export function undoMove(game: IGame, undo: AISnapshot): void {
 export const killerMoves: Record<string, boolean> = {};
 export const historyTable: Record<string, number> = {};
 
-// Futility margins (centipawns) - depth 1, 2, 3
-export const FUTILITY_MARGINS = [0, 150, 300, 500];
-// Razoring margins (centipawns) - depth 1, 2
-export const RAZOR_MARGINS = [0, 300, 500];
+// Futility margins (centipawns) - depth 1, 2, 3 (extend for depths up to 12)
+export const FUTILITY_MARGINS = [0, 150, 300, 500, 700, 900, 1100, 1300, 1500, 1700, 1900, 2100, 2300];
+// Razoring margins (centipawns) - depth 1, 2 (extend for depths up to 12)
+export const RAZOR_MARGINS = [0, 300, 500, 700, 900, 1100, 1300, 1500, 1700, 1900, 2100, 2300, 2500];
 
 // ─── Late Move Reductions (LMR) ───────────────────────────────
 // Reduce depth for moves later in the move list (less likely to be best)
@@ -1289,12 +1324,16 @@ export function minimax(
   const hash = game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game);
   const ttProbeResult = ttProbe(hash, depth, alpha, beta);
   if (ttProbeResult) {
-    if (ttProbeResult.flag === 'exact' || ttProbeResult.flag === 'lower' || ttProbeResult.flag === 'upper') {
-      return { score: ttProbeResult.score, action: ttProbeResult.action };
+    if (isTTProbeHit(ttProbeResult)) {
+      // Exact hit or depth-sufficient bound
+      const action = reconstructAction(game, ttProbeResult.action);
+      return { score: ttProbeResult.score, action };
     }
     // TT hit but depth not sufficient - use narrowed bounds
-    alpha = ttProbeResult.alpha;
-    beta = ttProbeResult.beta;
+    if (isTTProbeBounds(ttProbeResult)) {
+      alpha = ttProbeResult.alpha;
+      beta = ttProbeResult.beta;
+    }
   }
 
   if (game.state === 'game_over') {
@@ -1381,12 +1420,14 @@ export function minimax(
 
   for (let moveIndex = 0; moveIndex < actionsArray.length; moveIndex++) {
     const action = actionsArray[moveIndex];
+    // actionsArray has no holes (created from getAllActions result)
+    if (!action) continue;
     const isQuiet = action.type !== 'attack';
 
     // ─── Futility Pruning (depth <= 3, quiet moves only) ─────────
     if (isQuiet && depth <= 3) {
       const staticScore = evaluateBoard(game, maximizingFaction);
-      const futilityMargin = FUTILITY_MARGINS[depth];
+      const futilityMargin = FUTILITY_MARGINS[depth] ?? 0;
       if (staticScore + futilityMargin <= alpha) {
         continue; // Prune: even with margin, can't raise score above alpha
       }
@@ -1396,7 +1437,7 @@ export function minimax(
     let razorReduction = 0;
     if (isQuiet && depth <= 2) {
       const staticScore = evaluateBoard(game, maximizingFaction);
-      const razorMargin = RAZOR_MARGINS[depth];
+      const razorMargin = RAZOR_MARGINS[depth] ?? 0;
       if (staticScore + razorMargin <= alpha) {
         razorReduction = 1; // Reduce depth by 1 instead of pruning entirely
       }
@@ -1537,7 +1578,7 @@ export function iterativeDeepening(game: IGame, faction: Faction): AIAction | nu
 
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
-  if (actions.length === 1) return actions[0];
+  if (actions.length === 1) return actions[0] ?? null;
 
   let bestResult: SearchResult = { score: -Infinity, action: actions[0] };
   let prevScore = 0;
@@ -1575,7 +1616,7 @@ export function iterativeDeepening(game: IGame, faction: Faction): AIAction | nu
     }
   }
 
-  return bestResult.action;
+  return bestResult.action ?? null;
 }
 
 export function greedyBestMove(game: IGame, faction: Faction, actions: AIAction[]): AIAction | null {
@@ -1595,7 +1636,17 @@ export function greedyBestMove(game: IGame, faction: Faction, actions: AIAction[
         score = -1000;
       }
     } else {
-      const pv = getPSTValue({ type: 'pawn', pos: action.target });
+      // Create a proper pawn piece for PST evaluation
+      const pawnPiece: Piece = {
+        id: '',
+        faction: 'fire', // faction doesn't matter for PST, only type and pos
+        type: 'pawn',
+        pos: action.target,
+        symbol: 'P',
+        alive: true,
+        hasMoved: false
+      };
+      const pv = getPSTValue(pawnPiece);
       const distFromCenter = Math.max(
         Math.abs(action.piece.pos.q), Math.abs(action.piece.pos.r),
         Math.abs(-action.piece.pos.q - action.piece.pos.r)
@@ -1615,7 +1666,7 @@ export function greedyBestMove(game: IGame, faction: Faction, actions: AIAction[
     }
   }
   if (bestActions.length === 0) return null;
-  return bestActions[Math.floor(Math.random() * bestActions.length)];
+  return bestActions[Math.floor(Math.random() * bestActions.length)] ?? null;
 }
 
 // ─── Entry Point ────────────────────────────────────────────────
@@ -1738,7 +1789,8 @@ export function startPondering(game: IGame, opponentFaction: Faction): void {
 async function runPonderSearch(): Promise<void> {
   const { game, opponentFaction, maximizingFaction, timeBudget } = ponderState;
 
-  if (!game || ponderState.aborted) return;
+  // These should be non-null when pondering is active
+  if (!game || !opponentFaction || !maximizingFaction || ponderState.aborted) return;
 
   const actions = getAllActions(game, opponentFaction);
   if (actions.length === 0) {
@@ -1748,7 +1800,7 @@ async function runPonderSearch(): Promise<void> {
 
   // Quick check: if only one move, store it immediately
   if (actions.length === 1) {
-    ponderState.bestMove = actions[0];
+    ponderState.bestMove = actions[0] ?? null;
     ponderState.bestScore = evaluateBoard(game, maximizingFaction);
     return;
   }
