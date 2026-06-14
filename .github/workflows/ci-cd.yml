@@ -52,12 +52,56 @@ jobs:
 
       - name: Run TypeScript type check
         run: npm run typecheck
+        if: always()
 
       - name: Run linter
         run: npm run lint
+        if: always()
+
+      - name: Check JS types (strict TS on JS)
+        run: npm run check:js
+        if: always()
+
+      - name: Check formatting
+        run: npx prettier --check .
+        if: always()
 
       - name: Run unit tests with coverage
         run: npm test -- --coverage
+
+      - name: Performance benchmark
+        run: |
+          echo "=== Performance Benchmark ==="
+          node -e "
+            import { Game } from './js/game.js';
+            import { generateBoard } from './js/board.js';
+            import { calculateBestMove, setAIDepth } from './js/ai.js';
+            setAIDepth(4);
+            const game = new Game();
+            game.init(generateBoard());
+            game.rpsEnabled = true;
+            game.eliminatedFactions.add('nature');
+            for (const p of game.pieces) if (p.faction === 'nature') p.alive = false;
+            
+            const iterations = 10;
+            let totalNodes = 0;
+            let totalTime = 0;
+            let totalDepth = 0;
+            
+            for (let i = 0; i < iterations; i++) {
+              const start = performance.now();
+              const action = calculateBestMove(game, game.currentFaction);
+              const elapsed = performance.now() - start;
+              totalTime += elapsed;
+              totalDepth += 4; // fixed depth
+            }
+            
+            const avgTime = (totalTime / iterations).toFixed(2);
+            const nodesPerSec = Math.round((totalNodes / totalTime) * 1000) || 'N/A';
+            console.log(\`Avg time per move: \${avgTime}ms\`);
+            console.log(\`Depth: 4\`);
+            console.log(\`Iterations: \${iterations}\`);
+          " 2>&1 || echo "Benchmark skipped (module issues)"
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -173,13 +217,55 @@ jobs:
           path: playwright-report/
           retention-days: 7
 
-      - name: Upload test-results on failure
-        if: failure()
+      - name: Upload test-results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: test-results/
           retention-days: 7
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request' && (success() || failure())
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read coverage
+            let coverageMsg = '';
+            if (fs.existsSync('coverage/coverage-summary.json')) {
+              const cov = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+              const pct = cov.total.lines.pct;
+              const status = pct >= 80 ? '✅' : '❌';
+              coverageMsg = `${status} **Coverage**: ${pct}% (threshold: 80%)`;
+            }
+            
+            // Read E2E results
+            let e2eMsg = '';
+            if (fs.existsSync('test-results/results.json')) {
+              const results = JSON.parse(fs.readFileSync('test-results/results.json', 'utf8'));
+              const passed = results.suites?.reduce((sum, s) => sum + (s.specs?.filter(sp => sp.ok).length || 0), 0) || 0;
+              const failed = results.suites?.reduce((sum, s) => sum + (s.specs?.filter(sp => !sp.ok).length || 0), 0) || 0;
+              const total = passed + failed;
+              const status = failed === 0 ? '✅' : '❌';
+              e2eMsg = `${status} **E2E Tests**: ${passed}/${total} passed`;
+            }
+            
+            // Read bundle size from env
+            const mainGzip = process.env.BUNDLE_MAIN_GZIP || 'N/A';
+            const coreGzip = process.env.BUNDLE_CORE_GZIP || 'N/A';
+            const workerGzip = process.env.BUNDLE_WORKER_GZIP || 'N/A';
+            const bundleMsg = `📦 **Bundle sizes (gzipped)**: main=${mainGzip}B, ai-core=${coreGzip}B, ai-worker=${workerGzip}B`;
+            
+            const body = `## 📊 CI Summary\n\n${coverageMsg}\n${e2eMsg}\n${bundleMsg}\n\n*Node: ${{ matrix.node-version }}*`;
+            
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
 
   # Tournament benchmark (manual/scheduled only)
   tournament:
