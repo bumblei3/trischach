@@ -1110,7 +1110,10 @@ describe("Opening Book: saveLearnedDataToStorage / loadLearnedDataFromStorage", 
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
-    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE,
+    );
 
     const result = saveLearnedDataToStorage();
     expect(result).toBe(true);
@@ -1129,7 +1132,10 @@ describe("Opening Book: saveLearnedDataToStorage / loadLearnedDataFromStorage", 
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
-    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE,
+    );
     saveLearnedDataToStorage();
 
     // Clear and reload
@@ -1167,7 +1173,10 @@ describe("Opening Book: saveLearnedData (file)", () => {
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
-    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE,
+    );
 
     const data = await saveLearnedData();
 
@@ -1182,12 +1191,17 @@ describe("Opening Book: saveLearnedData (file)", () => {
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
-    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE,
+    );
 
     const savedData = await saveLearnedData();
     const learnedData = getLearnedData();
 
-    expect(Object.keys(savedData.positions).length).toBe(Object.keys(learnedData).length);
+    expect(Object.keys(savedData.positions).length).toBe(
+      Object.keys(learnedData).length,
+    );
   });
 
   test("handles empty book", async () => {
@@ -1224,7 +1238,8 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
     }));
 
     // Re-import to get mocked version
-    const { loadOpeningBook: mockedLoad, BOOK_INFO: mockedInfo } = await import("../js/opening-book.js");
+    const { loadOpeningBook: mockedLoad, BOOK_INFO: mockedInfo } =
+      await import("../js/opening-book.js");
     const result = await mockedLoad();
 
     expect(result).toBe(true);
@@ -1238,7 +1253,8 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
       throw new Error("Module not found");
     });
 
-    const { loadOpeningBook: mockedLoad } = await import("../js/opening-book.js");
+    const { loadOpeningBook: mockedLoad } =
+      await import("../js/opening-book.js");
     const result = await mockedLoad();
 
     expect(result).toBe(false);
@@ -1249,7 +1265,8 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
       default: { invalid: "format" },
     }));
 
-    const { loadOpeningBook: mockedLoad } = await import("../js/opening-book.js");
+    const { loadOpeningBook: mockedLoad } =
+      await import("../js/opening-book.js");
     const result = await mockedLoad();
 
     expect(result).toBe(false);
@@ -1295,12 +1312,20 @@ describe("Opening Book: loadLearnedData advanced", () => {
 
   test("adds new variation for new move at existing position", () => {
     const hash = "existinghash#0";
-    OPENING_BOOK.set(hash, [{ move: { pieceId: "p1", targetQ: 0, targetR: 0 }, weight: 50 }]);
+    OPENING_BOOK.set(hash, [
+      { move: { pieceId: "p1", targetQ: 0, targetR: 0 }, weight: 50 },
+    ]);
 
     const learnedData = {
       positions: {
         [hash]: [
-          { move: { pieceId: "p2", targetQ: 1, targetR: 1 }, wins: 3, draws: 0, losses: 0, visits: 3 },
+          {
+            move: { pieceId: "p2", targetQ: 1, targetR: 1 },
+            wins: 3,
+            draws: 0,
+            losses: 0,
+            visits: 3,
+          },
         ],
       },
     };
@@ -1319,7 +1344,13 @@ describe("Opening Book: loadLearnedData advanced", () => {
     const learnedData = {
       positions: {
         [newHash]: [
-          { move: { pieceId: "p1", targetQ: 0, targetR: 0 }, wins: 2, draws: 1, losses: 0, visits: 3 },
+          {
+            move: { pieceId: "p1", targetQ: 0, targetR: 0 },
+            wins: 2,
+            draws: 1,
+            losses: 0,
+            visits: 3,
+          },
         ],
       },
     };
@@ -1336,7 +1367,13 @@ describe("Opening Book: loadLearnedData advanced", () => {
     const learnedData = {
       positions: {
         "testhash#0": [
-          { move: { pieceId: "p1", targetQ: 0, targetR: 0 }, wins: 0, draws: 0, losses: 10, visits: 10 },
+          {
+            move: { pieceId: "p1", targetQ: 0, targetR: 0 },
+            wins: 0,
+            draws: 0,
+            losses: 10,
+            visits: 10,
+          },
         ],
       },
     };

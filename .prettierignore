@@ -1,0 +1,6 @@
+# Generated artifacts
+playwright-report/
+test-results/
+coverage/
+dist/
+node_modules/
