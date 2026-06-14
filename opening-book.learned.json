@@ -1,33 +1,403 @@
 {
+  "version": 1,
+  "updated": "2026-06-14T20:42:27.530Z",
   "positions": {
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_knight_1",
+          "targetQ": -5,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      },
+      {
+        "move": {
+          "pieceId": "fire_pawn_10",
+          "targetQ": -4,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 3,
+        "losses": 1,
+        "visits": 4
+      },
+      {
+        "move": {
+          "pieceId": "fire_pawn_14",
+          "targetQ": 0,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 2,
+        "visits": 3
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_pawn_25",
+          "targetQ": 0,
+          "targetR": 2
+        },
+        "wins": 1,
+        "draws": 3,
+        "losses": 0,
+        "visits": 4
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_pawn_40",
+          "targetQ": -1,
+          "targetR": 1
+        },
+        "wins": 0,
+        "draws": 3,
+        "losses": 1,
+        "visits": 4
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_knight_1",
+          "targetQ": -5,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      },
+      {
+        "move": {
+          "pieceId": "fire_pawn_10",
+          "targetQ": -4,
+          "targetR": 4
+        },
+        "wins": 0,
+        "draws": 2,
+        "losses": 1,
+        "visits": 3
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_knight_16",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_knight_31",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_pawn_11",
+          "targetQ": -3,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_pawn_26",
+          "targetQ": 0,
+          "targetR": 3
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_knight_16",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 1,
+        "draws": 0,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_knight_31",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_bishop_2",
+          "targetQ": -4,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 0,
+        "losses": 1,
+        "visits": 1
+      }
+    ],
     "fb-2,7|fb-4,5|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
-    "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fk0,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_knight_16",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_knight_31",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_knight_6",
+          "targetQ": 0,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fk0,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_knight_21",
+          "targetQ": 0,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_knight_36",
+          "targetQ": -5,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_bishop_2",
+          "targetQ": -4,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 13,
+        "losses": 0,
+        "visits": 13
+      }
+    ],
     "fb-2,7|fb-4,5|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,5|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,5|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#1": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,5|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_pawn_29",
+          "targetQ": 0,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 2,
+        "visits": 3
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_pawn_38",
+          "targetQ": 0,
+          "targetR": 0
+        },
+        "wins": 2,
+        "draws": 0,
+        "losses": 0,
+        "visits": 2
+      },
+      {
+        "move": {
+          "pieceId": "nature_pawn_44",
+          "targetQ": -5,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [
+      {
+        "move": {
+          "pieceId": "fire_pawn_13",
+          "targetQ": -1,
+          "targetR": 5
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,5|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#1": [
+      {
+        "move": {
+          "pieceId": "water_pawn_28",
+          "targetQ": 0,
+          "targetR": 4
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,5|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wq2,1|wr2,-2|wr2,5#2": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
+      {
+        "move": {
+          "pieceId": "nature_pawn_41",
+          "targetQ": -2,
+          "targetR": 2
+        },
+        "wins": 0,
+        "draws": 1,
+        "losses": 0,
+        "visits": 1
+      }
+    ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,0|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq0,0|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [],
-    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": []
-  },
-  "version": 1
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp0,6|wp1,-1|wp1,0|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp0,6|wp1,0|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fq-2,5|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp0,6|wp1,0|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#1": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-2,5|wb2,0|wk2,2|wk2,4|wp0,2|wp0,3|wp0,6|wp1,0|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-2,5|wb2,0|wk2,2|wk2,4|wp0,2|wp0,3|wp0,6|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-2,5|wb2,0|wk2,2|wk2,4|wp0,2|wp0,3|wp0,6|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-2,7|fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-2,5|wb2,0|wk2,2|wk2,4|wp-1,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-2,5|nq-3,1|nr-7,5|nr0,-2|wb2,0|wk2,2|wk2,4|wp-1,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nr-7,5|nr0,-2|wb2,0|wk2,2|wk2,4|wp-1,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nr-7,5|nr0,-2|wb2,0|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb1,0|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nr-7,5|nr0,-2|wb2,0|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb1,0|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr-7,5|nr0,-2|wb2,0|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb1,0|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr-7,5|nr0,-2|wb-1,6|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,1|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr-7,5|nr0,-2|wb-1,6|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,3|wp1,4|wr2,5#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,1|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr0,-2|wb-1,6|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,3|wp1,4|wr2,5#1": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|nb-5,3|nb2,1|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr0,-2|wb0,7|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,3|wp1,4|wr2,5#2": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|nb-5,3|nb1,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr0,-2|wb0,7|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,4|wr2,5#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,4|fp-5,6|fr-7,7|nb-5,3|nb1,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|nq-3,1|nr0,-2|wb0,7|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,4|wr2,5#1": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-3,5|fp-4,5|fp-5,4|fp-5,6|fr-7,7|nb-5,3|nb1,3|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|nq-3,1|nr0,-2|wb-2,5|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,4|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,-1|wk2,2|wk2,4|wp0,2|wp0,6|wp1,0|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,-1|wk2,2|wk2,4|wp0,2|wp0,6|wp1,0|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-1,-1|fb-2,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,-1|wk2,2|wk2,4|wp0,2|wp0,6|wp1,0|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-1,-1|fb-2,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk0,0|wk2,2|wk2,4|wp0,2|wp0,6|wp1,0|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-1,-1|fb-2,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq0,0|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,2|wk2,4|wp0,2|wp0,6|wp1,0|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-2,7|fb0,0|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,2|wk2,4|wp0,2|wp0,6|wp1,0|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-2,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,-2|wb-6,7|wb2,0|wk2,2|wk2,4|wp0,2|wp0,6|wp1,2|wp1,3|wp1,4|wq0,0|wq2,1|wr2,5#2": [],
+    "fb-2,7|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,0|wb-6,7|wb2,0|wk2,2|wk2,4|wp0,2|wp0,6|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb2,-1|fk-1,7|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,0|wb-6,7|wb2,0|wk2,2|wk2,4|wp0,2|wp0,6|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb2,-1|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq1,-1|nr-7,5|nr0,0|wb-6,7|wb2,0|wk2,2|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb2,-1|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq2,0|nr-7,5|nr0,0|wb-6,7|wk2,2|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb0,0|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq2,0|nr-7,5|wb-6,7|wk2,2|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb0,0|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq2,0|nr-7,5|wb-6,7|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb0,0|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-2,1|nq2,0|nr-7,5|wb-6,7|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-2,1|fk-3,7|fp-1,6|fp-2,5|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq2,0|nr-7,5|wb-6,7|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-2,1|fk-3,7|fp-1,6|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq2,0|nr-7,5|wb-2,5|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-2,1|fk-3,7|fp-1,6|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-3,1|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq2,0|nr-7,5|wb-2,5|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-2,1|fk-3,6|fp-1,6|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-3,1|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq2,0|nr-7,5|wb-2,5|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-2,1|fk-3,6|fp-1,6|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-1,-1|nk-3,1|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-2,1|nq0,0|nq2,0|nr-7,5|nr0,0|wb1,-1|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-2,1|fk-3,6|fp-1,6|fp-2,6|fp-4,4|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-1,-1|nk-3,1|nk-6,4|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-2,1|nq1,-1|nq2,0|nr-7,5|nr0,0|wk2,3|wk2,4|wp-1,7|wp0,2|wp1,2|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|nb-5,3|nb0,2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr0,-2|wb0,7|wk2,2|wk2,4|wp-2,7|wp0,3|wp1,3|wp1,4|wr2,5#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-2,5|fp-3,5|fp-4,5|fp-5,4|fp-5,6|fr-7,7|nb-5,3|nb0,2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|nq-3,1|nr0,-2|wb0,7|wk2,2|wk2,4|wp-2,7|wp0,3|wp1,3|wp1,4|wr2,5#1": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-3,5|fp-4,5|fp-5,4|fp-5,6|fr-7,7|nb-5,3|nb0,2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|nq-3,1|nr0,-2|wb-2,5|wk2,2|wk2,4|wp-2,7|wp0,3|wp1,3|wp1,4|wr2,5#2": [],
+    "fb-2,7|fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq2,0|nr-7,5|nr0,-2|wb-2,5|wk2,2|wk2,4|wp-1,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq2,0|nr-7,5|nr0,-2|wb-2,5|wk2,2|wk2,4|wp-1,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#1": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq2,0|nr-7,5|nr0,-2|wb-2,5|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,0|wp1,3|wp1,4|wq2,1|wr2,5#2": [],
+    "fb-5,7|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq2,1|nr-7,5|nr0,-2|wb-2,5|wb2,0|wk0,0|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq2,1|nr0,-2|wb-2,5|wb2,0|wk0,0|wk2,2|wk2,4|wp-2,7|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#1": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq2,1|nr0,-2#2": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,7|nb-5,3|nb2,-2|nk-4,2|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq0,-1|nr0,-2#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,0|nb-5,3|nb2,-2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq0,-1|nr0,-2#2": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,0|nb-5,3|nb0,2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nq0,-1|nr0,-2#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,-1|nb-5,3|nb0,2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,1|nr0,-2#2": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,-1|nb-5,3|nb0,2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,2|nr0,-2#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,0|nb-5,3|nb2,-2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,2|nq0,-1|nr0,-2#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,-1|nb-5,3|nb2,-2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-3,2|nr0,-2#2": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,-1|nb-5,3|nb2,-2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-2,3|nr0,-2#0": [],
+    "fb-7,5|fk-3,6|fk-6,4|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,5|fr-7,7|fr0,-2|nb-5,3|nb2,-2|nk-4,2|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|nq-2,3#2": []
+  }
 }

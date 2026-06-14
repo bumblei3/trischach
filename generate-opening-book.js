@@ -117,13 +117,14 @@ function buildCompiledBook(source) {
           break;
         }
         const result = game.handleCellClick(parsed.target);
-        if (
+        // Handle promotion FIRST (can be move or combat with promotion)
+        if (result && result.promotion) {
+          game.completePromotion("queen");
+        } else if (
           result &&
           (result.action === "move" || result.action === "combat")
         ) {
           // Move successful
-        } else if (result && result.promotion) {
-          game.completePromotion("queen");
         } else {
           stats.warnings.push(`${name}: Move ${moveStr} failed at ply ${i}`);
           break;
