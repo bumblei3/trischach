@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
 
@@ -31,6 +31,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Cache vitest
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/vitest
+            ~/.cache/npm
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          restore-keys: |
+            vitest-${{ runner.os }}-
 
       - name: Cache ESLint
         uses: actions/cache@v4
@@ -104,6 +114,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache vitest
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/vitest
+            ~/.cache/npm
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          restore-keys: |
+            vitest-${{ runner.os }}-
+
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -117,6 +137,30 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check bundle size
+        run: |
+          MAIN_JS_SIZE=$(stat -c%s dist/main.js)
+          MAIN_JS_GZIP=$(gzip -c dist/main.js | wc -c)
+          CORE_JS_SIZE=$(stat -c%s dist/ai-core.js)
+          CORE_JS_GZIP=$(gzip -c dist/ai-core.js | wc -c)
+          WORKER_JS_SIZE=$(stat -c%s dist/ai-worker.js)
+          WORKER_JS_GZIP=$(gzip -c dist/ai-worker.js | wc -c)
+          
+          echo "main.js: ${MAIN_JS_SIZE} bytes (${MAIN_JS_GZIP} gzipped)"
+          echo "ai-core.js: ${CORE_JS_SIZE} bytes (${CORE_JS_GZIP} gzipped)"
+          echo "ai-worker.js: ${WORKER_JS_SIZE} bytes (${WORKER_JS_GZIP} gzipped)"
+          
+          # Save for comparison (baseline: main ~37KB, ai-core ~36KB, ai-worker ~1KB)
+          echo "BUNDLE_MAIN_GZIP=${MAIN_JS_GZIP}" >> $GITHUB_ENV
+          echo "BUNDLE_CORE_GZIP=${CORE_JS_GZIP}" >> $GITHUB_ENV
+          echo "BUNDLE_WORKER_GZIP=${WORKER_JS_GZIP}" >> $GITHUB_ENV
+          
+          # Fail if main.js gzipped > 12KB (10% growth from ~11KB baseline)
+          if [ "$MAIN_JS_GZIP" -gt 12000 ]; then
+            echo "::error::main.js gzipped size (${MAIN_JS_GZIP}) exceeds 12KB threshold"
+            exit 1
+          fi
 
       - name: Run E2E tests
         run: npm run test:e2e
@@ -152,6 +196,16 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Cache vitest
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/vitest
+            ~/.cache/npm
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          restore-keys: |
+            vitest-${{ runner.os }}-
 
       - name: Run tournament
         env:
@@ -205,7 +259,19 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      - run: npm ci
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache vitest
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/vitest
+            ~/.cache/npm
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          restore-keys: |
+            vitest-${{ runner.os }}-
       - name: Build
         run: npm run build
       - name: Create Release
@@ -235,7 +301,18 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache vitest
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/vitest
+            ~/.cache/npm
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          restore-keys: |
+            vitest-${{ runner.os }}-
 
       - name: Build
         run: npm run build

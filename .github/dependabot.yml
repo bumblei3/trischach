@@ -15,3 +15,8 @@ updates:
         patterns: ["*"]
         update-types:
           - "major"
+    allow:
+      - dependency-type: "direct"
+        update-type: "version-update:semver-patch"
+      - dependency-type: "direct"
+        update-type: "version-update:semver-minor"
