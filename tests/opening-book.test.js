@@ -662,7 +662,7 @@ describe("Opening Book: learnFromGame", () => {
     // Learn from a win
     learnFromGame(
       [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
-      FACTION.FIRE
+      FACTION.FIRE,
     );
 
     const updatedVariations = OPENING_BOOK.get(hash);
@@ -721,7 +721,7 @@ describe("Opening Book: learnFromGame", () => {
     // Learn from a draw
     learnFromGame(
       [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
-      null // draw
+      null, // draw
     );
 
     const updatedVariations = OPENING_BOOK.get(hash);
@@ -753,8 +753,14 @@ describe("Opening Book: learnFromGame", () => {
 
     // Should not throw
     learnFromGame(
-      [{ hash: "nonexistent#0", faction: FACTION.FIRE, move: { pieceId: "x", targetQ: 0, targetR: 0 } }],
-      FACTION.FIRE
+      [
+        {
+          hash: "nonexistent#0",
+          faction: FACTION.FIRE,
+          move: { pieceId: "x", targetQ: 0, targetR: 0 },
+        },
+      ],
+      FACTION.FIRE,
     );
   });
 
@@ -772,7 +778,7 @@ describe("Opening Book: learnFromGame", () => {
     // Boost second variation significantly
     learnFromGame(
       [{ hash, faction: FACTION.FIRE, move: variations[1].move }],
-      FACTION.FIRE
+      FACTION.FIRE,
     );
 
     // Weights should be re-sorted
@@ -809,7 +815,7 @@ describe("Opening Book: getLearnedData", () => {
     // Add some learning data
     learnFromGame(
       [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
-      FACTION.FIRE
+      FACTION.FIRE,
     );
 
     const learned = getLearnedData();
@@ -861,7 +867,10 @@ describe("Opening Book: saveLearnedData", () => {
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
-    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE,
+    );
 
     const data = await saveLearnedData();
 
@@ -876,13 +885,16 @@ describe("Opening Book: saveLearnedData", () => {
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
-    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE,
+    );
 
     const savedData = await saveLearnedData();
     const learnedData = getLearnedData();
 
     expect(Object.keys(savedData.positions).length).toBe(
-      Object.keys(learnedData).length
+      Object.keys(learnedData).length,
     );
   });
 });
