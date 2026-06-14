@@ -2,7 +2,7 @@ import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
 import { getRPSResult, FACTION } from './board.js';
 import { Hex } from './hex.js';
 import { isKingdomCheck } from './game-check.js';
-import { pickBookMove, buildOpeningBook, inBook } from './opening-book.js';
+import { pickBookMove, buildOpeningBook, inBook, learnFromGame, getLearnedData, loadLearnedData } from './opening-book.js';
 
 // Import all core AI logic from shared module
 import {
@@ -104,4 +104,8 @@ export {
   quickSee,
   // Search stats
   nodesSearched,
+  // Opening book learning
+  learnFromGame,
+  getLearnedData,
+  loadLearnedData,
 };

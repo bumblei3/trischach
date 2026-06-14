@@ -13,7 +13,8 @@ import {
   calculateBestMove, 
   setAIDepth, 
   setAIPersonality, 
-  getAIPersonalities 
+  getAIPersonalities,
+  learnFromGame
 } from './js/ai.js';
 
 const GAMES_PER_PAIRING = parseInt(process.argv[2]) || 10;
@@ -31,6 +32,16 @@ console.log('╚═════════════════════�
 
 const K_FACTOR = 32;
 const INITIAL_ELO = 1200;
+
+// Board hash function for opening book
+function boardHash(game) {
+  const pieces = game.pieces
+    .filter(p => p.alive)
+    .map(p => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+    .sort()
+    .join('|');
+  return `${pieces}#${(game.currentFactionIdx !== undefined) ? game.currentFactionIdx : ['fire','water','nature'].indexOf(game.currentFaction)}`;
+}
 
 const eloRatings = {};
 const results = {};
@@ -75,6 +86,9 @@ async function playGame(engineA, engineB, gameNum, totalGames) {
     nature: 'balanced'
   };
 
+  // Track game history for opening book learning
+  const gameHistory = [];
+
   let lastResult = null;
   let moveCount = 0;
   const maxMoves = 200;
@@ -100,6 +114,19 @@ async function playGame(engineA, engineB, gameNum, totalGames) {
       if (!action) break;
     }
 
+    // Record move for learning (only for opening phase - first 20 moves total)
+    if (moveCount < 20) {
+      gameHistory.push({
+        hash: boardHash(game),
+        faction: game.currentFaction,
+        move: {
+          pieceId: action.piece.id,
+          targetQ: action.target.q,
+          targetR: action.target.r
+        }
+      });
+    }
+
     const selResult = game.handleCellClick(action.piece.pos);
     if (selResult.action === 'deselect') break;
     
@@ -113,6 +140,19 @@ async function playGame(engineA, engineB, gameNum, totalGames) {
     if (moveCount % 30 === 0) {
       process.stdout.write(`\r  Game ${gameNum}/${totalGames}: ${engineA} vs ${engineB} | Move ${moveCount}   `);
     }
+  }
+
+  // Learn from this game
+  let winnerFaction = null;
+  if (lastResult && lastResult.winner_faction) {
+    winnerFaction = lastResult.winner_faction;
+  } else if (game.state === 'game_over' && moveCount >= maxMoves) {
+    // Draw by max moves
+    winnerFaction = null;
+  }
+  
+  if (gameHistory.length > 0) {
+    learnFromGame(gameHistory, winnerFaction);
   }
 
   // Determine result from lastResult.winner_faction
@@ -249,6 +289,21 @@ async function runTournament() {
   };
   fs.writeFileSync('tournament-results.json', JSON.stringify(resultData, null, 2));
   console.log('\n💾 Results saved to tournament-results.json');
+
+  // Save learned opening book data
+  const { getLearnedData } = await import('./js/ai.js');
+  const learnedData = getLearnedData();
+  if (Object.keys(learnedData).length > 0) {
+    const learnedOutput = {
+      version: 1,
+      updated: new Date().toISOString(),
+      positions: learnedData
+    };
+    fs.writeFileSync('opening-book.learned.json', JSON.stringify(learnedOutput, null, 2));
+    console.log(`💾 Learned opening book data saved (${Object.keys(learnedData).length} positions)`);
+  } else {
+    console.log('💾 No new learned opening book data to save');
+  }
 }
 
 runTournament().catch(console.error);

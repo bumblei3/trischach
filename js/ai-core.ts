@@ -12,7 +12,7 @@ import { getValidMoves, PIECE_STRENGTH } from './pieces.ts';
 import { getRPSResult, FACTION } from './board.ts';
 import { Hex } from './hex.ts';
 import { isKingdomCheck } from './game-check.ts';
-import { pickBookMove, buildOpeningBook, inBook } from './opening-book.ts';
+import { pickBookMove, buildOpeningBook, inBook, learnFromGame, getLearnedData, loadLearnedData } from './opening-book.ts';
 import type {
   IGame,
   Faction,
@@ -1929,3 +1929,6 @@ export let reportPonderProgress: ((depth: number, score: number, nodes: number) 
 export function setPonderProgressCallback(callback: (depth: number, score: number, nodes: number) => void): void {
   reportPonderProgress = callback;
 }
+
+// Re-export learning functions
+export { learnFromGame, getLearnedData, loadLearnedData };

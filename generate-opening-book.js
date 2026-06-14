@@ -65,7 +65,7 @@ function buildCompiledBook(source) {
   };
 
   for (const [factionKey, factionLines] of Object.entries(source.lines)) {
-    for (const [lineData] of Object.entries(factionLines)) {
+    for (const [, lineData] of Object.entries(factionLines)) {
       const { name, weight: initialWeight, moves } = lineData;
       
       // Create fresh game for each line

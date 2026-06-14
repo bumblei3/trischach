@@ -376,3 +376,128 @@ export function getBookStats(): { positions: number; totalVariations: number; ma
 // EXPORT FOR DEBUGGING
 // ---------------------------------------------------------------------------
 export { OPENING_BOOK };
+
+// ---------------------------------------------------------------------------
+// LEARNING INTEGRATION
+// ---------------------------------------------------------------------------
+// Weighted learning from game results
+
+/** Update opening book weights based on a completed game */
+export function learnFromGame(gameHistory, winnerFaction) {
+  // gameHistory: array of { hash, faction, move: {pieceId, targetQ, targetR} }
+  // winnerFaction: 'fire' | 'water' | 'nature' | null (draw)
+  
+  for (const entry of gameHistory) {
+    const variations = OPENING_BOOK.get(entry.hash);
+    if (!variations) continue;
+    
+    const variation = variations.find(v => 
+      v.move.pieceId === entry.move.pieceId &&
+      v.move.targetQ === entry.move.targetQ &&
+      v.move.targetR === entry.move.targetR
+    );
+    
+    if (!variation) continue;
+    
+    // Initialize learning stats if not present
+    if (variation.wins === undefined) {
+      variation.wins = 0;
+      variation.draws = 0;
+      variation.losses = 0;
+      variation.visits = 0;
+    }
+    
+    variation.visits++;
+    const isWinner = entry.faction === winnerFaction;
+    const isDraw = winnerFaction === null;
+    
+    if (isWinner) {
+      variation.wins++;
+      variation.weight = Math.round(variation.weight * 1.3);
+    } else if (isDraw) {
+      variation.draws++;
+      variation.weight = Math.round(variation.weight * 1.1);
+    } else {
+      variation.losses++;
+      variation.weight = Math.round(variation.weight * 0.7);
+    }
+    
+    variation.weight = Math.max(variation.weight, 10);
+  }
+  
+  // Re-sort variations by weight
+  for (const [hash, variations] of OPENING_BOOK.entries()) {
+    variations.sort((a, b) => b.weight - a.weight);
+  }
+}
+
+/** Export learned data for persistence */
+export function getLearnedData() {
+  const learned = {};
+  for (const [hash, variations] of OPENING_BOOK.entries()) {
+    learned[hash] = variations
+      .filter(v => v.visits > 0)
+      .map(v => ({
+        move: v.move,
+        wins: v.wins || 0,
+        draws: v.draws || 0,
+        losses: v.losses || 0,
+        visits: v.visits || 0
+      }));
+  }
+  return learned;
+}
+
+/** Save learned data to JSON file */
+export async function saveLearnedData(filePath = null) {
+  const path = filePath || import.meta.resolve('./opening-book.learned.json');
+  const data = {
+    version: 1,
+    updated: new Date().toISOString(),
+    positions: getLearnedData()
+  };
+  
+  // In browser/Node, we'd write to file
+  // For now, return the data for external saving
+  return data;
+}
+
+/** Load learned data from JSON */
+export function loadLearnedData(data) {
+  if (!data || !data.positions) return;
+  
+  for (const [hash, variations] of Object.entries(data.positions)) {
+    if (!OPENING_BOOK.has(hash)) OPENING_BOOK.set(hash, []);
+    const bookVariations = OPENING_BOOK.get(hash)!;
+    
+    for (const learned of variations) {
+      const existing = bookVariations.find(v => 
+        v.move.pieceId === learned.move.pieceId &&
+        v.move.targetQ === learned.move.targetQ &&
+        v.move.targetR === learned.move.targetR
+      );
+      
+      if (existing) {
+        existing.wins = learned.wins;
+        existing.draws = learned.draws;
+        existing.losses = learned.losses;
+        existing.visits = learned.visits;
+        existing.weight = Math.max(existing.weight, learned.wins + learned.draws * 0.5);
+      } else {
+        bookVariations.push({
+          move: learned.move,
+          weight: Math.max(10, learned.wins + learned.draws * 0.5),
+          wins: learned.wins,
+          draws: learned.draws,
+          losses: learned.losses,
+          visits: learned.visits
+        });
+      }
+    }
+    
+    bookVariations.sort((a, b) => b.weight - a.weight);
+  }
+  
+  BOOK_INFO.totalPositions = OPENING_BOOK.size;
+  console.log(`Opening book: Loaded ${Object.keys(data.positions).length} learned positions`);
+}

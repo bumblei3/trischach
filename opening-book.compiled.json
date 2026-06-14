@@ -13,23 +13,11 @@
     ],
     "maxPly": 8,
     "description": "Opening book for TriSchach - 3-player hexagonal chess with RPS mechanics",
-    "compiled": "2026-06-12T20:57:52.953Z",
+    "compiled": "2026-06-14T16:24:28.897Z",
     "stats": {
-      "totalPositions": 26,
+      "totalPositions": 28,
       "totalVariations": 32,
-      "maxDepth": 9,
-      "linesProcessed": 12,
-      "warnings": [
-        "Fire Aggressive: Move water_bishop_17 -> 0,1 failed at ply 7",
-        "Fire Solid: Move water_bishop_17 -> 0,1 failed at ply 7",
-        "Fire Flank: Move nature_pawn_43 -> -4,5 failed at ply 5",
-        "Water Aggressive: Move water_pawn_25 -> 0,1 failed at ply 4",
-        "Water Solid: Move water_bishop_17 -> 0,1 failed at ply 7",
-        "Water Flank: Move nature_pawn_43 -> -4,5 failed at ply 5",
-        "Nature Aggressive: Move nature_pawn_40 -> -2,2 failed at ply 5",
-        "Nature Solid: Move water_bishop_17 -> 0,1 failed at ply 7",
-        "Nature Flank: Failed to select piece fire_pawn_13 at ply 3"
-      ]
+      "maxDepth": 25
     }
   },
   "book": {
@@ -76,7 +64,7 @@
           "targetQ": -1,
           "targetR": 1
         },
-        "weight": 72.25
+        "weight": 72
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
@@ -86,7 +74,7 @@
           "targetQ": -5,
           "targetR": 5
         },
-        "weight": 61.4125
+        "weight": 61
       },
       {
         "move": {
@@ -94,7 +82,7 @@
           "targetQ": -4,
           "targetR": 4
         },
-        "weight": 52.200625
+        "weight": 52
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -104,7 +92,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 52.200625
+        "weight": 52
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
@@ -114,7 +102,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 44.37053125
+        "weight": 44
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
@@ -124,7 +112,7 @@
           "targetQ": -3,
           "targetR": 5
         },
-        "weight": 37.7149515625
+        "weight": 38
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -134,7 +122,7 @@
           "targetQ": 0,
           "targetR": 3
         },
-        "weight": 32.057708828124994
+        "weight": 32
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -144,7 +132,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 44.37053125
+        "weight": 44
       },
       {
         "move": {
@@ -152,7 +140,7 @@
           "targetQ": 0,
           "targetR": 1
         },
-        "weight": 44.37053125
+        "weight": 44
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
@@ -162,7 +150,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 37.7149515625
+        "weight": 38
       },
       {
         "move": {
@@ -170,7 +158,7 @@
           "targetQ": -2,
           "targetR": 2
         },
-        "weight": 37.7149515625
+        "weight": 38
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
@@ -180,7 +168,7 @@
           "targetQ": -4,
           "targetR": 5
         },
-        "weight": 32.057708828124994
+        "weight": 32
       }
     ],
     "fb-2,7|fb-4,5|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,4|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp1,-1|wp1,0|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -190,7 +178,7 @@
           "targetQ": 0,
           "targetR": 1
         },
-        "weight": 27.249052503906245
+        "weight": 27
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -200,7 +188,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 76.5
+        "weight": 77
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,0|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
@@ -210,7 +198,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 65.02499999999999
+        "weight": 65
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
@@ -220,7 +208,7 @@
           "targetQ": 0,
           "targetR": 5
         },
-        "weight": 55.27124999999999
+        "weight": 55
       }
     ],
     "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fk0,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -230,7 +218,7 @@
           "targetQ": 0,
           "targetR": 5
         },
-        "weight": 46.98056249999999
+        "weight": 47
       }
     ],
     "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
@@ -240,7 +228,7 @@
           "targetQ": -5,
           "targetR": 5
         },
-        "weight": 39.93347812499999
+        "weight": 40
       }
     ],
     "fb-2,7|fb-5,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": [
@@ -250,7 +238,7 @@
           "targetQ": -4,
           "targetR": 5
         },
-        "weight": 33.94345640624999
+        "weight": 34
       }
     ],
     "fb-2,7|fb-4,5|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk0,0|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk0,5|wk2,2|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -260,7 +248,7 @@
           "targetQ": 0,
           "targetR": 1
         },
-        "weight": 28.851937945312493
+        "weight": 29
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fp0,5|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#1": [
@@ -270,7 +258,7 @@
           "targetQ": 0,
           "targetR": 5
         },
-        "weight": 63.75
+        "weight": 64
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [
@@ -280,7 +268,7 @@
           "targetQ": -5,
           "targetR": 5
         },
-        "weight": 54.1875
+        "weight": 54
       },
       {
         "move": {
@@ -288,7 +276,7 @@
           "targetQ": 0,
           "targetR": 0
         },
-        "weight": 54.1875
+        "weight": 54
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [
@@ -298,7 +286,7 @@
           "targetQ": -1,
           "targetR": 5
         },
-        "weight": 46.059374999999996
+        "weight": 46
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,5|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#1": [
@@ -308,7 +296,7 @@
           "targetQ": 0,
           "targetR": 4
         },
-        "weight": 39.150468749999995
+        "weight": 39
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,5|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-5,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wq2,1|wr2,-2|wr2,5#2": [
@@ -318,7 +306,7 @@
           "targetQ": -4,
           "targetR": 5
         },
-        "weight": 33.27789843749999
+        "weight": 33
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#2": [
@@ -328,7 +316,7 @@
           "targetQ": -2,
           "targetR": 2
         },
-        "weight": 27.249052503906245
+        "weight": 27
       }
     ],
     "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|np0,0|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#2": [
@@ -338,8 +326,10 @@
           "targetQ": -1,
           "targetR": 5
         },
-        "weight": 46.059374999999996
+        "weight": 46
       }
-    ]
+    ],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-6,7|fp-1,6|fp-2,6|fp-3,6|fp-4,6|fp-5,6|fp-6,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-1,-1|nk-4,2|nk-6,4|np-1,0|np-2,1|np-3,2|np-4,3|np-5,4|np-6,5|nq-3,1|nq0,0|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,-1|wk2,2|wk2,4|wp0,5|wp1,-1|wp1,0|wp1,1|wp1,2|wp1,3|wp1,4|wq2,1|wr2,-2|wr2,5#0": [],
+    "fb-2,7|fb-5,7|fk-1,7|fk-3,7|fk-5,5|fp-1,6|fp-2,6|fp-3,5|fp-4,5|fp-5,6|fp-6,6|fp0,6|fq-4,7|fr-7,7|fr0,7|nb-2,0|nb-5,3|nk-4,2|nk-6,4|nk0,0|np-1,0|np-1,1|np-2,2|np-4,3|np-5,4|np-6,5|np0,-1|nq-3,1|nr-7,5|nr0,-2|wb2,0|wb2,3|wk2,2|wk2,4|wp0,2|wp0,3|wp1,-1|wp1,0|wp1,3|wp1,4|wp1,5|wq2,1|wr2,-2|wr2,5#0": []
   }
 }
