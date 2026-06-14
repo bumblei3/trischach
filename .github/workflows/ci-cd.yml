@@ -66,13 +66,37 @@ jobs:
         run: npx prettier --check .
         if: always()
 
-      - name: Run unit tests with coverage
-        run: npm test -- --coverage
+      - name: Run unit tests
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            npm test -- --coverage
+          else
+            npm test
+          fi
+        env:
+          CI: true
+
+      - name: Upload coverage (PR only)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.node-version }}
+          path: coverage/
+          retention-days: 7
+
+      - name: Enforce coverage thresholds (PR only)
+        if: github.event_name == 'pull_request'
+        run: |
+          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "Coverage $COVERAGE% below 80% threshold"
+            exit 1
+          fi
 
       - name: Performance benchmark
         run: |
           echo "=== Performance Benchmark ==="
-          node -e "
+          node --input-type=module -e "
             import { Game } from './js/game.js';
             import { generateBoard } from './js/board.js';
             import { calculateBestMove, setAIDepth } from './js/ai.js';
@@ -102,21 +126,6 @@ jobs:
             console.log(\`Depth: 4\`);
             console.log(\`Iterations: \${iterations}\`);
           " 2>&1 || echo "Benchmark skipped (module issues)"
-
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-${{ matrix.node-version }}
-          path: coverage/
-          retention-days: 7
-
-      - name: Enforce coverage thresholds
-        run: |
-          COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "Coverage $COVERAGE% below 80% threshold"
-            exit 1
-          fi
 
       - name: Dependency audit
         run: npm audit --audit-level=high || true

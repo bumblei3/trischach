@@ -1,10 +1,20 @@
 import { defineConfig } from "vitest/config";
+import process from "process";
+
+const isCI = !!process.env.CI;
 
 export default defineConfig({
   test: {
     environment: "happy-dom",
     setupFiles: ["./tests/setup.ts"],
     exclude: ["node_modules", "tests-e2e"],
+    testTimeout: 60000,
+    // Run tests sequentially in CI to avoid memory issues
+    pool: isCI ? "forks" : "threads",
+    poolOptions: {
+      forks: { singleFork: true },
+      threads: { singleThread: true },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],
