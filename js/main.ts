@@ -24,6 +24,11 @@ import {
   stopPondering,
   isPondering,
 } from "./ai.ts";
+import {
+  learnFromGame,
+  loadLearnedDataFromStorage,
+  saveLearnedDataToStorage,
+} from "./opening-book.ts";
 import { sounds } from "./sounds.ts";
 import {
   serializeGame,
@@ -238,6 +243,14 @@ let autoBattleActive = false;
 let autoBattleTimer: ReturnType<typeof setTimeout> | null = null;
 let currentBoardRotation = 0;
 
+// Track opening book moves for learning
+interface BookMoveRecord {
+  hash: string;
+  faction: string;
+  move: { pieceId: string; targetQ: number; targetR: number };
+}
+let autoBattleBookMoves: BookMoveRecord[] = [];
+
 // ─── Initialization ─────────────────────────────────────────────────
 
 function applySettings(settings: GameSettings): void {
@@ -290,7 +303,9 @@ function init(): void {
   renderer.render();
   game.init(renderer.cells);
   game._undoStack = [];
+  autoBattleBookMoves = []; // Clear learning tracking
   buildOpeningBook(Game);
+  loadLearnedDataFromStorage(); // Load learned opening book weights
   initAIWorker();
   const settings = loadSettings();
   applySettings(settings);
@@ -685,6 +700,11 @@ function triggerAutoMove(): void {
       return;
     }
 
+    // Check if current position is in opening book before making move
+    const { inBook, pickBookMove } = await import("./opening-book.ts");
+    const wasInBook = inBook(game);
+    const bookMove = wasInBook ? pickBookMove(game) : null;
+
     // Stop pondering and get the best move found
     const ponderMove = await stopPondering();
 
@@ -707,6 +727,22 @@ function triggerAutoMove(): void {
         triggerAutoMove();
         return;
       }
+
+      // Record book move for learning if it was a book move
+      if (wasInBook && bookMove && bookMove.piece.id === piece.id) {
+        const { boardHash } = await import("./opening-book.ts");
+        const hash = boardHash(game);
+        autoBattleBookMoves.push({
+          hash,
+          faction: game.currentFaction,
+          move: {
+            pieceId: piece.id,
+            targetQ: action.targetQ,
+            targetR: action.targetR,
+          },
+        });
+      }
+
       game.handleCellClick(piece.pos);
       const { Hex } = await import("./hex.ts");
       const target = new Hex(action.targetQ, action.targetR);
@@ -869,6 +905,17 @@ function showCombat(result: {
       if (autoBattleBtn) {
         autoBattleBtn.textContent = "🤖 Auto Battle";
         autoBattleBtn.classList.remove("active");
+      }
+
+      // Learn from this game if there were book moves
+      if (autoBattleBookMoves.length > 0) {
+        const winnerFaction = result.winner_faction;
+        learnFromGame(autoBattleBookMoves, winnerFaction);
+        saveLearnedDataToStorage();
+        console.log(
+          `Opening book: Learned from auto-battle game (${autoBattleBookMoves.length} book moves, winner: ${winnerFaction || "draw"})`,
+        );
+        autoBattleBookMoves = [];
       }
     } else if (autoBattleActive) {
       triggerAutoMove();
@@ -1129,6 +1176,7 @@ function initEventListeners(): void {
     renderer.pieceElements.clear();
     game.init(renderer.cells);
     game._undoStack = [];
+    autoBattleBookMoves = []; // Clear learning tracking
     const moveLogEl = document.getElementById("move-log") as HTMLElement;
     moveLogEl.innerHTML = "";
     for (const p of game.getAlivePieces()) renderer.renderPiece(p);

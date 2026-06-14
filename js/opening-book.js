@@ -506,9 +506,48 @@ export function getLearnedData() {
   return learned;
 }
 
-/** Save learned data to JSON file */
+const LEARNED_STORAGE_KEY = "trischach-opening-book-learned";
+
+/** Save learned data to localStorage */
+export function saveLearnedDataToStorage() {
+  const data = {
+    version: 1,
+    updated: new Date().toISOString(),
+    positions: getLearnedData(),
+  };
+  try {
+    localStorage.setItem(LEARNED_STORAGE_KEY, JSON.stringify(data));
+    console.log(
+      `Opening book: Saved ${Object.keys(data.positions).length} learned positions`,
+    );
+    return true;
+  } catch (e) {
+    console.warn("Opening book: Failed to save learned data:", e);
+    return false;
+  }
+}
+
+/** Load learned data from localStorage */
+export function loadLearnedDataFromStorage() {
+  try {
+    const stored = localStorage.getItem(LEARNED_STORAGE_KEY);
+    if (!stored) return false;
+    const data = JSON.parse(stored);
+    if (!data || !data.positions) return false;
+
+    loadLearnedData(data);
+    console.log(
+      `Opening book: Loaded ${Object.keys(data.positions).length} learned positions from storage`,
+    );
+    return true;
+  } catch (e) {
+    console.warn("Opening book: Failed to load learned data:", e);
+    return false;
+  }
+}
+
+/** Save learned data to JSON file (Node/legacy) */
 export async function saveLearnedData(filePath = null) {
-  const path = filePath || import.meta.resolve("./opening-book.learned.json");
   const data = {
     version: 1,
     updated: new Date().toISOString(),
