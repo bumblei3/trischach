@@ -65,7 +65,7 @@ function buildCompiledBook(source) {
     warnings: [],
   };
 
-  for (const [factionKey, factionLines] of Object.entries(source.lines)) {
+  for (const [_factionKey, factionLines] of Object.entries(source.lines)) {
     for (const [, lineData] of Object.entries(factionLines)) {
       const { name, weight: initialWeight, moves } = lineData;
 

@@ -1,10 +1,10 @@
 /**
  * replay.test.js - Tests for TriSchach Game Replay/Export System (TSPN format)
  */
-import { expect, test, describe, beforeEach, vi, afterEach } from "vitest";
+import { expect, test, describe, beforeEach, vi } from "vitest";
 import { Hex } from "../js/hex.js";
 import { FACTION, generateBoard } from "../js/board.js";
-import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.js";
+import { PIECE_TYPE, Piece } from "../js/pieces.js";
 import { GAME_STATE } from "../js/game.js";
 
 // Import all exported functions from replay.js
@@ -50,10 +50,10 @@ function createMockGame(overrides = {}) {
     capturedPieces: { fire: [], water: [], nature: [] },
     moveHistory: [],
     // Mock methods
-    handleCellClick: vi.fn((pos) => ({ promotion: false })),
-    completePromotion: vi.fn(),
-    init: vi.fn(),
-    _rebuildOccupiedMap: vi.fn(),
+    handleCellClick: () => ({ promotion: false }),
+    completePromotion: () => {},
+    init: () => {},
+    _rebuildOccupiedMap: () => {},
     ...overrides,
   };
 

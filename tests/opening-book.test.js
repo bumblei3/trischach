@@ -1,7 +1,7 @@
 /**
  * opening-book.test.js - Tests for TriSchach Opening Book
  */
-import { expect, test, describe, beforeEach, afterEach, vi } from "vitest";
+import { expect, test, describe, beforeEach } from "vitest";
 import { FACTION, generateBoard } from "../js/board.js";
 import { PIECE_TYPE, Piece } from "../js/pieces.js";
 import { GAME_STATE } from "../js/game.js";
@@ -183,7 +183,7 @@ class MockGame {
     }
   }
 
-  completePromotion(type) {
+  completePromotion() {
     this.pendingPromotion = null;
   }
 }
@@ -512,7 +512,7 @@ describe("Opening Book: OPENING_BOOK Map", () => {
   test("stores arrays of move entries", () => {
     buildOpeningBook(MockGame);
 
-    for (const [hash, moves] of OPENING_BOOK) {
+    for (const [_hash, moves] of OPENING_BOOK) {
       expect(Array.isArray(moves)).toBe(true);
       for (const entry of moves) {
         expect(entry).toHaveProperty("move");
@@ -576,8 +576,7 @@ describe("Opening Book: Weight handling", () => {
   test("weights decrease with ply depth", () => {
     buildOpeningBook(MockGame);
 
-    let prevWeight = Infinity;
-    for (const [hash, moves] of OPENING_BOOK) {
+    for (const [_hash, moves] of OPENING_BOOK) {
       for (const entry of moves) {
         expect(entry.weight).toBeGreaterThan(0);
       }
@@ -587,7 +586,7 @@ describe("Opening Book: Weight handling", () => {
   test("duplicates are not added for same move at same position", () => {
     buildOpeningBook(MockGame);
 
-    for (const [hash, moves] of OPENING_BOOK) {
+    for (const [_hash, moves] of OPENING_BOOK) {
       const seen = new Set();
       for (const entry of moves) {
         const key = `${entry.move.pieceId}-${entry.move.targetQ},${entry.move.targetR}`;
@@ -772,9 +771,6 @@ describe("Opening Book: learnFromGame", () => {
     // Ensure at least 2 variations
     if (variations.length < 2) return;
 
-    const weight0 = variations[0].weight;
-    const weight1 = variations[1].weight;
-
     // Boost second variation significantly
     learnFromGame(
       [{ hash, faction: FACTION.FIRE, move: variations[1].move }],
@@ -838,7 +834,7 @@ describe("Opening Book: getLearnedData", () => {
     const learned = getLearnedData();
 
     // Without any learning, learned data should be empty or only have empty arrays
-    for (const [hash, entries] of Object.entries(learned)) {
+    for (const [_hash, entries] of Object.entries(learned)) {
       for (const entry of entries) {
         expect(entry.visits).toBeGreaterThan(0);
       }
@@ -910,7 +906,6 @@ describe("Opening Book: loadLearnedData", () => {
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);
     const move = variations[0].move;
-    const initialWeight = variations[0].weight;
 
     const learnedData = {
       positions: {
@@ -1038,7 +1033,7 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
         return result;
       }
 
-      completePromotion(type) {
+      completePromotion() {
         this.pendingPromotion = null;
       }
     };
@@ -1089,7 +1084,7 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
     // First ply should have highest weights
     // Later plies should have decayed weights
     const weights = [];
-    for (const [hash, moves] of OPENING_BOOK) {
+    for (const [_hash, moves] of OPENING_BOOK) {
       for (const entry of moves) {
         weights.push(entry.weight);
       }

@@ -36,15 +36,6 @@ const CONFIG = {
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────
-function parseMoveString(game, moveStr) {
-  const [piecePart, targetPart] = moveStr.split("->").map((s) => s.trim());
-  const piece = game.pieces.find((p) => p.id === piecePart);
-  if (!piece) return null;
-  const [q, r] = targetPart.split(",").map(Number);
-  if (isNaN(q) || isNaN(r)) return null;
-  return { piece, target: new Hex(q, r) };
-}
-
 function boardHash(game) {
   const pieces = game
     .getAlivePieces()

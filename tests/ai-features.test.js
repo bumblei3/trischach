@@ -1,8 +1,8 @@
-import { expect, test, describe, beforeEach, vi, afterEach } from "vitest";
+import { expect, test, describe, beforeEach } from "vitest";
 
 // Test the AI modules directly (not through main.js UI)
 import { Game, GAME_STATE } from "../js/game.js";
-import { generateBoard, FACTION, FACTION_COLORS } from "../js/board.js";
+import { generateBoard, FACTION } from "../js/board.js";
 import {
   calculateBestMove,
   evaluateBoard,
@@ -19,7 +19,7 @@ import {
   downloadGame,
   copyGameToClipboard,
 } from "../js/replay.js";
-import { PIECE_TYPE, Piece, PIECE_STRENGTH } from "../js/pieces.js";
+import { PIECE_TYPE, Piece } from "../js/pieces.js";
 import { Hex } from "../js/hex.js";
 
 describe("AI Core: Dynamic Piece Values (RPS-aware)", () => {
@@ -353,7 +353,7 @@ describe("Auto-Battle Integration", () => {
     game._rebuildOccupiedMap();
 
     // AI should skip Nature's turn
-    const action = calculateBestMove(game, FACTION.NATURE);
+    void calculateBestMove(game, FACTION.NATURE);
     // Should either return null or a move for next active faction
     // The game logic handles turn skipping
   });
@@ -371,7 +371,7 @@ describe("Auto-Battle Integration", () => {
     const aliveCount = game.pieces.filter((p) => p.alive).length;
     expect(aliveCount).toBeGreaterThan(0);
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    void calculateBestMove(game, FACTION.FIRE);
     // Game should be over or only Fire remains
     expect(
       game.state === GAME_STATE.GAME_OVER ||

@@ -203,11 +203,8 @@ describe("Game logic", () => {
   });
 
   test("triggers callbacks and ends game when only one faction remains", () => {
-    let gameOverWinner = null,
-      eliminatedFaction = null;
-    game.onGameOver = (w) => {
-      gameOverWinner = w;
-    };
+    let eliminatedFaction = null;
+    game.onGameOver = () => {};
     game.onElimination = (f) => {
       eliminatedFaction = f;
     };
@@ -283,8 +280,6 @@ describe("Draw Rules: _positionHash includes current player", () => {
   });
 
   test("hash same for same position AND same player to move", () => {
-    const fq1 = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5));
-    const nq1 = new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2));
     const g1 = new Game();
     g1.init(generateBoard());
     g1.rpsEnabled = false;

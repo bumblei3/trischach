@@ -15,7 +15,9 @@
   - Futility Pruning, Razoring, Null-Move Pruning (R=2)
   - Late Move Reductions (LMR) + Probcut (~40–60 Elo)
   - 4 KI-Persönlichkeiten: Ausgewogen, Aggressiv, Defensiv, Taktisch
-  - Adaptives Zeitmanagement & Web Worker (non-blocking)
+  - **Pondering** – Denkt während Gegnerzug (+50–80 Elo)
+  - **Adaptives Zeitmanagement** – Nutzt gesamte Bedenkzeit intelligent
+  - **Web Worker (non-blocking)** – UI bleibt flüssig
 - **Auto Battle Modus:** Engine vs. Engine mit Turnier-System & Elo-Rating
 - **Schere-Stein-Papier (RPS) Kampf:** Zusätzliche taktische Ebene
 - **Check-Escape Move Ordering:** Priorisiert König-Züge, Angreifer-Capture, Block-Züge
@@ -26,6 +28,7 @@
   - Long-Press / Right-Click Kontextmenü auf Figuren
   - PWA: Installierbar, Offline-fähig (Service Worker), Push-ready
 - **📜 Spielverlauf & Replay:** TSPN-Format (Export/Import/Copy), Play/Pause/Step/Speed
+- **📚 Opening Book:** 3×4 Styles (Classical, Aggressive, Solid, Tricky), Depth 22+, Weighted Learning
 - **Auditives Feedback:** Dynamische Soundeffekte (Web Audio API)
 - **Modernes UI:** Glassmorphism-Design mit Neon-Farben, Dark Mode
 - **Pure Vanilla Power:** 100% HTML, CSS, JavaScript (ES Modules). Keine Frameworks, kein Build-Step. Performantes SVG-Rendering.
@@ -93,11 +96,11 @@ Die Codebase ist modular und ohne Build-Step aufgebaut:
 - `js/pieces.ts`: Figuren-Eigenschaften, hex-basierte Zugmuster
 - `js/game.ts`: Zentrale State-Machine, Spielregeln, RPS-Logik, Undo/Redo
 - `js/game-check.ts`: Schach/Checkmate/Stalemate Detection (3-Spieler)
-- `js/ai-core.ts`: Shared AI Core (Main Thread + Web Worker)
+- `js/ai-core.ts`: **Shared AI Core** (Main Thread + Web Worker)
   - Zobrist TT, SEE, Futility/Razoring, NMP, LMR, Probcut
   - Check-Escape Move Ordering, Dynamic Piece Values (RPS-aware)
   - Aspiration Windows, Killer Moves, History Heuristic
-  - Endgame Evaluation, Pawn Structure, Personality Weights
+  - **Endgame Evaluation**, Pawn Structure, Personality Weights
 - `js/ai.ts`: Main Thread Entry Point, Opening Book Integration
 - `js/ai-worker.js`: Web Worker Wrapper für non-blocking Search
 - `js/opening-book.ts`: Eröffnungsbibliothek (Generator + Weighted Random)
@@ -121,11 +124,14 @@ npx tsc --noEmit
 npm run lint
 ```
 
-- **308 Unit Tests** ✅ (Vitest + Happy-DOM)
+- **336 Unit Tests** ✅ (Vitest + Happy-DOM)
 - **13 E2E Tests** ✅ (Playwright Chromium)
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors, nur Pre-existing Warnings)
-- **Coverage:** ~82% Statements / 89% Branches / 85% Functions
+- **Coverage Gates:** 80% Thresholds, `vitest check: true`
+  - Overall: ~74% Statements / ~89% Branches / ~85% Functions
+  - ai-core.ts: **89.93%** Coverage
+  - CombatUIManager: 92%, TooltipManager: 97%
 
 ### Engine Tournament (Elo-Messung)
 
@@ -145,13 +151,15 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 
 | Job          | Trigger                       | Beschreibung                                                  |
 | ------------ | ----------------------------- | ------------------------------------------------------------- |
-| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 18/20/22), Coverage ≥80% |
+| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 20/22), Coverage ≥80%    |
 | `codeql`     | Push/PR                       | Security Scanning (JavaScript)                                |
 | `e2e-tests`  | Push/PR                       | Playwright E2E (parallel zu lint-test)                        |
 | `benchmark`  | Push/PR                       | Quick Tournament (4 Games @ Depth 2), PR-Comment              |
 | `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact            |
 | `release`    | Tag `v*`                      | Auto GitHub Release mit Release Notes                         |
 | `deploy`     | Push main                     | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql)     |
+
+**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts → stabile E2E Runs
 
 ## 📜 Lizenz
 
@@ -166,5 +174,7 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 - [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
 - [ ] **Neural Evaluation (tiny NNUE)** – ~150-200 Elo Gewinn
 - [ ] **Parallel Search** – SharedArrayBuffer + Web Workers
-- [ ] **Pondering** – Denken während Gegnerzug
-- [ ] **Opening Book Expansion** – 50+ Zeilen aus Engine-Selbstpartien
+- [✅] **Pondering** – Denken während Gegnerzug (+50-80 Elo)
+- [✅] **Opening Book Expansion** – 3×4 Styles, Depth 22+, Weighted Learning aus Engine-Selbstpartien
+- [ ] **Distributed Match Runner** – Koordinierte Engine-Matches über mehrere Clients
+- [ ] **Endgame Tablebases** – Syzygy-Style für 3-Spieler-Endspiele

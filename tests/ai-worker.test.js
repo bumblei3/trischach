@@ -2,7 +2,7 @@
  * ai-worker.test.js - Tests for the AI Web Worker
  * Tests the worker message interface AND core AI functions (now exported for coverage)
  */
-import { expect, test, describe, beforeEach, vi, afterEach } from "vitest";
+import { expect, test, describe, vi } from "vitest";
 import { Hex } from "../js/hex.js";
 import { FACTION, generateBoard } from "../js/board.js";
 import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.js";
@@ -15,7 +15,6 @@ import {
   calculateTimeBudget,
   getAllActions,
   getLegalMoves,
-  legalMoveCheck,
   rebuildOccupiedMap,
   simulateMove,
   evaluatePawnStructure,
@@ -105,7 +104,7 @@ function createGameState(overrides = {}) {
 }
 
 // Helper to create Piece instances for test overrides
-function createPiece(type, faction, q, r, overrides = {}) {
+function createPiece(type, faction, q, r) {
   return new Piece(type, faction, new Hex(q, r));
 }
 
