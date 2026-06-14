@@ -1,14 +1,3 @@
-/**
- * TriSchach AI Core - Shared Logic
- * 
- * Contains all shared AI logic used by both main thread (ai.ts)
- * and Web Worker (ai-worker.ts).
- * 
- * DO NOT MODIFY ai.ts or ai-worker.ts directly for shared logic!
- * Add/modify here, then both consumers stay in sync.
- */
-
-// @ts-nocheck - Temporary: Disable type checking during final migration
 import { getValidMoves, PIECE_STRENGTH } from './pieces.ts';
 import { getRPSResult, FACTION } from './board.ts';
 import { Hex } from './hex.ts';
@@ -280,12 +269,12 @@ export function computeZobristHash(game: IGame): bigint {
 
   const sideIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx :
                   (game.currentFaction ? ZOBRIST_FACTIONS.indexOf(game.currentFaction) : 0);
-  if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx] as bigint;
+  if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx];
 
   for (const fac of ZOBRIST_FACTIONS) {
     if (game.eliminatedFactions.has(fac)) {
       const elimIdx = ZOBRIST_FACTIONS.indexOf(fac);
-      if (elimIdx >= 0) hash ^= ZOBRIST_ELIMINATED_KEYS[elimIdx] as bigint;
+      if (elimIdx >= 0) hash ^= ZOBRIST_ELIMINATED_KEYS[elimIdx];
     }
   }
 
@@ -322,8 +311,8 @@ export function updateZobristHash(
     }
   }
 
-  if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx] as bigint;
-  if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx] as bigint;
+  if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx];
+  if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx];
 
   return hash;
 }
@@ -362,7 +351,7 @@ export function ttStore(
 ): void {
   const idx = Number(hash & BigInt(TT_SIZE - 1));
   const entry = tt[idx];
-  if (!entry) return; // Should never happen, but satisfies TypeScript
+  if (!entry) return;
 
   const shouldReplace = entry.key === 0n || entry.key === hash || entry.depth <= depth || entry.age < ttAge - 4;
 
@@ -1359,3 +1348,6 @@ function cloneGameForSearch(source: IGame): IGame {
 
   return cloned;
 }
+
+// Pondering exports
+export { startPondering, stopPondering, getPonderMove, isPondering };

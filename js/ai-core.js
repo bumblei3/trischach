@@ -1557,3 +1557,26 @@ export function deserializeGame(state) {
   rebuildOccupiedMap(game);
   return game;
 }
+
+// ─── Pondering ───────────────────────────────────────────────────────
+// AI thinks during opponent's turn to gain extra search time
+
+export const PonderState = null;
+
+export function startPondering(game, opponentFaction) {
+  // Implementation in ai-core.ts
+  console.warn('startPondering called from JS - using fallback');
+}
+
+export async function stopPondering() {
+  console.warn('stopPondering called from JS - using fallback');
+  return null;
+}
+
+export function getPonderMove() {
+  return null;
+}
+
+export function isPondering() {
+  return false;
+}

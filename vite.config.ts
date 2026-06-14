@@ -3,11 +3,18 @@ import { resolve } from 'path';
 
 export default defineConfig({
   build: {
-    lib: {
-      entry: resolve(__dirname, 'js/main.js'),
-      name: 'TriSchach',
-      fileName: 'trischach',
-      formats: ['es', 'umd'],
+    rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'js/main.js'),
+        'ai-worker': resolve(__dirname, 'js/ai-worker.js'),
+      },
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
+        inlineDynamicImports: false,
+        format: 'es',
+      },
     },
     outDir: 'dist',
     sourcemap: true,
