@@ -258,8 +258,7 @@ async function main() {
   execSync('node generate-opening-book.js', { cwd: __dirname, stdio: 'inherit' });
   
   // Load the compiled book
-  const compiled = await import(OUTPUT_JSON, { with: { type: 'json' } });
-  const compiledData = compiled.default;
+  const compiledData = JSON.parse(fs.readFileSync(OUTPUT_JSON, 'utf-8'));
   
   const book = new Map();
   for (const [hash, variations] of Object.entries(compiledData.book)) {
