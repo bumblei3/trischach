@@ -393,12 +393,17 @@ export const ZOBRIST_RPS_KEY = zobristRng.next();
 // Get piece key from 3D array with bounds checking
 function getZobristPieceKey(ptIdx: number, facIdx: number, sqIdx: number): bigint {
   // ptIdx, facIdx, sqIdx already validated by callers
-  return ZOBRIST_PIECE_KEYS[ptIdx]![facIdx]![sqIdx];
+  const pieceKeys = ZOBRIST_PIECE_KEYS[ptIdx]! as bigint[][];
+  const factionKeys = pieceKeys[facIdx]! as bigint[];
+  // sqIdx validated by callers
+  return factionKeys[sqIdx] as bigint;
 }
 
 // Get piece key for updateZobristHash (from destination index)
 function getZobristPieceKeyAt(ptIdx: number, facIdx: number, sqIdx: number): bigint {
-  return ZOBRIST_PIECE_KEYS[ptIdx]![facIdx]![sqIdx];
+  const pieceKeys = ZOBRIST_PIECE_KEYS[ptIdx]! as bigint[][];
+  const factionKeys = pieceKeys[facIdx]! as bigint[];
+  return factionKeys[sqIdx] as bigint;
 }
 
 // Transposition Table Entry
@@ -433,7 +438,8 @@ export function computeZobristHash(game: IGame): bigint {
     if (ptIdx >= 0 && facIdx >= 0 && sqIdx !== undefined) {
       const pieceKeys = ZOBRIST_PIECE_KEYS[ptIdx] as bigint[][];
       const factionKeys = pieceKeys[facIdx] as bigint[];
-      hash ^= factionKeys[sqIdx];
+      // sqIdx is validated non-undefined by the if condition above
+      hash ^= factionKeys[sqIdx] as bigint;
     }
   }
 
@@ -668,8 +674,14 @@ export function evaluatePawnStructure(pieces: Piece[], faction: Faction): number
   const enemyColumnCounts: Record<number, number> = {};
   for (const p of myPawns) myColumnCounts[p.pos.q] = (myColumnCounts[p.pos.q] ?? 0) + 1;
   for (const p of enemyPawns) enemyColumnCounts[p.pos.q] = (enemyColumnCounts[p.pos.q] ?? 0) + 1;
-  for (const q in myColumnCounts) if (myColumnCounts[q] > 1) score -= (myColumnCounts[q] - 1) * 10;
-  for (const q in enemyColumnCounts) if (enemyColumnCounts[q] > 1) score += (enemyColumnCounts[q] - 1) * 10;
+  for (const q in myColumnCounts) {
+    const count = myColumnCounts[q] as number;
+    if (count > 1) score -= (count - 1) * 10;
+  }
+  for (const q in enemyColumnCounts) {
+    const count = enemyColumnCounts[q] as number;
+    if (count > 1) score += (count - 1) * 10;
+  }
 
   for (const p of myPawns) {
     const hasNeighbor = myPawns.some(other => other !== p && Math.abs(other.pos.q - p.pos.q) <= 1);
@@ -809,7 +821,9 @@ export function evaluateEndgame(game: IGame, pieces: Piece[], faction: Faction):
 
       if (enemyKing) {
         for (const attacker of pieces.filter(p => p.faction === faction)) {
-          const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
+          const { attacks } = getValidMoves(attacker, 
+            game.boardCells as Map<string, { hex: Hex; zone: string; faction: Faction | null }>, 
+            game._occupiedMap!);
           if (attacks.some(a => a.equals(enemyKing.pos))) score += 500;
         }
       }
@@ -903,7 +917,7 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   const aliveEnemies = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
     .filter(f => !game.eliminatedFactions.has(f) && f !== faction);
   if (aliveEnemies.length === 1) {
-    const rps = getRPSResult(faction, aliveEnemies[0]);
+    const rps = getRPSResult(faction, aliveEnemies[0]!);
     if (rps === 'advantage') score += 20 * W.endgame;
   }
 
@@ -1068,7 +1082,9 @@ export function getAllActions(game: IGame, faction: Faction): AIAction[] {
 }
 
 export function getLegalMoves(game: IGame, piece: Piece): { moves: Hex[]; attacks: Hex[] } {
-  const { moves, attacks } = getValidMoves(piece, game.boardCells, game._occupiedMap);
+  const { moves, attacks } = getValidMoves(piece, 
+    game.boardCells! as Map<string, { hex: Hex; zone: string; faction: Faction | null }>, 
+    game._occupiedMap! as Map<string, Piece>);
   const legalMoves: Hex[] = [];
   const legalAttacks: Hex[] = [];
   for (const target of moves) {
@@ -1115,7 +1131,7 @@ export function simulateMove(game: IGame, piece: Piece, target: Hex): AISnapshot
     prevZobristHash: game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game),
   };
 
-  const defender = game._occupiedMap.get(target.key);
+  const defender = (game._occupiedMap!).get(target.key);
 
   if (defender) {
     undo.wasAttack = true;
@@ -1155,20 +1171,25 @@ export function simulateMove(game: IGame, piece: Piece, target: Hex): AISnapshot
   const oldSideIdx = game.currentFactionIdx;
   const factions: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
   let nextIdx = (game.currentFactionIdx + 1) % 3;
-  while (game.eliminatedFactions.has(factions[nextIdx])) {
+  let nextFaction = factions[nextIdx]!;
+  while (game.eliminatedFactions.has(nextFaction)) {
     nextIdx = (nextIdx + 1) % 3;
+    nextFaction = factions[nextIdx]!;
   }
   game.currentFactionIdx = nextIdx;
-  game.currentFaction = factions[nextIdx];
+  game.currentFaction = nextFaction;
 
+  const prevHash = undo.prevZobristHash ?? game._zobristHash ?? computeZobristHash(game);
+  const eliminatedFaction = undo.eliminatedFaction ?? null;
+  
   // Incremental Zobrist hash update
   game._zobristHash = updateZobristHash(
-    undo.prevZobristHash,
+    prevHash,
     piece,
     undo.from.key,
     target.key,
-    defender,
-    undo.eliminatedFaction,
+    (defender ?? null) as Piece | null,
+    eliminatedFaction,
     isPromotion,
     oldSideIdx,
     game.currentFactionIdx
@@ -1185,7 +1206,7 @@ export function undoMove(game: IGame, undo: AISnapshot): void {
 
   if (wasAttack) {
     if (defenderWasKilled) {
-      defender.alive = true;
+      defender!.alive = true;
       if (eliminatedFaction) {
         game.eliminatedFactions.delete(eliminatedFaction);
         for (const p of game.pieces) {
@@ -1203,7 +1224,7 @@ export function undoMove(game: IGame, undo: AISnapshot): void {
   }
 
   game.currentFactionIdx = prevFactionIdx;
-  game.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][prevFactionIdx];
+  game.currentFaction = ([FACTION.FIRE, FACTION.WATER, FACTION.NATURE][prevFactionIdx])!;
   rebuildOccupiedMap(game);
 
   // Restore Zobrist hash (incremental reverse)
@@ -1289,7 +1310,7 @@ export function minimax(
     return quiesce(game, alpha, beta, maximizingFaction, currentFaction);
   }
 
-  // ─── Null-Move Pruning (R=2) ───────────────────────────────
+  // ─── Null-Move Pruning (R=2) ───────────────────────────────────────
   // Only when: depth >= 3, not in check, current faction has > 1 piece
   const inCheck = isKingdomCheck(game, currentFaction);
   const myPieces = game.pieces.filter(p => p.faction === currentFaction && p.alive);
@@ -1300,11 +1321,13 @@ export function minimax(
     const savedFactionIdx = game.currentFactionIdx;
     const factions: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
     let nextIdx = (game.currentFactionIdx + 1) % 3;
-    while (game.eliminatedFactions.has(factions[nextIdx])) {
+    let nextFaction = factions[nextIdx]!;
+    while (game.eliminatedFactions.has(nextFaction)) {
       nextIdx = (nextIdx + 1) % 3;
+      nextFaction = factions[nextIdx]!;
     }
     game.currentFactionIdx = nextIdx;
-    game.currentFaction = factions[nextIdx];
+    game.currentFaction = nextFaction;
     rebuildOccupiedMap(game);
 
     const R = 2; // Null-move reduction
@@ -1312,7 +1335,7 @@ export function minimax(
 
     // Restore
     game.currentFactionIdx = savedFactionIdx;
-    game.currentFaction = factions[savedFactionIdx];
+    game.currentFaction = factions[savedFactionIdx]!;
     rebuildOccupiedMap(game);
 
     if (!nullResult.timeout && -nullResult.score >= beta) {
