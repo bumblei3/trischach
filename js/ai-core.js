@@ -1151,9 +1151,10 @@ export const PROBCUT_REDUCTION = 3;      // Depth reduction for probcut search
 let searchDeadline = 0;
 export let nodesSearched = 0;
 
-export function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction) {
+export function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction, deadline = null) {
   nodesSearched++;
-  if (nodesSearched % 1000 === 0 && Date.now() > searchDeadline) {
+  const effectiveDeadline = deadline !== null ? deadline : searchDeadline;
+  if (nodesSearched % 1000 === 0 && Date.now() > effectiveDeadline) {
     return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
   }
 
@@ -1201,7 +1202,7 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     rebuildOccupiedMap(game);
 
     const R = 2; // Null-move reduction
-    const nullResult = minimax(game, depth - 1 - R, -beta, -beta + 1, maximizingFaction, game.currentFaction);
+    const nullResult = minimax(game, depth - 1 - R, -beta, -beta + 1, maximizingFaction, game.currentFaction, effectiveDeadline);
 
     // Restore
     game.currentFactionIdx = savedFactionIdx;
@@ -1292,7 +1293,7 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
         const probeDepth = depth - PROBCUT_REDUCTION;
         const undo = simulateMove(game, action.piece, action.target);
         const nextFaction = game.currentFaction;
-        const probeResult = minimax(game, probeDepth, beta - 1, beta, maximizingFaction, nextFaction);
+        const probeResult = minimax(game, probeDepth, beta - 1, beta, maximizingFaction, nextFaction, effectiveDeadline);
         undoMove(game, undo);
         
         if (!probeResult.timeout && probeResult.score >= beta) {
@@ -1311,7 +1312,7 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     } else {
       const undo = simulateMove(game, action.piece, action.target);
       const nextFaction = game.currentFaction;
-      result = minimax(game, searchDepth, alpha, beta, maximizingFaction, nextFaction);
+      result = minimax(game, searchDepth, alpha, beta, maximizingFaction, nextFaction, effectiveDeadline);
       undoMove(game, undo);
     }
 
@@ -1320,7 +1321,7 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     if (lmrReduction > 0 && !result.timeout && result.score > alpha && result.score < beta) {
       const undo = simulateMove(game, action.piece, action.target);
       const nextFaction = game.currentFaction;
-      const fullDepthResult = minimax(game, depth - 1 - razorReduction, alpha, beta, maximizingFaction, nextFaction);
+      const fullDepthResult = minimax(game, depth - 1 - razorReduction, alpha, beta, maximizingFaction, nextFaction, effectiveDeadline);
       undoMove(game, undo);
       if (!fullDepthResult.timeout) {
         result = fullDepthResult;
@@ -1419,16 +1420,16 @@ export function iterativeDeepening(game, faction) {
       beta = prevScore + windowSize;
     }
     
-    let result = minimax(game, depth, alpha, beta, faction, faction);
+    let result = minimax(game, depth, alpha, beta, faction, faction, searchDeadline);
     
     if (!result.timeout && result.score <= alpha) {
-      result = minimax(game, depth, -Infinity, beta, faction, faction);
+      result = minimax(game, depth, -Infinity, beta, faction, faction, searchDeadline);
     } else if (!result.timeout && result.score >= beta) {
-      result = minimax(game, depth, alpha, Infinity, faction, faction);
+      result = minimax(game, depth, alpha, Infinity, faction, faction, searchDeadline);
     }
     
     if (!result.timeout && (result.score <= -Infinity + 1 || result.score >= Infinity - 1)) {
-      result = minimax(game, depth, -Infinity, Infinity, faction, faction);
+      result = minimax(game, depth, -Infinity, Infinity, faction, faction, searchDeadline);
     }
     
     if (!result.timeout) {
@@ -1561,22 +1562,207 @@ export function deserializeGame(state) {
 // ─── Pondering ───────────────────────────────────────────────────────
 // AI thinks during opponent's turn to gain extra search time
 
-export const PonderState = null;
+// Pondering state (shared between main thread and worker)
+let ponderState = {
+  active: false,
+  game: null,
+  opponentFaction: null,
+  maximizingFaction: null,
+  searchDeadline: 0,
+  timeBudget: 0,
+  bestMove: null,
+  bestScore: -Infinity,
+  currentDepth: 0,
+  nodesSearched: 0,
+  aborted: false,
+  // For incremental search across ponder sessions
+  killerMoves: {},
+  historyTable: {},
+};
 
+export const PonderState = ponderState;
+
+/**
+ * Start pondering - begins background search for the opponent's likely moves.
+ * Called when it's the opponent's turn (after human move or in auto-battle).
+ * The search runs with extended time budget and can be interrupted.
+ */
 export function startPondering(game, opponentFaction) {
-  // Implementation in ai-core.ts
-  console.warn('startPondering called from JS - using fallback');
+  // Stop any existing pondering
+  if (ponderState.active) {
+    stopPondering();
+  }
+
+  // Validate game state
+  const actions = getAllActions(game, opponentFaction);
+  if (actions.length === 0) {
+    return; // No legal moves for opponent
+  }
+
+  // Set up pondering state
+  ponderState.active = true;
+  ponderState.game = game;
+  ponderState.opponentFaction = opponentFaction;
+  ponderState.maximizingFaction = opponentFaction; // We evaluate from opponent's perspective
+  ponderState.timeBudget = calculateTimeBudget(game) * 3; // 3x normal budget for pondering
+  ponderState.searchDeadline = Date.now() + ponderState.timeBudget;
+  ponderState.bestMove = null;
+  ponderState.bestScore = -Infinity;
+  ponderState.currentDepth = 0;
+  ponderState.nodesSearched = 0;
+  ponderState.aborted = false;
+  ponderState.killerMoves = {};
+  ponderState.historyTable = {};
+
+  // Start the pondering search asynchronously
+  // We use a microtask to not block the caller
+  queueMicrotask(() => runPonderSearch());
 }
 
+/**
+ * Internal: Run iterative deepening search for pondering.
+ * This is a simplified version of iterativeDeepening that updates shared state.
+ * Uses setTimeout to yield control back to the event loop.
+ */
+async function runPonderSearch() {
+  const { game, opponentFaction, maximizingFaction, timeBudget } = ponderState;
+  
+  if (!game || ponderState.aborted) return;
+
+  const actions = getAllActions(game, opponentFaction);
+  if (actions.length === 0) {
+    ponderState.active = false;
+    return;
+  }
+
+  // Quick check: if only one move, store it immediately
+  if (actions.length === 1) {
+    ponderState.bestMove = actions[0];
+    ponderState.bestScore = evaluateBoard(game, maximizingFaction);
+    return;
+  }
+
+  // Estimate max depth we can reach (similar to iterativeDeepening)
+  const MAX_DEPTH_CAP = 12;
+  let prevScore = 0;
+
+  for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
+    if (ponderState.aborted || Date.now() > ponderState.searchDeadline - timeBudget * 0.15) {
+      break;
+    }
+
+    ponderState.currentDepth = depth;
+
+    // Aspiration windows
+    let alpha, beta;
+    if (depth <= 1) {
+      alpha = -Infinity;
+      beta = Infinity;
+    } else {
+      const windowSize = 50;
+      alpha = prevScore - windowSize;
+      beta = prevScore + windowSize;
+    }
+
+    // Search at this depth
+    let result;
+    try {
+      result = minimax(game, depth, alpha, beta, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+    } catch (e) {
+      if (e instanceof Error && e.message === 'ponder-aborted') {
+        break;
+      }
+      throw e;
+    }
+
+    if (result.timeout) {
+      break;
+    }
+
+    // Research if aspiration window failed
+    if (result.score <= alpha) {
+      result = minimax(game, depth, -Infinity, beta, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+    } else if (result.score >= beta) {
+      result = minimax(game, depth, alpha, Infinity, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+    }
+
+    if (!result.timeout && (result.score <= -Infinity + 1 || result.score >= Infinity - 1)) {
+      result = minimax(game, depth, -Infinity, Infinity, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+    }
+
+    if (!result.timeout && result.action) {
+      ponderState.bestMove = result.action;
+      ponderState.bestScore = result.score;
+      prevScore = result.score;
+
+      // Progress callback for UI (optional)
+      if (typeof reportPonderProgress === 'function') {
+        reportPonderProgress(depth, result.score, ponderState.nodesSearched);
+      }
+    } else if (result.timeout) {
+      break;
+    }
+
+    // Increment TT age for next depth (same as iterativeDeepening)
+    ttNewSearch();
+
+    // Yield control back to event loop to allow stopPondering to be called
+    await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  // Pondering complete (either finished depths or time ran out / aborted)
+  // Keep bestMove in state for stopPondering() to retrieve
+}
+
+/**
+ * Stop pondering and return the best move found so far.
+ * When the opponent actually moves, we call this to get the pre-computed move.
+ */
 export async function stopPondering() {
-  console.warn('stopPondering called from JS - using fallback');
-  return null;
+  if (!ponderState.active) {
+    return null;
+  }
+
+  // Signal abort to search loop
+  ponderState.aborted = true;
+  ponderState.active = false;
+
+  // Small delay to allow search loop to exit gracefully
+  await new Promise(resolve => setTimeout(resolve, 0));
+
+  const move = ponderState.bestMove;
+  
+  // Clear state
+  ponderState.game = null;
+  ponderState.opponentFaction = null;
+  ponderState.maximizingFaction = null;
+  ponderState.killerMoves = {};
+  ponderState.historyTable = {};
+
+  return move;
 }
 
+/**
+ * Get the current best ponder move without stopping pondering.
+ * Useful for UI display or debugging.
+ */
 export function getPonderMove() {
-  return null;
+  return ponderState.bestMove;
 }
 
+/**
+ * Check if pondering is currently active.
+ */
 export function isPondering() {
-  return false;
+  return ponderState.active;
+}
+
+/**
+ * Optional progress callback - can be set by consumer (main thread or worker)
+ * to receive depth/score updates during pondering.
+ */
+export let reportPonderProgress = null;
+
+export function setPonderProgressCallback(callback) {
+  reportPonderProgress = callback;
 }

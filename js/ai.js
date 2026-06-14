@@ -44,6 +44,8 @@ import {
   stopPondering,
   getPonderMove,
   isPondering,
+  PonderState,
+  setPonderProgressCallback,
   // SEE (Static Exchange Evaluation)
   SEE_PIECE_VALUES,
   getSeeValue,
@@ -93,6 +95,8 @@ export {
   stopPondering,
   getPonderMove,
   isPondering,
+  PonderState,
+  setPonderProgressCallback,
   // SEE (Static Exchange Evaluation)
   SEE_PIECE_VALUES,
   getSeeValue,

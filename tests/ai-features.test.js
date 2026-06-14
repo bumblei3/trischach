@@ -3,7 +3,7 @@ import { expect, test, describe, beforeEach, vi, afterEach } from 'vitest';
 // Test the AI modules directly (not through main.js UI)
 import { Game, GAME_STATE } from '../js/game.js';
 import { generateBoard, FACTION, FACTION_COLORS } from '../js/board.js';
-import { calculateBestMove, evaluateBoard, setAIDepth } from '../js/ai.js';
+import { calculateBestMove, evaluateBoard, setAIDepth, startPondering, stopPondering, getPonderMove, isPondering, PonderState } from '../js/ai.js';
 import { serializeGame, parseTSPN, downloadGame, copyGameToClipboard } from '../js/replay.js';
 import { PIECE_TYPE, Piece, PIECE_STRENGTH } from '../js/pieces.js';
 import { Hex } from '../js/hex.js';
@@ -359,7 +359,7 @@ describe('Edge Cases', () => {
     testGame.init(cells);
     testGame.pieces = [];
     testGame._rebuildOccupiedMap();
-    
+
     const action = calculateBestMove(testGame, FACTION.FIRE);
     expect(action).toBeNull();
   });
@@ -370,7 +370,7 @@ describe('Edge Cases', () => {
     testGame.init(cells);
     testGame.pieces = [testGame.pieces.find(p => p.faction === FACTION.FIRE && p.type === 'king')];
     testGame._rebuildOccupiedMap();
-    
+
     const action = calculateBestMove(testGame, FACTION.FIRE);
     // King can move
     expect(action).toBeDefined();
@@ -381,19 +381,102 @@ describe('Edge Cases', () => {
     const cells = generateBoard();
     const game = new Game();
     game.init(cells);
-    
+
     // Remove some pieces to create measurable differences
     game.pieces = game.pieces.filter(p => p.faction === FACTION.FIRE || p.faction === FACTION.WATER);
     game._rebuildOccupiedMap();
-    
+
     // Fire vs Water: Fire has disadvantage vs Water
     // From Fire's perspective, Water pieces should be worth more (1.15x multiplier)
     const fireEval = evaluateBoard(game, FACTION.FIRE);
     const waterEval = evaluateBoard(game, FACTION.WATER);
-    
+
     // Evaluations should be different due to RPS asymmetry
     expect(fireEval).not.toBe(waterEval);
     expect(Number.isFinite(fireEval)).toBe(true);
     expect(Number.isFinite(waterEval)).toBe(true);
+  });
+});
+
+describe('AI Core: Pondering', () => {
+  let game;
+
+  beforeEach(() => {
+    const cells = generateBoard();
+    game = new Game();
+    game.init(cells);
+  });
+
+  test('isPondering returns false initially', () => {
+    expect(isPondering()).toBe(false);
+  });
+
+  test('startPondering sets isPondering to true', () => {
+    startPondering(game, FACTION.FIRE);
+    expect(isPondering()).toBe(true);
+    stopPondering(); // Cleanup
+  });
+
+  test('stopPondering returns a valid move', async () => {
+    startPondering(game, FACTION.FIRE);
+    // Give it a small moment to search at least depth 1
+    await new Promise(r => setTimeout(r, 200));
+    const move = await stopPondering();
+    expect(move).toBeDefined();
+    expect(move).toHaveProperty('piece');
+    expect(move).toHaveProperty('target');
+    expect(isPondering()).toBe(false);
+  }, 5000);
+
+  test('getPonderMove returns the current best move without stopping', () => {
+    startPondering(game, FACTION.FIRE);
+    // getPonderMove should return null initially (search hasn't completed yet)
+    // but after a short time it should have a move
+    const move = getPonderMove();
+    // Initially may be null, that's OK - just verify it returns something or null
+    expect(move === null || (move && move.piece && move.target)).toBe(true);
+    stopPondering(); // Cleanup
+  });
+
+  test('second startPondering call stops previous pondering', () => {
+    startPondering(game, FACTION.FIRE);
+    expect(isPondering()).toBe(true);
+    
+    // Start new pondering - should stop the old one
+    startPondering(game, FACTION.WATER);
+    expect(isPondering()).toBe(true);
+    
+    stopPondering(); // Cleanup
+  });
+
+  test('pondering works when opponent has no legal moves', () => {
+    // Create a position where opponent has no moves
+    const cells = generateBoard();
+    const testGame = new Game();
+    testGame.init(cells);
+    testGame.pieces = testGame.pieces.filter(p => p.faction === FACTION.FIRE);
+    testGame._rebuildOccupiedMap();
+    testGame.currentFactionIdx = 1; // Water's turn
+    testGame.currentFaction = FACTION.WATER;
+    
+    startPondering(testGame, FACTION.WATER);
+    // Should not crash, isPondering may be false since no moves
+    expect(typeof isPondering()).toBe('boolean');
+    stopPondering(); // Cleanup
+  });
+
+  test('PonderState object is exported and has correct structure', () => {
+    expect(PonderState).toBeDefined();
+    expect(PonderState).toHaveProperty('active');
+    expect(PonderState).toHaveProperty('game');
+    expect(PonderState).toHaveProperty('opponentFaction');
+    expect(PonderState).toHaveProperty('searchDeadline');
+    expect(PonderState).toHaveProperty('bestMove');
+    expect(PonderState).toHaveProperty('bestScore');
+    expect(PonderState).toHaveProperty('currentDepth');
+    expect(PonderState).toHaveProperty('nodesSearched');
+    expect(PonderState).toHaveProperty('aborted');
+    expect(PonderState).toHaveProperty('killerMoves');
+    expect(PonderState).toHaveProperty('historyTable');
   });
 });

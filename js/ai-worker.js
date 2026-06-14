@@ -107,8 +107,10 @@ export {
 // ─── Worker Message Handler ────────────────────────────────────────
 
 let _bookBuilt = false;
-let _ponderPromise = null;
+
+// Worker-internal pondering state (separate from main thread due to Worker scope)
 let _ponderAbort = false;
+let _ponderWorkerState = null; // Will hold the ponder state object from ai-core
 
 self.onmessage = function(e) {
   const { type, gameState, faction, depth } = e.data;
@@ -135,105 +137,70 @@ self.onmessage = function(e) {
       self.postMessage({ type: 'result', move: null });
     }
   } else if (type === 'startPonder') {
-    // Stop any existing ponder
+    // Stop any existing pondering
     _ponderAbort = true;
-    _ponderPromise = null;
 
     // Start new pondering
     const game = deserializeGame(gameState);
+    const opponentFaction = faction; // In worker context, faction is the opponent to ponder for
     _ponderAbort = false;
 
-    // Use the startPondering function but adapt for worker context
-    _ponderPromise = (async () => {
-      const timeBudget = calculateTimeBudget(game) * 2; // Double time for pondering
-      
-      // Reset search state
-      let searchDeadline = Date.now() + timeBudget;
-      let nodesSearched = 0;
-      
-      // Clear killer/history for new ponder session
-      // (These are module-level in ai-core, worker has its own copy)
-      const killerMoves = {};
-      const historyTable = {};
+    // Import the ponder state from ai-core (worker has its own module instance)
+    // We'll use the startPondering function which manages its own state
+    startPondering(game, opponentFaction);
 
-      const maximizingFaction = game.currentFaction;
-      const actions = getAllActions(game, maximizingFaction);
-      if (actions.length === 0) return null;
-      if (actions.length === 1) return actions[0] ?? null;
-
-      let bestResult = { score: -Infinity, action: null };
-      let prevScore = 0;
-      const MAX_DEPTH_CAP = 12;
-
-      // Need to import minimax with custom searchDeadline/nodesSearched
-      // For now, run a simplified iterative deepening
-      for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
-        if (_ponderAbort) break;
-        if (Date.now() > searchDeadline - timeBudget * 0.2) break;
-
-        let alpha, beta;
-        if (depth <= 1) {
-          alpha = -Infinity; beta = Infinity;
-        } else {
-          const windowSize = 50;
-          alpha = prevScore - windowSize;
-          beta = prevScore + windowSize;
-        }
-
-        // We can't easily call minimax from here without the searchDeadline/nodesSearched
-        // So we'll use a simplified approach: just call calculateBestMove with increasing depth
-        // This is less efficient but works for pondering
-        try {
-          // Run a quick search at this depth
-          const tempGame = JSON.parse(JSON.stringify(game));
-          // We can't easily do incremental deepening without the full minimax
-          // Fallback: just think for a bit
-        } catch (e) {
-          console.error('Ponder error:', e);
-        }
+    // Set up progress reporting to send updates to main thread
+    setPonderProgressCallback((depth, score, nodes) => {
+      if (!_ponderAbort) {
+        self.postMessage({
+          type: 'ponderProgress',
+          depth,
+          score,
+          nodes
+        });
       }
+    });
 
-      // For now, just return a placeholder - the main thread will use its own pondering
-      // The worker pondering is just a hint
-      return null;
-    })();
+    // The startPondering function runs asynchronously via queueMicrotask
+    // We don't wait for it here - it runs in background until stopPonder or abort
 
-    // Wait a bit then signal book ready for backward compat
+    // Signal ready for backward compat
     setTimeout(() => {
       if (!_ponderAbort) {
         self.postMessage({ type: 'ponderReady' });
       }
-    }, 100);
+    }, 50);
 
   } else if (type === 'stopPonder') {
     _ponderAbort = true;
-    if (_ponderPromise) {
-      // Wait for it to finish or timeout
-      _ponderPromise.then(move => {
-        _ponderPromise = null;
-        if (move) {
-          self.postMessage({ 
-            type: 'ponderResult', 
-            move: {
-              pieceId: move.pieceId,
-              targetQ: move.targetQ,
-              targetR: move.targetR,
-              moveType: move.moveType,
-              rps: move.rps
-            }
-          });
-        } else {
-          self.postMessage({ type: 'ponderResult', move: null });
-        }
-      }).catch(() => {
+    
+    // Get the best move from pondering
+    stopPondering().then(move => {
+      if (move) {
+        self.postMessage({
+          type: 'ponderResult',
+          move: {
+            pieceId: move.piece.id,
+            targetQ: move.target.q,
+            targetR: move.target.r,
+            moveType: move.type,
+            rps: move.rps
+          }
+        });
+      } else {
         self.postMessage({ type: 'ponderResult', move: null });
-        _ponderPromise = null;
-      });
-    }
+      }
+      
+      // Clear progress callback
+      setPonderProgressCallback(null);
+    }).catch(() => {
+      self.postMessage({ type: 'ponderResult', move: null });
+      setPonderProgressCallback(null);
+    });
   } else if (type === 'setDepth') {
     setAIDepth(depth);
   } else if (type === 'setPersonality') {
-    _workerPersonality = depth; 
+    _workerPersonality = depth; // Note: bug in original - should be faction/personality param
   } else if (type === 'initBook') {
     _bookBuilt = true;
     self.postMessage({ type: 'bookReady' });
