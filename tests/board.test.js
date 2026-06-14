@@ -38,6 +38,15 @@ describe("BoardRenderer (DOM)", () => {
   beforeEach(() => {
     // Create mock SVG container using happy-dom
     document.body.innerHTML = '<svg id="board-svg"></svg>';
+    // Add eval bar elements that updateEvalBar tries to access
+    const evalContainer = document.createElement("div");
+    evalContainer.style.display = "none";
+    evalContainer.innerHTML = `
+      <div id="eval-fire" class="eval-segment fire"></div>
+      <div id="eval-nature" class="eval-segment nature"></div>
+      <div id="eval-water" class="eval-segment water"></div>
+    `;
+    document.body.appendChild(evalContainer);
     svgContainer = document.getElementById("board-svg");
     renderer = new BoardRenderer(svgContainer);
   });
