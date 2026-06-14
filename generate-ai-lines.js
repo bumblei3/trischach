@@ -6,9 +6,14 @@
 
 import { Game } from "./js/game.js";
 import { generateBoard } from "./js/board.js";
-import { calculateBestMove, setAIDepth, setAIPersonality, getAIPersonalities } from "./js/ai-core.js";
+import {
+  calculateBestMove,
+  setAIDepth,
+  setAIPersonality,
+  getAIPersonalities,
+} from "./js/ai-core.js";
 
-const PERSONALITIES = getAIPersonalities().map(p => p.key);
+const PERSONALITIES = getAIPersonalities().map((p) => p.key);
 const AI_DEPTH = 5;
 
 function boardHash(game) {
@@ -17,7 +22,10 @@ function boardHash(game) {
     .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
     .sort()
     .join("|");
-  const factionIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx : ["fire", "water", "nature"].indexOf(game.currentFaction);
+  const factionIdx =
+    game.currentFactionIdx !== undefined
+      ? game.currentFactionIdx
+      : ["fire", "water", "nature"].indexOf(game.currentFaction);
   return `${pieces}#${factionIdx}`;
 }
 
@@ -70,16 +78,25 @@ async function main() {
   for (const personality of PERSONALITIES) {
     console.log(`\n--- Personality: ${personality} ---`);
     const moves = playLine(personality, 30);
-    
+
     // Group by faction
     const byFaction = { fire: [], water: [], nature: [] };
     for (const m of moves) {
       byFaction[m.faction].push(m.moveStr);
     }
 
-    console.log(`  Fire (${byFaction.fire.length}):`, byFaction.fire.slice(0, 10).join(", "));
-    console.log(`  Water (${byFaction.water.length}):`, byFaction.water.slice(0, 10).join(", "));
-    console.log(`  Nature (${byFaction.nature.length}):`, byFaction.nature.slice(0, 10).join(", "));
+    console.log(
+      `  Fire (${byFaction.fire.length}):`,
+      byFaction.fire.slice(0, 10).join(", "),
+    );
+    console.log(
+      `  Water (${byFaction.water.length}):`,
+      byFaction.water.slice(0, 10).join(", "),
+    );
+    console.log(
+      `  Nature (${byFaction.nature.length}):`,
+      byFaction.nature.slice(0, 10).join(", "),
+    );
 
     allLines[personality] = byFaction;
   }
@@ -108,7 +125,10 @@ async function main() {
     }
   }
 
-  console.log("Consensus moves:", consensusMoves.map(m => `${m.faction}: ${m.moveStr}`).join(" | "));
+  console.log(
+    "Consensus moves:",
+    consensusMoves.map((m) => `${m.faction}: ${m.moveStr}`).join(" | "),
+  );
 
   console.log("\n=== Done ===");
   console.log("Use these moves to update opening-book.json manually,");

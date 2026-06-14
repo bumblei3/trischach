@@ -13,16 +13,19 @@ import {
   setAIDepth,
   setAIPersonality,
 } from "./js/ai-core.js";
-import {
-  learnFromGame,
-  getLearnedData,
-} from "./js/opening-book.js";
+import { learnFromGame, getLearnedData } from "./js/opening-book.js";
 import fs from "fs";
 
 const NUM_GAMES = parseInt(process.argv[2]) || 100;
 const AI_DEPTH = parseInt(process.argv[3]) || 4;
 
-const PERSONALITIES = ["balanced", "aggressive", "defensive", "positional", "tactical"];
+const PERSONALITIES = [
+  "balanced",
+  "aggressive",
+  "defensive",
+  "positional",
+  "tactical",
+];
 
 function boardHash(game) {
   const pieces = game.pieces
@@ -30,7 +33,10 @@ function boardHash(game) {
     .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
     .sort()
     .join("|");
-  const factionIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx : ["fire", "water", "nature"].indexOf(game.currentFaction);
+  const factionIdx =
+    game.currentFactionIdx !== undefined
+      ? game.currentFactionIdx
+      : ["fire", "water", "nature"].indexOf(game.currentFaction);
   return `${pieces}#${factionIdx}`;
 }
 
@@ -40,7 +46,9 @@ async function playAutoBattleGame(_gameNum) {
   game.rpsEnabled = true;
 
   // Random personality assignment for variety
-  const personalities = PERSONALITIES.map(() => PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)]);
+  const personalities = PERSONALITIES.map(
+    () => PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)],
+  );
   setAIPersonality(personalities[0]); // Used for all factions - AI picks personality internally per faction
   setAIDepth(AI_DEPTH);
 
@@ -107,13 +115,22 @@ async function main() {
   if (fs.existsSync(learnedFile)) {
     try {
       const data = JSON.parse(fs.readFileSync(learnedFile, "utf-8"));
-      console.log(`Loaded existing learned data: ${Object.keys(data.positions || {}).length} positions`);
+      console.log(
+        `Loaded existing learned data: ${Object.keys(data.positions || {}).length} positions`,
+      );
     } catch {
       console.log("No valid existing learned data");
     }
   }
 
-  const stats = { fire: 0, water: 0, nature: 0, draws: 0, totalMoves: 0, totalHistoryMoves: 0 };
+  const stats = {
+    fire: 0,
+    water: 0,
+    nature: 0,
+    draws: 0,
+    totalMoves: 0,
+    totalHistoryMoves: 0,
+  };
 
   for (let g = 1; g <= NUM_GAMES; g++) {
     const result = await playAutoBattleGame(g);
@@ -140,7 +157,9 @@ async function main() {
         positions: learnedData,
       };
       fs.writeFileSync(learnedFile, JSON.stringify(output, null, 2));
-      console.log(`  💾 Saved learned data: ${Object.keys(learnedData).length} positions`);
+      console.log(
+        `  💾 Saved learned data: ${Object.keys(learnedData).length} positions`,
+      );
     }
   }
 
@@ -158,8 +177,12 @@ async function main() {
   console.log(`Water wins: ${stats.water}`);
   console.log(`Nature wins: ${stats.nature}`);
   console.log(`Draws: ${stats.draws}`);
-  console.log(`Avg game length: ${(stats.totalMoves / NUM_GAMES).toFixed(1)} moves`);
-  console.log(`Avg opening moves recorded: ${(stats.totalHistoryMoves / NUM_GAMES).toFixed(1)}`);
+  console.log(
+    `Avg game length: ${(stats.totalMoves / NUM_GAMES).toFixed(1)} moves`,
+  );
+  console.log(
+    `Avg opening moves recorded: ${(stats.totalHistoryMoves / NUM_GAMES).toFixed(1)}`,
+  );
   console.log(`Total learned positions: ${Object.keys(learnedData).length}`);
   console.log(`\n💾 Saved to ${learnedFile}`);
 
