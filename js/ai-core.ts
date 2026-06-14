@@ -418,19 +418,24 @@ export function computeZobristHash(game: IGame): bigint {
     const sqIdx = SQUARE_TO_INDEX.get(piece.pos.key);
     if (ptIdx >= 0 && facIdx >= 0 && sqIdx !== undefined) {
       // sqIdx is number here, safe to access array
-      hash ^= ZOBRIST_PIECE_KEYS[ptIdx][facIdx][sqIdx]!;
+      const key = ZOBRIST_PIECE_KEYS[ptIdx][facIdx][sqIdx];
+      if (key !== undefined) hash ^= key;
     }
   }
 
   // Side to move
   const sideIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx :
                   (game.currentFaction ? ZOBRIST_FACTIONS.indexOf(game.currentFaction) : 0);
-  if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx]!;
+  if (sideIdx >= 0) {
+    const key = ZOBRIST_SIDE_KEYS[sideIdx];
+    if (key !== undefined) hash ^= key;
+  }
 
   // Eliminated factions
   for (const fac of ZOBRIST_FACTIONS) {
     if (game.eliminatedFactions.has(fac)) {
-      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(fac)]!;
+      const key = ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(fac)];
+      if (key !== undefined) hash ^= key;
     }
   }
 
@@ -457,30 +462,44 @@ export function updateZobristHash(
 
   // Remove piece from source square
   const fromIdx = SQUARE_TO_INDEX.get(fromKey);
-  if (fromIdx !== undefined) hash ^= ZOBRIST_PIECE_KEYS[ptIdx][facIdx][fromIdx]!;
+  if (fromIdx !== undefined) {
+    const key = ZOBRIST_PIECE_KEYS[ptIdx][facIdx][fromIdx];
+    if (key !== undefined) hash ^= key;
+  }
 
   // Add piece to destination square (handle promotion)
   const finalType = isPromotion ? 'queen' : piece.type;
   const finalPtIdx = ZOBRIST_PIECE_TYPES.indexOf(finalType);
   const toIdx = SQUARE_TO_INDEX.get(toKey);
-  if (toIdx !== undefined) hash ^= ZOBRIST_PIECE_KEYS[finalPtIdx][facIdx][toIdx]!;
+  if (toIdx !== undefined) {
+    const key = ZOBRIST_PIECE_KEYS[finalPtIdx][facIdx][toIdx];
+    if (key !== undefined) hash ^= key;
+  }
 
   // Remove captured piece
   if (capturedPiece) {
     const capPtIdx = ZOBRIST_PIECE_TYPES.indexOf(capturedPiece.type);
     const capFacIdx = ZOBRIST_FACTIONS.indexOf(capturedPiece.faction);
     if (capPtIdx >= 0 && capFacIdx >= 0 && toIdx !== undefined) {
-      hash ^= ZOBRIST_PIECE_KEYS[capPtIdx][capFacIdx][toIdx]!;
+      const key = ZOBRIST_PIECE_KEYS[capPtIdx][capFacIdx][toIdx];
+      if (key !== undefined) hash ^= key;
     }
     // If king captured -> faction eliminated
     if (capturedPiece.type === 'king' && eliminatedFaction) {
-      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)]!;
+      const key = ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)];
+      if (key !== undefined) hash ^= key;
     }
   }
 
   // Side to move changes
-  if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx]!;
-  if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx]!;
+  if (oldSideIdx >= 0) {
+    const key = ZOBRIST_SIDE_KEYS[oldSideIdx];
+    if (key !== undefined) hash ^= key;
+  }
+  if (newSideIdx >= 0) {
+    const key = ZOBRIST_SIDE_KEYS[newSideIdx];
+    if (key !== undefined) hash ^= key;
+  }
 
   return hash;
 }
@@ -590,8 +609,6 @@ export const boardHash = computeZobristHash;
 
 // ─── Piece-Square Tables ────────────────────────────────────────
 
-const _pstHex = new Hex(0, 0);
-
 export function hexDistFromCenter(hex: Hex): number {
   return Math.abs(hex.q) + Math.abs(hex.r - 2) + Math.abs(-hex.q - hex.r + 2);
 }
@@ -600,8 +617,8 @@ export function buildPST(calcFn: (hex: Hex, dist: number) => number): Map<string
   const table = new Map<string, number>();
   for (let q = -7; q <= 2; q++) {
     for (let r = -2; r <= 7; r++) {
-      _pstHex.q = q; _pstHex.r = r;
-      table.set(`${q},${r}`, calcFn(_pstHex, hexDistFromCenter(_pstHex)));
+      const hex = new Hex(q, r);
+      table.set(`${q},${r}`, calcFn(hex, hexDistFromCenter(hex)));
     }
   }
   return table;
@@ -635,41 +652,41 @@ export function evaluatePawnStructure(pieces: Piece[], faction: Faction): number
   let score = 0;
 
   for (const p of myPawns) {
-    if (p.r <= 0) score += 15;
-    else if (p.r <= 2) score += 5;
-    else if (p.r <= 4) score += 2;
+    if (p.pos.r <= 0) score += 15;
+    else if (p.pos.r <= 2) score += 5;
+    else if (p.pos.r <= 4) score += 2;
   }
   for (const p of enemyPawns) {
-    if (p.r <= 0) score -= 15;
-    else if (p.r <= 2) score -= 5;
-    else if (p.r <= 4) score -= 2;
+    if (p.pos.r <= 0) score -= 15;
+    else if (p.pos.r <= 2) score -= 5;
+    else if (p.pos.r <= 4) score -= 2;
   }
 
   const myColumnCounts: Record<number, number> = {};
   const enemyColumnCounts: Record<number, number> = {};
-  for (const p of myPawns) myColumnCounts[p.q] = (myColumnCounts[p.q] ?? 0) + 1;
-  for (const p of enemyPawns) enemyColumnCounts[p.q] = (enemyColumnCounts[p.q] ?? 0) + 1;
+  for (const p of myPawns) myColumnCounts[p.pos.q] = (myColumnCounts[p.pos.q] ?? 0) + 1;
+  for (const p of enemyPawns) enemyColumnCounts[p.pos.q] = (enemyColumnCounts[p.pos.q] ?? 0) + 1;
   for (const q in myColumnCounts) if (myColumnCounts[q] > 1) score -= (myColumnCounts[q] - 1) * 10;
   for (const q in enemyColumnCounts) if (enemyColumnCounts[q] > 1) score += (enemyColumnCounts[q] - 1) * 10;
 
   for (const p of myPawns) {
-    const hasNeighbor = myPawns.some(other => other !== p && Math.abs(other.q - p.q) <= 1);
+    const hasNeighbor = myPawns.some(other => other !== p && Math.abs(other.pos.q - p.pos.q) <= 1);
     if (!hasNeighbor) score -= 8;
   }
   for (const p of enemyPawns) {
-    const hasNeighbor = enemyPawns.some(other => other !== p && Math.abs(other.q - p.q) <= 1);
+    const hasNeighbor = enemyPawns.some(other => other !== p && Math.abs(other.pos.q - p.pos.q) <= 1);
     if (!hasNeighbor) score += 8;
   }
 
   for (const p of myPawns) {
     const hasConnected = myPawns.some(other =>
-      other !== p && Math.abs(other.q - p.q) <= 1 && Math.abs(other.r - p.r) <= 1
+      other !== p && Math.abs(other.pos.q - p.pos.q) <= 1 && Math.abs(other.pos.r - p.pos.r) <= 1
     );
     if (hasConnected) score += 5;
   }
   for (const p of enemyPawns) {
     const hasConnected = enemyPawns.some(other =>
-      other !== p && Math.abs(other.q - p.q) <= 1 && Math.abs(other.r - p.r) <= 1
+      other !== p && Math.abs(other.pos.q - p.pos.q) <= 1 && Math.abs(other.pos.r - p.pos.r) <= 1
     );
     if (hasConnected) score -= 5;
   }
@@ -722,18 +739,18 @@ export function evaluateEndgame(game: IGame, pieces: Piece[], faction: Faction):
 
   // 2. PAWN PROMOTION PRESSURE
   for (const pawn of myPawns) {
-    if (pawn.r <= 0) score += isLateEndgame ? 200 : 100;
-    else if (pawn.r === 1) score += isLateEndgame ? 80 : 40;
-    else if (pawn.r === 2) score += isLateEndgame ? 40 : 20;
-    else if (pawn.r <= 4) score += 10;
+    if (pawn.pos.r <= 0) score += isLateEndgame ? 200 : 100;
+    else if (pawn.pos.r === 1) score += isLateEndgame ? 80 : 40;
+    else if (pawn.pos.r === 2) score += isLateEndgame ? 40 : 20;
+    else if (pawn.pos.r <= 4) score += 10;
 
     const blockingPawns = pieces.filter(p =>
       p.type === 'pawn' &&
       p.faction !== faction &&
-      Math.abs(p.q - pawn.q) <= 1 &&
-      (faction === FACTION.FIRE ? p.r < pawn.r :
-       faction === FACTION.WATER ? (p.r > pawn.r || p.q < pawn.q) :
-       faction === FACTION.NATURE ? (p.r > pawn.r || p.q > pawn.q) : false)
+      Math.abs(p.pos.q - pawn.pos.q) <= 1 &&
+      (faction === FACTION.FIRE ? p.pos.r < pawn.pos.r :
+       faction === FACTION.WATER ? (p.pos.r > pawn.pos.r || p.pos.q < pawn.pos.q) :
+       faction === FACTION.NATURE ? (p.pos.r > pawn.pos.r || p.pos.q > pawn.pos.q) : false)
     );
     if (blockingPawns.length === 0) score += isLateEndgame ? 60 : 30;
   }
@@ -765,9 +782,9 @@ export function evaluateEndgame(game: IGame, pieces: Piece[], faction: Faction):
       if (piece.type === 'rook' || piece.type === 'queen') {
         const supportingPawns = pieces.filter(p =>
           p.faction === faction && p.type === 'pawn' && (
-            p.q === piece.pos.q ||
-            p.r === piece.pos.r ||
-            (Math.abs(p.q - piece.pos.q) <= 1 && Math.abs(p.r - piece.pos.r) <= 1)
+            p.pos.q === piece.pos.q ||
+            p.pos.r === piece.pos.r ||
+            (Math.abs(p.pos.q - piece.pos.q) <= 1 && Math.abs(p.pos.r - piece.pos.r) <= 1)
           )
         );
         score += supportingPawns.length * 15;
@@ -832,7 +849,9 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   const myPieces = pieces.filter(p => p.faction === faction);
   for (const p of myPieces) {
     score += getPSTValue(p) * W.positional;
-    const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
+    const { moves, attacks } = getValidMoves(p, 
+      game.boardCells as Map<string, { hex: Hex; zone: string; faction: Faction | null }>, 
+      game._occupiedMap as Map<string, Piece>);
     const mobility = moves.length + attacks.length;
     const mobBonus: Record<PieceType, number> = { queen: 0.3, rook: 0.2, bishop: 0.2, knight: 0.3, pawn: 0.1, king: 0 };
     score += mobility * (mobBonus[p.type] ?? 0.1) * W.mobility;
@@ -850,7 +869,9 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
     let kingThreats = 0;
     for (const enemy of pieces) {
       if (enemy.faction === faction || !enemy.alive) continue;
-      const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
+      const { attacks } = getValidMoves(enemy, 
+        game.boardCells as Map<string, { hex: Hex; zone: string; faction: Faction | null }>,
+        game._occupiedMap as Map<string, Piece>);
       if (attacks.some(a => a.equals(myKing.pos))) kingThreats++;
     }
     score -= kingThreats * 15 * W.kingSafety;
@@ -868,7 +889,9 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
     const eKing = pieces.find(p => p.faction === ef && p.type === 'king');
     if (eKing) {
       for (const attacker of pieces.filter(p => p.faction === faction)) {
-        const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
+        const { attacks } = getValidMoves(attacker, 
+          game.boardCells as Map<string, { hex: Hex; zone: string; faction: Faction | null }>,
+          game._occupiedMap as Map<string, Piece>);
         if (attacks.some(a => a.equals(eKing.pos))) score += 10 * W.kingThreats * (1 + aggression);
       }
     }
@@ -961,7 +984,9 @@ export function getCheckEscapeType(game: IGame, faction: Faction, action: AIActi
 
   const checkers = game.pieces.filter(p => {
     if (p.faction === faction || !p.alive) return false;
-    const { attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
+    const { attacks } = getValidMoves(p, 
+      game.boardCells as Map<string, { hex: Hex; zone: string; faction: Faction | null }>,
+      game._occupiedMap as Map<string, Piece>);
     return attacks.some(a => a.equals(king.pos));
   });
 
