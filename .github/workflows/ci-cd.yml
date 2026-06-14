@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 jobs:
   lint-test:
@@ -27,7 +27,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -152,8 +152,8 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -190,16 +190,16 @@ jobs:
           CORE_JS_GZIP=$(gzip -c dist/ai-core.js | wc -c)
           WORKER_JS_SIZE=$(stat -c%s dist/ai-worker.js)
           WORKER_JS_GZIP=$(gzip -c dist/ai-worker.js | wc -c)
-          
+
           echo "main.js: ${MAIN_JS_SIZE} bytes (${MAIN_JS_GZIP} gzipped)"
           echo "ai-core.js: ${CORE_JS_SIZE} bytes (${CORE_JS_GZIP} gzipped)"
           echo "ai-worker.js: ${WORKER_JS_SIZE} bytes (${WORKER_JS_GZIP} gzipped)"
-          
+
           # Save for comparison (baseline: main ~37KB, ai-core ~36KB, ai-worker ~1KB)
           echo "BUNDLE_MAIN_GZIP=${MAIN_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_CORE_GZIP=${CORE_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_WORKER_GZIP=${WORKER_JS_GZIP}" >> $GITHUB_ENV
-          
+
           # Fail if main.js gzipped > 12KB (10% growth from ~11KB baseline)
           if [ "$MAIN_JS_GZIP" -gt 12000 ]; then
             echo "::error::main.js gzipped size (${MAIN_JS_GZIP}) exceeds 12KB threshold"
@@ -231,7 +231,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            
+
             // Read coverage
             let coverageMsg = '';
             if (fs.existsSync('coverage/coverage-summary.json')) {
@@ -240,7 +240,7 @@ jobs:
               const status = pct >= 80 ? '✅' : '❌';
               coverageMsg = `${status} **Coverage**: ${pct}% (threshold: 80%)`;
             }
-            
+
             // Read E2E results
             let e2eMsg = '';
             if (fs.existsSync('test-results/results.json')) {
@@ -251,15 +251,15 @@ jobs:
               const status = failed === 0 ? '✅' : '❌';
               e2eMsg = `${status} **E2E Tests**: ${passed}/${total} passed`;
             }
-            
+
             // Read bundle size from env
             const mainGzip = process.env.BUNDLE_MAIN_GZIP || 'N/A';
             const coreGzip = process.env.BUNDLE_CORE_GZIP || 'N/A';
             const workerGzip = process.env.BUNDLE_WORKER_GZIP || 'N/A';
             const bundleMsg = `📦 **Bundle sizes (gzipped)**: main=${mainGzip}B, ai-core=${coreGzip}B, ai-worker=${workerGzip}B`;
-            
+
             const body = `## 📊 CI Summary\n\n${coverageMsg}\n${e2eMsg}\n${bundleMsg}\n\n*Node: ${{ matrix.node-version }}*`;
-            
+
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -277,8 +277,8 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -321,9 +321,9 @@ jobs:
               const elo = results.elo[engine] || 'N/A';
               return `| ${engine} | ${elo} | ${wins} | ${draws} | ${losses} |`;
             }).join('\n') : 'No results';
-            
+
             const body = `## 🏆 Tournament Results\n\n| Engine | Elo | W | D | L |\n|--------|-----|---|---|---|\n${table}\n\n*Depth: ${process.env.AI_DEPTH}, Games/pairing: ${process.env.GAMES_PER_PAIRING}*`;
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -343,8 +343,8 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
@@ -384,8 +384,8 @@ jobs:
       - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci

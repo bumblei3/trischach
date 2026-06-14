@@ -53,12 +53,12 @@ export class Hex {
 
 // 6 main directions (pointy-top hex neighbors)
 export const HEX_DIRECTIONS = [
-  new Hex(+1,  0), // E
+  new Hex(+1, 0), // E
   new Hex(+1, -1), // NE
-  new Hex( 0, -1), // NW
-  new Hex(-1,  0), // W
+  new Hex(0, -1), // NW
+  new Hex(-1, 0), // W
   new Hex(-1, +1), // SW
-  new Hex( 0, +1), // SE
+  new Hex(0, +1), // SE
 ];
 
 // 6 diagonal directions
@@ -75,14 +75,14 @@ export const HEX_DIAGONALS = [
  * Get all 6 neighbors of a hex.
  */
 export function hexNeighbors(hex) {
-  return HEX_DIRECTIONS.map(d => hex.add(d));
+  return HEX_DIRECTIONS.map((d) => hex.add(d));
 }
 
 /**
  * Get all 6 diagonal neighbors.
  */
 export function hexDiagonals(hex) {
-  return HEX_DIAGONALS.map(d => hex.add(d));
+  return HEX_DIAGONALS.map((d) => hex.add(d));
 }
 
 /**
@@ -123,8 +123,8 @@ export function hexLine(origin, direction, maxDist) {
  * Convert hex (axial) to pixel coordinates (pointy-top).
  */
 export function hexToPixel(hex, size) {
-  const x = size * (Math.sqrt(3) * hex.q + Math.sqrt(3) / 2 * hex.r);
-  const y = size * (3 / 2 * hex.r);
+  const x = size * (Math.sqrt(3) * hex.q + (Math.sqrt(3) / 2) * hex.r);
+  const y = size * ((3 / 2) * hex.r);
   return { x, y };
 }
 
@@ -132,8 +132,8 @@ export function hexToPixel(hex, size) {
  * Convert pixel to fractional hex coordinates, then round.
  */
 export function pixelToHex(x, y, size) {
-  const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / size;
-  const r = (2 / 3 * y) / size;
+  const q = ((Math.sqrt(3) / 3) * x - (1 / 3) * y) / size;
+  const r = ((2 / 3) * y) / size;
   return hexRound(q, r);
 }
 
@@ -166,7 +166,7 @@ function hexRound(q, r) {
 export function hexCorners(center, size) {
   const corners = [];
   for (let i = 0; i < 6; i++) {
-    const angle = Math.PI / 180 * (60 * i - 30);
+    const angle = (Math.PI / 180) * (60 * i - 30);
     corners.push({
       x: center.x + size * Math.cos(angle),
       y: center.y + size * Math.sin(angle),
@@ -180,6 +180,6 @@ export function hexCorners(center, size) {
  */
 export function hexPolygonPoints(center, size) {
   return hexCorners(center, size)
-    .map(c => `${c.x},${c.y}`)
-    .join(' ');
+    .map((c) => `${c.x},${c.y}`)
+    .join(" ");
 }

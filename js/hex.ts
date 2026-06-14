@@ -56,12 +56,12 @@ export class Hex {
 }
 
 export const HEX_DIRECTIONS: readonly Hex[] = [
-  new Hex(+1,  0), // E
+  new Hex(+1, 0), // E
   new Hex(+1, -1), // NE
-  new Hex( 0, -1), // NW
-  new Hex(-1,  0), // W
+  new Hex(0, -1), // NW
+  new Hex(-1, 0), // W
   new Hex(-1, +1), // SW
-  new Hex( 0, +1), // SE
+  new Hex(0, +1), // SE
 ] as const;
 
 export const HEX_DIAGONALS: readonly Hex[] = [
@@ -77,14 +77,14 @@ export const HEX_DIAGONALS: readonly Hex[] = [
  * Get all 6 neighbors of a hex.
  */
 export function hexNeighbors(hex: Hex): Hex[] {
-  return HEX_DIRECTIONS.map(d => hex.add(d));
+  return HEX_DIRECTIONS.map((d) => hex.add(d));
 }
 
 /**
  * Get all 6 diagonal neighbors.
  */
 export function hexDiagonals(hex: Hex): Hex[] {
-  return HEX_DIAGONALS.map(d => hex.add(d));
+  return HEX_DIAGONALS.map((d) => hex.add(d));
 }
 
 /**
@@ -125,8 +125,8 @@ export function hexLine(origin: Hex, direction: Hex, maxDist: number): Hex[] {
  * Convert hex (axial) to pixel coordinates (pointy-top).
  */
 export function hexToPixel(hex: Hex, size: number): { x: number; y: number } {
-  const x = size * (Math.sqrt(3) * hex.q + Math.sqrt(3) / 2 * hex.r);
-  const y = size * (3 / 2 * hex.r);
+  const x = size * (Math.sqrt(3) * hex.q + (Math.sqrt(3) / 2) * hex.r);
+  const y = size * ((3 / 2) * hex.r);
   return { x, y };
 }
 
@@ -134,8 +134,8 @@ export function hexToPixel(hex: Hex, size: number): { x: number; y: number } {
  * Convert pixel to fractional hex coordinates, then round.
  */
 export function pixelToHex(x: number, y: number, size: number): Hex {
-  const q = (Math.sqrt(3) / 3 * x - 1 / 3 * y) / size;
-  const r = (2 / 3 * y) / size;
+  const q = ((Math.sqrt(3) / 3) * x - (1 / 3) * y) / size;
+  const r = ((2 / 3) * y) / size;
   return hexRound(q, r);
 }
 
@@ -162,10 +162,13 @@ function hexRound(q: number, r: number): Hex {
 /**
  * Get the 6 corner points of a hex for SVG rendering (pointy-top).
  */
-export function hexCorners(center: { x: number; y: number }, size: number): Array<{ x: number; y: number }> {
+export function hexCorners(
+  center: { x: number; y: number },
+  size: number,
+): Array<{ x: number; y: number }> {
   const corners: Array<{ x: number; y: number }> = [];
   for (let i = 0; i < 6; i++) {
-    const angle = Math.PI / 180 * (60 * i - 30);
+    const angle = (Math.PI / 180) * (60 * i - 30);
     corners.push({
       x: center.x + size * Math.cos(angle),
       y: center.y + size * Math.sin(angle),
@@ -177,8 +180,11 @@ export function hexCorners(center: { x: number; y: number }, size: number): Arra
 /**
  * Get SVG polygon points string for a hex.
  */
-export function hexPolygonPoints(center: { x: number; y: number }, size: number): string {
+export function hexPolygonPoints(
+  center: { x: number; y: number },
+  size: number,
+): string {
   return hexCorners(center, size)
-    .map(c => `${c.x},${c.y}`)
-    .join(' ');
+    .map((c) => `${c.x},${c.y}`)
+    .join(" ");
 }

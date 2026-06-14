@@ -1,18 +1,18 @@
 /**
  * TriSchach AI Core - Shared Logic
- * 
+ *
  * Contains all shared AI logic used by both main thread (ai.js)
  * and Web Worker (ai-worker.js).
- * 
+ *
  * DO NOT MODIFY ai.js or ai-worker.js directly for shared logic!
  * Add/modify here, then both consumers stay in sync.
  */
 
-import { getValidMoves, PIECE_STRENGTH } from './pieces.js';
-import { getRPSResult, FACTION } from './board.js';
-import { Hex } from './hex.js';
-import { isKingdomCheck } from './game-check.js';
-import { pickBookMove, buildOpeningBook, inBook } from './opening-book.js';
+import { getValidMoves, PIECE_STRENGTH } from "./pieces.js";
+import { getRPSResult, FACTION } from "./board.js";
+import { Hex } from "./hex.js";
+import { isKingdomCheck } from "./game-check.js";
+import { pickBookMove, buildOpeningBook, inBook } from "./opening-book.js";
 
 // ─── Constants ────────────────────────────────────────────────────
 
@@ -21,37 +21,44 @@ export const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 // ─── Dynamic Piece Values (RPS-aware) ────────────────────────────
 
 export const RPS_VALUE_MULTIPLIER = {
-  advantage: 1.3,  // Our pieces worth more vs faction we beat
-  neutral: 1.0,    // Normal value vs same faction
+  advantage: 1.3, // Our pieces worth more vs faction we beat
+  neutral: 1.0, // Normal value vs same faction
   disadvantage: 0.7, // Our pieces worth less vs faction that beats us
 };
 
-export function getDynamicPieceValue(pieceType, attackingFaction, defendingFaction) {
+export function getDynamicPieceValue(
+  pieceType,
+  attackingFaction,
+  defendingFaction,
+) {
   const baseValue = PIECE_STRENGTH[pieceType];
-  if (pieceType === 'king') return baseValue * 100;
-  
+  if (pieceType === "king") return baseValue * 100;
+
   const rps = getRPSResult(attackingFaction, defendingFaction);
   return baseValue * RPS_VALUE_MULTIPLIER[rps];
 }
 
 export function getMaterialValue(piece, perspectiveFaction) {
   const baseValue = PIECE_STRENGTH[piece.type];
-  if (piece.type === 'king') return baseValue * 100;
-  
+  if (piece.type === "king") return baseValue * 100;
+
   const rps = getRPSResult(perspectiveFaction, piece.faction);
-  const multiplier = rps === 'advantage' ? 0.85 : (rps === 'disadvantage' ? 1.15 : 1.0);
+  const multiplier =
+    rps === "advantage" ? 0.85 : rps === "disadvantage" ? 1.15 : 1.0;
   return baseValue * multiplier;
 }
 
 // ─── Adaptive Time Management ────────────────────────────────────
 
 export function calculateTimeBudget(game) {
-  const pieceCount = game.getAlivePieces ? game.getAlivePieces().length : game.pieces.filter(p => p.alive).length;
+  const pieceCount = game.getAlivePieces
+    ? game.getAlivePieces().length
+    : game.pieces.filter((p) => p.alive).length;
   const actions = getAllActions(game, game.currentFaction);
   const legalMoves = actions.length;
-  
+
   let budget = 3000;
-  
+
   if (pieceCount > 35) {
     budget = 1500;
   } else if (pieceCount > 25) {
@@ -63,17 +70,17 @@ export function calculateTimeBudget(game) {
   } else {
     budget = 5500;
   }
-  
+
   if (isKingdomCheck(game, game.currentFaction)) {
     budget += 1000;
   }
-  
+
   if (legalMoves < 5) {
     budget += 1000;
   } else if (legalMoves > 40) {
     budget -= 500;
   }
-  
+
   budget = Math.max(1000, Math.min(8000, budget));
   return budget;
 }
@@ -108,9 +115,16 @@ export function getSeeValue(pieceType) {
  * Returns score in centipawns from attacker's perspective.
  * Positive = winning capture sequence, Negative = losing.
  */
-export function see(game, attacker, victim, attackerFaction, victimFaction, rpsResult) {
+export function see(
+  game,
+  attacker,
+  victim,
+  attackerFaction,
+  victimFaction,
+  rpsResult,
+) {
   // RPS disadvantage = attacker dies immediately, huge penalty
-  if (rpsResult === 'disadvantage') {
+  if (rpsResult === "disadvantage") {
     return -getSeeValue(attacker.type) * 10;
   }
 
@@ -132,7 +146,8 @@ export function see(game, attacker, victim, attackerFaction, victimFaction, rpsR
   // Simplified: just track what's left and alternate
   // Full implementation would need board copy; this is fast heuristic
 
-  while (moveCount < 6) { // Limit depth of SEE
+  while (moveCount < 6) {
+    // Limit depth of SEE
     moveCount++;
 
     // Find best recapture for the defending side
@@ -172,22 +187,26 @@ export function see(game, attacker, victim, attackerFaction, victimFaction, rpsR
  * Quick SEE for move ordering - just evaluates if capture is winning/equal/losing
  */
 export function quickSee(game, action) {
-  if (action.type !== 'attack') return 0;
+  if (action.type !== "attack") return 0;
 
-  const defender = game.pieces.find(p => p.alive && p.pos.equals(action.target));
+  const defender = game.pieces.find(
+    (p) => p.alive && p.pos.equals(action.target),
+  );
   if (!defender) return 0;
 
   const attackerFaction = action.piece.faction;
   const victimFaction = defender.faction;
-  const rps = game.rpsEnabled ? getRPSResult(attackerFaction, victimFaction) : 'advantage';
+  const rps = game.rpsEnabled
+    ? getRPSResult(attackerFaction, victimFaction)
+    : "advantage";
 
-  if (rps === 'disadvantage') return -10000; // Suicidal
+  if (rps === "disadvantage") return -10000; // Suicidal
 
   const attackerVal = getSeeValue(action.piece.type);
   const victimVal = getSeeValue(defender.type);
 
   // Simple MVV-LVA with RPS
-  if (rps === 'advantage') {
+  if (rps === "advantage") {
     return (victimVal - attackerVal / 10) * 100;
   }
   // Neutral
@@ -198,8 +217,8 @@ export function quickSee(game, action) {
 
 export const AI_PERSONALITIES = {
   balanced: {
-    name: 'Ausgewogen',
-    description: 'Standard-Spielweise, ausgewogene Bewertung',
+    name: "Ausgewogen",
+    description: "Standard-Spielweise, ausgewogene Bewertung",
     weights: {
       material: 1.0,
       positional: 1.0,
@@ -212,8 +231,9 @@ export const AI_PERSONALITIES = {
     aggression: 0.0,
   },
   aggressive: {
-    name: 'Aggressiv',
-    description: 'Angreifend, sucht taktische Komplikationen, opfert Material für Initiative',
+    name: "Aggressiv",
+    description:
+      "Angreifend, sucht taktische Komplikationen, opfert Material für Initiative",
     weights: {
       material: 0.8,
       positional: 1.3,
@@ -226,8 +246,8 @@ export const AI_PERSONALITIES = {
     aggression: 0.3,
   },
   defensive: {
-    name: 'Defensiv',
-    description: 'Solid, minimiert Risiken, wartet auf Fehler des Gegners',
+    name: "Defensiv",
+    description: "Solid, minimiert Risiken, wartet auf Fehler des Gegners",
     weights: {
       material: 1.2,
       positional: 0.8,
@@ -240,8 +260,8 @@ export const AI_PERSONALITIES = {
     aggression: -0.3,
   },
   tactical: {
-    name: 'Taktisch',
-    description: 'Fokus auf Taktik, Opfersuchend, scharfes Spiel',
+    name: "Taktisch",
+    description: "Fokus auf Taktik, Opfersuchend, scharfes Spiel",
     weights: {
       material: 0.7,
       positional: 1.4,
@@ -255,10 +275,13 @@ export const AI_PERSONALITIES = {
   },
 };
 
-let _currentPersonality = 'balanced';
+let _currentPersonality = "balanced";
 
 export function getPersonalityWeights() {
-  return AI_PERSONALITIES[_currentPersonality]?.weights || AI_PERSONALITIES.balanced.weights;
+  return (
+    AI_PERSONALITIES[_currentPersonality]?.weights ||
+    AI_PERSONALITIES.balanced.weights
+  );
 }
 
 export function getPersonalityAggression() {
@@ -278,20 +301,26 @@ export function getPersonality() {
 }
 
 export function getPersonalities() {
-  return Object.keys(AI_PERSONALITIES).map(key => ({
+  return Object.keys(AI_PERSONALITIES).map((key) => ({
     key,
     name: AI_PERSONALITIES[key].name,
     description: AI_PERSONALITIES[key].description,
   }));
 }
 
-
 // ─── Zobrist Transposition Table ────────────────────────────────────
 
 // Zobrist Keys: [PIECE_TYPE][FACTION][SQUARE_INDEX] -> 64-bit random number
 // We use BigInt for 64-bit arithmetic in JavaScript
-const ZOBRIST_PIECE_TYPES = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
-const ZOBRIST_FACTIONS = ['fire', 'water', 'nature'];
+const ZOBRIST_PIECE_TYPES = [
+  "king",
+  "queen",
+  "rook",
+  "bishop",
+  "knight",
+  "pawn",
+];
+const ZOBRIST_FACTIONS = ["fire", "water", "nature"];
 
 // Board squares: axial coordinates on triangular board
 // q: -7 to 2, r: -2 to 7 (with constraints forming triangle)
@@ -321,12 +350,12 @@ class ZobristRNG {
   }
   next() {
     // SplitMix64
-    this.state = (this.state + 0x9e3779b97f4a7c15n) & 0xFFFFFFFFFFFFFFFFn;
+    this.state = (this.state + 0x9e3779b97f4a7c15n) & 0xffffffffffffffffn;
     let z = this.state;
     z = (z ^ (z >> 30n)) * 0xbf58476d1ce4e5b9n;
     z = (z ^ (z >> 27n)) * 0x94d049bb133111ebn;
     z = z ^ (z >> 31n);
-    return z & 0xFFFFFFFFFFFFFFFFn;
+    return z & 0xffffffffffffffffn;
   }
 }
 
@@ -335,18 +364,22 @@ const zobristRng = new ZobristRNG();
 // Zobrist Keys: piece_key[pieceTypeIndex][factionIndex][squareIndex]
 export const ZOBRIST_PIECE_KEYS = new Array(ZOBRIST_PIECE_TYPES.length)
   .fill(null)
-  .map(() => new Array(ZOBRIST_FACTIONS.length)
-    .fill(null)
-    .map(() => new Array(NUM_SQUARES)
+  .map(() =>
+    new Array(ZOBRIST_FACTIONS.length)
       .fill(null)
-      .map(() => zobristRng.next())));
+      .map(() =>
+        new Array(NUM_SQUARES).fill(null).map(() => zobristRng.next()),
+      ),
+  );
 
 // Side-to-move keys (3 factions)
 export const ZOBRIST_SIDE_KEYS = ZOBRIST_FACTIONS.map(() => zobristRng.next());
 
 // Castling/En-passant not applicable in TriSchach, but we have:
 // - Eliminated factions (3 bits)
-export const ZOBRIST_ELIMINATED_KEYS = ZOBRIST_FACTIONS.map(() => zobristRng.next());
+export const ZOBRIST_ELIMINATED_KEYS = ZOBRIST_FACTIONS.map(() =>
+  zobristRng.next(),
+);
 
 // RPS enabled flag
 export const ZOBRIST_RPS_KEY = zobristRng.next();
@@ -357,7 +390,7 @@ export class TTEntry {
     this.key = 0n;
     this.depth = 0;
     this.score = 0;
-    this.flag = 'none'; // 'exact' | 'lower' | 'upper' | 'none'
+    this.flag = "none"; // 'exact' | 'lower' | 'upper' | 'none'
     this.bestMove = null; // { pieceId, targetKey, type, rps }
     this.age = 0;
   }
@@ -376,8 +409,10 @@ export let ttCollisions = 0;
 // Compute full Zobrist hash from game state
 export function computeZobristHash(game) {
   let hash = 0n;
-  const pieces = game.getAlivePieces ? game.getAlivePieces() : game.pieces.filter(p => p.alive);
-  
+  const pieces = game.getAlivePieces
+    ? game.getAlivePieces()
+    : game.pieces.filter((p) => p.alive);
+
   for (const piece of pieces) {
     const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
     const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
@@ -386,40 +421,55 @@ export function computeZobristHash(game) {
       hash ^= ZOBRIST_PIECE_KEYS[ptIdx][facIdx][sqIdx];
     }
   }
-  
+
   // Side to move
-  const sideIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx :
-                  (game.currentFaction ? ZOBRIST_FACTIONS.indexOf(game.currentFaction) : 0);
+  const sideIdx =
+    game.currentFactionIdx !== undefined
+      ? game.currentFactionIdx
+      : game.currentFaction
+        ? ZOBRIST_FACTIONS.indexOf(game.currentFaction)
+        : 0;
   if (sideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[sideIdx];
-  
+
   // Eliminated factions
   for (const fac of ZOBRIST_FACTIONS) {
     if (game.eliminatedFactions.has(fac)) {
       hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(fac)];
     }
   }
-  
+
   // RPS enabled
   if (game.rpsEnabled) hash ^= ZOBRIST_RPS_KEY;
-  
+
   return hash;
 }
 
 // Incremental hash update (for make/unmake move)
-export function updateZobristHash(hash, piece, fromKey, toKey, capturedPiece, eliminatedFaction, isPromotion, oldSideIdx, newSideIdx) {
+export function updateZobristHash(
+  hash,
+  piece,
+  fromKey,
+  toKey,
+  capturedPiece,
+  eliminatedFaction,
+  isPromotion,
+  oldSideIdx,
+  newSideIdx,
+) {
   const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
   const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
-  
+
   // Remove piece from source square
   const fromIdx = SQUARE_TO_INDEX.get(fromKey);
   if (fromIdx !== undefined) hash ^= ZOBRIST_PIECE_KEYS[ptIdx][facIdx][fromIdx];
-  
+
   // Add piece to destination square (handle promotion)
-  const finalType = isPromotion ? 'queen' : piece.type;
+  const finalType = isPromotion ? "queen" : piece.type;
   const finalPtIdx = ZOBRIST_PIECE_TYPES.indexOf(finalType);
   const toIdx = SQUARE_TO_INDEX.get(toKey);
-  if (toIdx !== undefined) hash ^= ZOBRIST_PIECE_KEYS[finalPtIdx][facIdx][toIdx];
-  
+  if (toIdx !== undefined)
+    hash ^= ZOBRIST_PIECE_KEYS[finalPtIdx][facIdx][toIdx];
+
   // Remove captured piece
   if (capturedPiece) {
     const capPtIdx = ZOBRIST_PIECE_TYPES.indexOf(capturedPiece.type);
@@ -428,33 +478,36 @@ export function updateZobristHash(hash, piece, fromKey, toKey, capturedPiece, el
       hash ^= ZOBRIST_PIECE_KEYS[capPtIdx][capFacIdx][toIdx];
     }
     // If king captured -> faction eliminated
-    if (capturedPiece.type === 'king' && eliminatedFaction) {
-      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)];
+    if (capturedPiece.type === "king" && eliminatedFaction) {
+      hash ^=
+        ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)];
     }
   }
-  
+
   // Side to move changes
   if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx];
   if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx];
-  
+
   return hash;
 }
 
 // TT Probe
 export function ttProbe(hash, depth, alpha, beta) {
   const entry = tt[Number(hash & BigInt(TT_SIZE - 1))];
-  
+
   if (entry.key !== hash) return null;
-  
+
   ttHits++;
-  
+
   if (entry.depth >= depth) {
-    if (entry.flag === 'exact') return { score: entry.score, action: entry.bestMove, flag: 'exact' };
-    if (entry.flag === 'lower') alpha = Math.max(alpha, entry.score);
-    if (entry.flag === 'upper') beta = Math.min(beta, entry.score);
-    if (alpha >= beta) return { score: entry.score, action: entry.bestMove, flag: entry.flag };
+    if (entry.flag === "exact")
+      return { score: entry.score, action: entry.bestMove, flag: "exact" };
+    if (entry.flag === "lower") alpha = Math.max(alpha, entry.score);
+    if (entry.flag === "upper") beta = Math.min(beta, entry.score);
+    if (alpha >= beta)
+      return { score: entry.score, action: entry.bestMove, flag: entry.flag };
   }
-  
+
   return { alpha, beta, bestMove: entry.bestMove }; // Return bestMove for move ordering
 }
 
@@ -462,14 +515,15 @@ export function ttProbe(hash, depth, alpha, beta) {
 export function ttStore(hash, depth, score, flag, bestMove = null) {
   const idx = Number(hash & BigInt(TT_SIZE - 1));
   const entry = tt[idx];
-  
+
   // Always replace if empty or same position (key match)
   // Otherwise: depth-preferred replacement
-  const shouldReplace = entry.key === 0n || 
-                        entry.key === hash || 
-                        entry.depth <= depth ||
-                        entry.age < ttAge - 4; // Age-based replacement
-  
+  const shouldReplace =
+    entry.key === 0n ||
+    entry.key === hash ||
+    entry.depth <= depth ||
+    entry.age < ttAge - 4; // Age-based replacement
+
   if (shouldReplace) {
     if (entry.key !== 0n && entry.key !== hash) ttCollisions++;
     entry.key = hash;
@@ -513,11 +567,11 @@ export function ttStats() {
   return {
     size: TT_SIZE,
     used,
-    loadFactor: (used / TT_SIZE * 100).toFixed(1) + '%',
+    loadFactor: ((used / TT_SIZE) * 100).toFixed(1) + "%",
     hits: ttHits,
     stores: ttStores,
     collisions: ttCollisions,
-    hitRate: ttStores > 0 ? (ttHits / ttStores * 100).toFixed(1) + '%' : '0%'
+    hitRate: ttStores > 0 ? ((ttHits / ttStores) * 100).toFixed(1) + "%" : "0%",
   };
 }
 
@@ -536,7 +590,8 @@ export function buildPST(calcFn) {
   const table = new Map();
   for (let q = -7; q <= 2; q++) {
     for (let r = -2; r <= 7; r++) {
-      _pstHex.q = q; _pstHex.r = r;
+      _pstHex.q = q;
+      _pstHex.r = r;
       table.set(`${q},${r}`, calcFn(_pstHex, hexDistFromCenter(_pstHex)));
     }
   }
@@ -556,8 +611,12 @@ const PAWN_PST = buildPST((h, d) => {
 
 export function getPSTValue(piece) {
   const table = {
-    king: KING_PST, queen: QUEEN_PST, rook: ROOK_PST,
-    bishop: BISHOP_PST, knight: KNIGHT_PST, pawn: PAWN_PST,
+    king: KING_PST,
+    queen: QUEEN_PST,
+    rook: ROOK_PST,
+    bishop: BISHOP_PST,
+    knight: KNIGHT_PST,
+    pawn: PAWN_PST,
   }[piece.type];
   if (!table) return 0;
   return table.get(piece.pos.key) || 0;
@@ -566,9 +625,9 @@ export function getPSTValue(piece) {
 // ─── Pawn Structure Evaluation ────────────────────────────────────
 
 export function evaluatePawnStructure(pieces, faction) {
-  const pawns = pieces.filter(p => p.type === 'pawn');
-  const myPawns = pawns.filter(p => p.faction === faction);
-  const enemyPawns = pawns.filter(p => p.faction !== faction);
+  const pawns = pieces.filter((p) => p.type === "pawn");
+  const myPawns = pawns.filter((p) => p.faction === faction);
+  const enemyPawns = pawns.filter((p) => p.faction !== faction);
   let score = 0;
 
   for (const p of myPawns) {
@@ -585,28 +644,41 @@ export function evaluatePawnStructure(pieces, faction) {
   const myColumnCounts = {};
   const enemyColumnCounts = {};
   for (const p of myPawns) myColumnCounts[p.q] = (myColumnCounts[p.q] || 0) + 1;
-  for (const p of enemyPawns) enemyColumnCounts[p.q] = (enemyColumnCounts[p.q] || 0) + 1;
-  for (const q in myColumnCounts) if (myColumnCounts[q] > 1) score -= (myColumnCounts[q] - 1) * 10;
-  for (const q in enemyColumnCounts) if (enemyColumnCounts[q] > 1) score += (enemyColumnCounts[q] - 1) * 10;
+  for (const p of enemyPawns)
+    enemyColumnCounts[p.q] = (enemyColumnCounts[p.q] || 0) + 1;
+  for (const q in myColumnCounts)
+    if (myColumnCounts[q] > 1) score -= (myColumnCounts[q] - 1) * 10;
+  for (const q in enemyColumnCounts)
+    if (enemyColumnCounts[q] > 1) score += (enemyColumnCounts[q] - 1) * 10;
 
   for (const p of myPawns) {
-    const hasNeighbor = myPawns.some(other => other !== p && Math.abs(other.q - p.q) <= 1);
+    const hasNeighbor = myPawns.some(
+      (other) => other !== p && Math.abs(other.q - p.q) <= 1,
+    );
     if (!hasNeighbor) score -= 8;
   }
   for (const p of enemyPawns) {
-    const hasNeighbor = enemyPawns.some(other => other !== p && Math.abs(other.q - p.q) <= 1);
+    const hasNeighbor = enemyPawns.some(
+      (other) => other !== p && Math.abs(other.q - p.q) <= 1,
+    );
     if (!hasNeighbor) score += 8;
   }
 
   for (const p of myPawns) {
-    const hasConnected = myPawns.some(other =>
-      other !== p && Math.abs(other.q - p.q) <= 1 && Math.abs(other.r - p.r) <= 1
+    const hasConnected = myPawns.some(
+      (other) =>
+        other !== p &&
+        Math.abs(other.q - p.q) <= 1 &&
+        Math.abs(other.r - p.r) <= 1,
     );
     if (hasConnected) score += 5;
   }
   for (const p of enemyPawns) {
-    const hasConnected = enemyPawns.some(other =>
-      other !== p && Math.abs(other.q - p.q) <= 1 && Math.abs(other.r - p.r) <= 1
+    const hasConnected = enemyPawns.some(
+      (other) =>
+        other !== p &&
+        Math.abs(other.q - p.q) <= 1 &&
+        Math.abs(other.r - p.r) <= 1,
     );
     if (hasConnected) score -= 5;
   }
@@ -618,28 +690,29 @@ export function evaluatePawnStructure(pieces, faction) {
 
 export function evaluateEndgame(game, pieces, faction) {
   const totalPieces = pieces.length;
-  const aliveFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
-    .filter(f => !game.eliminatedFactions.has(f));
+  const aliveFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(
+    (f) => !game.eliminatedFactions.has(f),
+  );
   const isEndgame = totalPieces <= 20;
   const isLateEndgame = totalPieces <= 10;
-  
+
   if (!isEndgame && aliveFactions.length === 3) return 0;
-  
+
   let score = 0;
-  const myPieces = pieces.filter(p => p.faction === faction);
-  const myKing = myPieces.find(p => p.type === 'king');
-  const myPawns = myPieces.filter(p => p.type === 'pawn');
-  
-  const enemyFactions = aliveFactions.filter(f => f !== faction);
-  
+  const myPieces = pieces.filter((p) => p.faction === faction);
+  const myKing = myPieces.find((p) => p.type === "king");
+  const myPawns = myPieces.filter((p) => p.type === "pawn");
+
+  const enemyFactions = aliveFactions.filter((f) => f !== faction);
+
   // 1. KING ACTIVITY
   if (myKing) {
     const kingDistFromCenter = Math.max(
-      Math.abs(myKing.pos.q), 
-      Math.abs(myKing.pos.r), 
-      Math.abs(-myKing.pos.q - myKing.pos.r)
+      Math.abs(myKing.pos.q),
+      Math.abs(myKing.pos.r),
+      Math.abs(-myKing.pos.q - myKing.pos.r),
     );
-    
+
     if (isLateEndgame) {
       score -= kingDistFromCenter * 8;
     } else if (isEndgame) {
@@ -647,47 +720,60 @@ export function evaluateEndgame(game, pieces, faction) {
     } else if (aliveFactions.length === 2) {
       score -= kingDistFromCenter * 5;
     }
-    
-    const myMaterial = myPieces.reduce((sum, p) => sum + (PIECE_STRENGTH[p.type] || 0), 0);
-    const enemyPieces = pieces.filter(p => p.faction !== faction);
-    const enemyMaterial = enemyPieces.reduce((sum, p) => sum + (PIECE_STRENGTH[p.type] || 0), 0);
-    
+
+    const myMaterial = myPieces.reduce(
+      (sum, p) => sum + (PIECE_STRENGTH[p.type] || 0),
+      0,
+    );
+    const enemyPieces = pieces.filter((p) => p.faction !== faction);
+    const enemyMaterial = enemyPieces.reduce(
+      (sum, p) => sum + (PIECE_STRENGTH[p.type] || 0),
+      0,
+    );
+
     if (myMaterial > enemyMaterial * 1.5) {
       // Winning: king safety less important
     }
   }
-  
+
   // 2. PAWN PROMOTION PRESSURE
   for (const pawn of myPawns) {
     if (pawn.r <= 0) score += isLateEndgame ? 200 : 100;
     else if (pawn.r === 1) score += isLateEndgame ? 80 : 40;
     else if (pawn.r === 2) score += isLateEndgame ? 40 : 20;
     else if (pawn.r <= 4) score += 10;
-    
-    const blockingPawns = pieces.filter(p => 
-      p.type === 'pawn' && 
-      p.faction !== faction &&
-      Math.abs(p.q - pawn.q) <= 1 &&
-      (faction === FACTION.FIRE ? p.r < pawn.r :
-       faction === FACTION.WATER ? (p.r > pawn.r || p.q < pawn.q) :
-       faction === FACTION.NATURE ? (p.r > pawn.r || p.q > pawn.q) : false)
+
+    const blockingPawns = pieces.filter(
+      (p) =>
+        p.type === "pawn" &&
+        p.faction !== faction &&
+        Math.abs(p.q - pawn.q) <= 1 &&
+        (faction === FACTION.FIRE
+          ? p.r < pawn.r
+          : faction === FACTION.WATER
+            ? p.r > pawn.r || p.q < pawn.q
+            : faction === FACTION.NATURE
+              ? p.r > pawn.r || p.q > pawn.q
+              : false),
     );
     if (blockingPawns.length === 0) score += isLateEndgame ? 60 : 30;
   }
-  
+
   // 3. 2-vs-1 DYNAMICS
   if (aliveFactions.length === 2) {
     const otherFaction = enemyFactions[0];
     if (!otherFaction) return score;
-    
+
     const rps = getRPSResult(faction, otherFaction);
-    if (rps === 'advantage') score += 150;
-    else if (rps === 'disadvantage') score -= 200;
-    
-    if (rps === 'advantage') {
-      const myKing = myPieces.find(p => p.type === 'king');
+    if (rps === "advantage") score += 150;
+    else if (rps === "disadvantage") score -= 200;
+
+    if (rps === "advantage") {
+      const myKing = myPieces.find((p) => p.type === "king");
       if (myKing) {
-        const enemyKing = pieces.find(p => p.faction === otherFaction && p.type === 'king');
+        const enemyKing = pieces.find(
+          (p) => p.faction === otherFaction && p.type === "king",
+        );
         if (enemyKing) {
           const kingDist = myKing.pos.distance(enemyKing.pos);
           if (kingDist <= 3) score += 30;
@@ -695,58 +781,70 @@ export function evaluateEndgame(game, pieces, faction) {
       }
     }
   }
-  
+
   // 4. PIECE COORDINATION
   if (pieces.length <= 20) {
-    for (const piece of pieces.filter(p => p.faction === faction)) {
-      if (piece.type === 'rook' || piece.type === 'queen') {
-        const supportingPawns = pieces.filter(p => 
-          p.faction === faction && p.type === 'pawn' && (
-            p.q === piece.pos.q || 
-            p.r === piece.pos.r || 
-            (Math.abs(p.q - piece.pos.q) <= 1 && Math.abs(p.r - piece.pos.r) <= 1)
-          )
+    for (const piece of pieces.filter((p) => p.faction === faction)) {
+      if (piece.type === "rook" || piece.type === "queen") {
+        const supportingPawns = pieces.filter(
+          (p) =>
+            p.faction === faction &&
+            p.type === "pawn" &&
+            (p.q === piece.pos.q ||
+              p.r === piece.pos.r ||
+              (Math.abs(p.q - piece.pos.q) <= 1 &&
+                Math.abs(p.r - piece.pos.r) <= 1)),
         );
         score += supportingPawns.length * 15;
       }
-      
-      if (piece.type === 'knight') {
-        const myKing = pieces.find(p => p.faction === faction && p.type === 'king');
+
+      if (piece.type === "knight") {
+        const myKing = pieces.find(
+          (p) => p.faction === faction && p.type === "king",
+        );
         if (myKing && piece.pos.distance(myKing.pos) <= 2) score += 20;
       }
     }
   }
-  
+
   // 5. ELIMINATION PROXIMITY
   for (const ef of enemyFactions) {
-    const enemyPieces = pieces.filter(p => p.faction === ef);
-    const enemyKing = enemyPieces.find(p => p.type === 'king');
-    
+    const enemyPieces = pieces.filter((p) => p.faction === ef);
+    const enemyKing = enemyPieces.find((p) => p.type === "king");
+
     if (enemyPieces.length <= 3) {
       score += (4 - enemyPieces.length) * 100;
-      
+
       if (enemyKing) {
-        for (const attacker of pieces.filter(p => p.faction === faction)) {
-          const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
-          if (attacks.some(a => a.equals(enemyKing.pos))) score += 500;
+        for (const attacker of pieces.filter((p) => p.faction === faction)) {
+          const { attacks } = getValidMoves(
+            attacker,
+            game.boardCells,
+            game._occupiedMap,
+          );
+          if (attacks.some((a) => a.equals(enemyKing.pos))) score += 500;
         }
       }
     }
   }
-  
+
   // 6. ZUGZWANG / OPPOSITION
   if (aliveFactions.length === 2 && pieces.length <= 6) {
-    const myKing = pieces.find(p => p.faction === faction && p.type === 'king');
-    const otherFaction = aliveFactions.find(f => f !== faction);
-    const enemyKing = pieces.find(p => p.faction === otherFaction && p.type === 'king');
-    
+    const myKing = pieces.find(
+      (p) => p.faction === faction && p.type === "king",
+    );
+    const otherFaction = aliveFactions.find((f) => f !== faction);
+    const enemyKing = pieces.find(
+      (p) => p.faction === otherFaction && p.type === "king",
+    );
+
     if (myKing && enemyKing) {
       const dist = myKing.pos.distance(enemyKing.pos);
       if (dist % 2 === 1) score += 25;
       else score -= 15;
     }
   }
-  
+
   return score;
 }
 
@@ -755,76 +853,110 @@ export function evaluateEndgame(game, pieces, faction) {
 export function evaluateBoard(game, faction) {
   const W = getPersonalityWeights();
   const aggression = getPersonalityAggression();
-  
-  const pieces = game.getAlivePieces ? game.getAlivePieces() : game.pieces.filter(p => p.alive);
+
+  const pieces = game.getAlivePieces
+    ? game.getAlivePieces()
+    : game.pieces.filter((p) => p.alive);
   let score = 0;
-  
+
   // 1. Material balance (RPS-aware)
   for (const p of pieces) {
     const val = getMaterialValue(p, faction) * 10;
     score += (p.faction === faction ? val : -val) * W.material;
   }
-  
+
   // 2. Positional bonus: PST + mobility
-  const myPieces = pieces.filter(p => p.faction === faction);
+  const myPieces = pieces.filter((p) => p.faction === faction);
   for (const p of myPieces) {
     score += getPSTValue(p) * W.positional;
-    const { moves, attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
+    const { moves, attacks } = getValidMoves(
+      p,
+      game.boardCells,
+      game._occupiedMap,
+    );
     const mobility = moves.length + attacks.length;
-    const mobBonus = { queen: 0.3, rook: 0.2, bishop: 0.2, knight: 0.3, pawn: 0.1, king: 0 };
+    const mobBonus = {
+      queen: 0.3,
+      rook: 0.2,
+      bishop: 0.2,
+      knight: 0.3,
+      pawn: 0.1,
+      king: 0,
+    };
     score += mobility * (mobBonus[p.type] || 0.1) * W.mobility;
   }
-  
+
   // Enemy pieces PST penalty
   for (const p of pieces) {
     if (p.faction === faction) continue;
     score -= getPSTValue(p) * 0.8 * W.positional;
   }
-  
+
   // 3. King safety
-  const myKing = myPieces.find(p => p.type === 'king');
+  const myKing = myPieces.find((p) => p.type === "king");
   if (myKing) {
     let kingThreats = 0;
     for (const enemy of pieces) {
       if (enemy.faction === faction || !enemy.alive) continue;
-      const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
-      if (attacks.some(a => a.equals(myKing.pos))) kingThreats++;
+      const { attacks } = getValidMoves(
+        enemy,
+        game.boardCells,
+        game._occupiedMap,
+      );
+      if (attacks.some((a) => a.equals(myKing.pos))) kingThreats++;
     }
     score -= kingThreats * 15 * W.kingSafety;
-    const kingDist = Math.max(Math.abs(myKing.pos.q), Math.abs(myKing.pos.r), Math.abs(-myKing.pos.q - myKing.pos.r));
+    const kingDist = Math.max(
+      Math.abs(myKing.pos.q),
+      Math.abs(myKing.pos.r),
+      Math.abs(-myKing.pos.q - myKing.pos.r),
+    );
     if (kingDist >= 6) score += 8 * W.kingSafety;
   }
-  
+
   // 4. King threats
-  const enemyFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(f => f !== faction);
+  const enemyFactions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(
+    (f) => f !== faction,
+  );
   for (const ef of enemyFactions) {
     if (game.eliminatedFactions.has(ef)) {
       score += 200 * W.kingThreats;
       continue;
     }
-    const eKing = pieces.find(p => p.faction === ef && p.type === 'king');
+    const eKing = pieces.find((p) => p.faction === ef && p.type === "king");
     if (eKing) {
-      for (const attacker of pieces.filter(p => p.faction === faction)) {
-        const { attacks } = getValidMoves(attacker, game.boardCells, game._occupiedMap);
-        if (attacks.some(a => a.equals(eKing.pos))) score += 10 * W.kingThreats * (1 + aggression);
+      for (const attacker of pieces.filter((p) => p.faction === faction)) {
+        const { attacks } = getValidMoves(
+          attacker,
+          game.boardCells,
+          game._occupiedMap,
+        );
+        if (attacks.some((a) => a.equals(eKing.pos)))
+          score += 10 * W.kingThreats * (1 + aggression);
       }
     }
   }
-  
+
   // 5. RPS advantage in endgame
-  const aliveEnemies = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
-    .filter(f => !game.eliminatedFactions.has(f) && f !== faction);
+  const aliveEnemies = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].filter(
+    (f) => !game.eliminatedFactions.has(f) && f !== faction,
+  );
   if (aliveEnemies.length === 1) {
     const rps = getRPSResult(faction, aliveEnemies[0]);
-    if (rps === 'advantage') score += 20 * W.endgame;
+    if (rps === "advantage") score += 20 * W.endgame;
   }
-  
+
   // 6. Pawn structure
   score += evaluatePawnStructure(pieces, faction) * W.pawnStructure;
-  
+
   // 7. Endgame evaluation
-  score += evaluateEndgame(game, pieces.filter(p => p.alive), faction) * W.endgame;
-  
+  score +=
+    evaluateEndgame(
+      game,
+      pieces.filter((p) => p.alive),
+      faction,
+    ) * W.endgame;
+
   return score;
 }
 
@@ -837,12 +969,12 @@ export function evaluateBoard(game, faction) {
 export function isCheckEscape(game, faction, action) {
   // Only relevant if the faction is currently in check
   if (!isKingdomCheck(game, faction)) return false;
-  
+
   // Simulate the move and check if the king is still in check
   const undo = simulateMove(game, action.piece, action.target);
   const stillInCheck = isKingdomCheck(game, faction);
   undoMove(game, undo);
-  
+
   return !stillInCheck;
 }
 
@@ -852,36 +984,56 @@ export function isCheckEscape(game, faction, action) {
  */
 function normalizeDirection(hex) {
   if (hex.q === 0 && hex.r === 0) return null;
-  
+
   const steps = [
-    new Hex(1, 0),   // +q
-    new Hex(0, 1),   // +r
-    new Hex(-1, 1),  // -q+r
-    new Hex(-1, 0),  // -q
-    new Hex(0, -1),  // -r
-    new Hex(1, -1),  // +q-r
+    new Hex(1, 0), // +q
+    new Hex(0, 1), // +r
+    new Hex(-1, 1), // -q+r
+    new Hex(-1, 0), // -q
+    new Hex(0, -1), // -r
+    new Hex(1, -1), // +q-r
   ];
-  
+
   // Check if the vector is aligned with any of the 6 directions
   // by checking if all steps are multiples of the same unit step
   for (const step of steps) {
     // Check if hex is a positive multiple of this step
     const kq = step.q !== 0 ? hex.q / step.q : null;
     const kr = step.r !== 0 ? hex.r / step.r : null;
-    
+
     // Both non-null and equal (and positive integer)
-    if (kq !== null && kr !== null && kq === kr && Number.isInteger(kq) && kq > 0) {
+    if (
+      kq !== null &&
+      kr !== null &&
+      kq === kr &&
+      Number.isInteger(kq) &&
+      kq > 0
+    ) {
       return step;
     }
     // Handle cases where one component is zero
-    if (kq !== null && kr === null && step.r === 0 && hex.r === 0 && Number.isInteger(kq) && kq > 0) {
+    if (
+      kq !== null &&
+      kr === null &&
+      step.r === 0 &&
+      hex.r === 0 &&
+      Number.isInteger(kq) &&
+      kq > 0
+    ) {
       return step;
     }
-    if (kr !== null && kq === null && step.q === 0 && hex.q === 0 && Number.isInteger(kr) && kr > 0) {
+    if (
+      kr !== null &&
+      kq === null &&
+      step.q === 0 &&
+      hex.q === 0 &&
+      Number.isInteger(kr) &&
+      kr > 0
+    ) {
       return step;
     }
   }
-  
+
   return null;
 }
 
@@ -891,41 +1043,49 @@ function normalizeDirection(hex) {
  */
 export function getCheckEscapeType(game, faction, action) {
   if (!isKingdomCheck(game, faction)) return 0;
-  
+
   // Find the checking piece(s) - enemy pieces attacking our king
-  const king = game.pieces.find(p => p.faction === faction && p.type === 'king' && p.alive);
+  const king = game.pieces.find(
+    (p) => p.faction === faction && p.type === "king" && p.alive,
+  );
   if (!king) return 0;
-  
-  const checkers = game.pieces.filter(p => {
+
+  const checkers = game.pieces.filter((p) => {
     if (p.faction === faction || !p.alive) return false;
     const { attacks } = getValidMoves(p, game.boardCells, game._occupiedMap);
-    return attacks.some(a => a.equals(king.pos));
+    return attacks.some((a) => a.equals(king.pos));
   });
-  
+
   // If capturing a checking piece
-  if (action.type === 'attack') {
-    const defender = game.pieces.find(p => p.alive && p.pos.equals(action.target));
-    if (defender && checkers.some(c => c.id === defender.id)) {
+  if (action.type === "attack") {
+    const defender = game.pieces.find(
+      (p) => p.alive && p.pos.equals(action.target),
+    );
+    if (defender && checkers.some((c) => c.id === defender.id)) {
       return 3; // Capturing the checking piece - highest priority
     }
   }
-  
+
   // If king moves
-  if (action.piece.type === 'king') {
+  if (action.piece.type === "king") {
     return 2; // King move - high priority
   }
-  
+
   // Check if blocking a sliding attack (bishop, rook, queen)
   // The block must be on the line between king and checker, closer than checker
   for (const checker of checkers) {
-    if (checker.type === 'bishop' || checker.type === 'rook' || checker.type === 'queen') {
+    if (
+      checker.type === "bishop" ||
+      checker.type === "rook" ||
+      checker.type === "queen"
+    ) {
       const kingToChecker = checker.pos.subtract(king.pos);
       const kingToTarget = action.target.subtract(king.pos);
-      
+
       // Check if they're in the same direction (king, target, checker aligned)
       const dir = normalizeDirection(kingToChecker);
       const targetDir = normalizeDirection(kingToTarget);
-      
+
       if (dir && targetDir && dir.equals(targetDir)) {
         // Target must be between king and checker (closer than checker)
         const checkerDist = king.pos.distance(checker.pos);
@@ -936,26 +1096,28 @@ export function getCheckEscapeType(game, faction, action) {
       }
     }
   }
-  
+
   return 0;
 }
 
 // ─── Movement Generation ──────────────────────────────────────────
 
 export function getAllActions(game, faction) {
-  const pieces = game.pieces.filter(p => p.faction === faction && p.alive);
+  const pieces = game.pieces.filter((p) => p.faction === faction && p.alive);
   const actions = [];
-  
+
   for (const piece of pieces) {
     const { moves, attacks } = getLegalMoves(game, piece);
     for (const target of attacks) {
-      const defender = game.pieces.find(p => p.alive && p.pos.equals(target));
+      const defender = game.pieces.find((p) => p.alive && p.pos.equals(target));
       if (!defender) continue;
-      const rps = game.rpsEnabled ? getRPSResult(faction, defender.faction) : 'advantage';
-      actions.push({ piece, target, type: 'attack', rps });
+      const rps = game.rpsEnabled
+        ? getRPSResult(faction, defender.faction)
+        : "advantage";
+      actions.push({ piece, target, type: "attack", rps });
     }
     for (const target of moves) {
-      actions.push({ piece, target, type: 'move' });
+      actions.push({ piece, target, type: "move" });
     }
   }
 
@@ -964,13 +1126,13 @@ export function getAllActions(game, faction) {
     const aCheckEscape = getCheckEscapeType(game, faction, a);
     const bCheckEscape = getCheckEscapeType(game, faction, b);
     if (aCheckEscape !== bCheckEscape) return bCheckEscape - aCheckEscape;
-    
+
     // Use quickSee for capture ordering (MVV-LVA + RPS aware)
-    const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
-    const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
+    const aSee = a.type === "attack" ? quickSee(game, a) : 0;
+    const bSee = b.type === "attack" ? quickSee(game, b) : 0;
     if (aSee !== bSee) return bSee - aSee;
     // Fallback: prioritize attacks over moves
-    if (a.type !== b.type) return a.type === 'attack' ? -1 : 1;
+    if (a.type !== b.type) return a.type === "attack" ? -1 : 1;
     return 0;
   });
 
@@ -978,14 +1140,20 @@ export function getAllActions(game, faction) {
 }
 
 export function getLegalMoves(game, piece) {
-  const { moves, attacks } = getValidMoves(piece, game.boardCells, game._occupiedMap);
+  const { moves, attacks } = getValidMoves(
+    piece,
+    game.boardCells,
+    game._occupiedMap,
+  );
   const legalMoves = [];
   const legalAttacks = [];
   for (const target of moves) {
-    if (legalMoveCheck(game, piece, target, piece.faction)) legalMoves.push(target);
+    if (legalMoveCheck(game, piece, target, piece.faction))
+      legalMoves.push(target);
   }
   for (const target of attacks) {
-    if (legalMoveCheck(game, piece, target, piece.faction)) legalAttacks.push(target);
+    if (legalMoveCheck(game, piece, target, piece.faction))
+      legalAttacks.push(target);
   }
   return { moves: legalMoves, attacks: legalAttacks };
 }
@@ -1024,7 +1192,10 @@ export function simulateMove(game, piece, target) {
     attackerDied: false,
     eliminatedFaction: null,
     prevFactionIdx: game.currentFactionIdx,
-    prevZobristHash: game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game),
+    prevZobristHash:
+      game._zobristHash !== undefined
+        ? game._zobristHash
+        : computeZobristHash(game),
   };
 
   const defender = game._occupiedMap.get(target.key);
@@ -1033,15 +1204,17 @@ export function simulateMove(game, piece, target) {
     undo.wasAttack = true;
     undo.defender = defender;
 
-    const rps = game.rpsEnabled ? getRPSResult(piece.faction, defender.faction) : 'advantage';
+    const rps = game.rpsEnabled
+      ? getRPSResult(piece.faction, defender.faction)
+      : "advantage";
 
-    if (rps === 'advantage' || rps === 'neutral') {
+    if (rps === "advantage" || rps === "neutral") {
       defender.alive = false;
       undo.defenderWasKilled = true;
       piece.pos = target;
       piece.hasMoved = true;
 
-      if (defender.type === 'king') {
+      if (defender.type === "king") {
         undo.eliminatedFaction = defender.faction;
         game.eliminatedFactions.add(defender.faction);
         for (const p of game.pieces) {
@@ -1057,11 +1230,11 @@ export function simulateMove(game, piece, target) {
     piece.hasMoved = true;
   }
 
-  const isPromotion = piece.type === 'pawn' && piece.pos.r <= 0;
+  const isPromotion = piece.type === "pawn" && piece.pos.r <= 0;
   if (isPromotion) {
     undo.promotion = piece.type;
-    piece.type = 'queen';
-    piece.symbol = 'Q';
+    piece.type = "queen";
+    piece.symbol = "Q";
   }
 
   const oldSideIdx = game.currentFactionIdx;
@@ -1083,14 +1256,25 @@ export function simulateMove(game, piece, target) {
     undo.eliminatedFaction,
     isPromotion,
     oldSideIdx,
-    game.currentFactionIdx
+    game.currentFactionIdx,
   );
 
   return undo;
 }
 
 export function undoMove(game, undo) {
-  const { piece, from, pieceHasMoved, wasAttack, defender, defenderWasKilled, attackerDied, eliminatedFaction, prevFactionIdx, prevZobristHash } = undo;
+  const {
+    piece,
+    from,
+    pieceHasMoved,
+    wasAttack,
+    defender,
+    defenderWasKilled,
+    attackerDied,
+    eliminatedFaction,
+    prevFactionIdx,
+    prevZobristHash,
+  } = undo;
 
   piece.pos = from;
   piece.hasMoved = pieceHasMoved;
@@ -1111,11 +1295,14 @@ export function undoMove(game, undo) {
 
   if (undo.promotion) {
     piece.type = undo.promotion;
-    piece.symbol = piece.faction === 'fire' ? 'P' : (piece.faction === 'water' ? 'P' : 'P');
+    piece.symbol =
+      piece.faction === "fire" ? "P" : piece.faction === "water" ? "P" : "P";
   }
 
   game.currentFactionIdx = prevFactionIdx;
-  game.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][prevFactionIdx];
+  game.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][
+    prevFactionIdx
+  ];
   rebuildOccupiedMap(game);
 
   // Restore Zobrist hash (incremental reverse)
@@ -1137,32 +1324,51 @@ export const RAZOR_MARGINS = [0, 300, 500];
 // ─── Late Move Reductions (LMR) ──────────────────────────────────────
 // Reduce depth for moves later in the move list (less likely to be best)
 // Formula: reduction = log2(depth) * log2(moveIndex) / scalingFactor
-export const LMR_BASE_REDUCTION = 0.6;  // Base reduction factor
-export const LMR_MIN_DEPTH = 3;          // Minimum depth to apply LMR
-export const LMR_MOVE_THRESHOLD = 3;     // First N moves get full depth
+export const LMR_BASE_REDUCTION = 0.6; // Base reduction factor
+export const LMR_MIN_DEPTH = 3; // Minimum depth to apply LMR
+export const LMR_MOVE_THRESHOLD = 3; // First N moves get full depth
 
 // ─── Probcut ─────────────────────────────────────────────────────────
 // At high depths, if static eval suggests a move is way above beta,
 // do a reduced-depth search to verify before full search
-export const PROBCUT_DEPTH = 5;          // Minimum depth for probcut
-export const PROBCUT_MARGIN = 150;       // Centipawns above beta to trigger
-export const PROBCUT_REDUCTION = 3;      // Depth reduction for probcut search
+export const PROBCUT_DEPTH = 5; // Minimum depth for probcut
+export const PROBCUT_MARGIN = 150; // Centipawns above beta to trigger
+export const PROBCUT_REDUCTION = 3; // Depth reduction for probcut search
 
 let searchDeadline = 0;
 export let nodesSearched = 0;
 
-export function minimax(game, depth, alpha, beta, maximizingFaction, currentFaction, deadline = null) {
+export function minimax(
+  game,
+  depth,
+  alpha,
+  beta,
+  maximizingFaction,
+  currentFaction,
+  deadline = null,
+) {
   nodesSearched++;
   const effectiveDeadline = deadline !== null ? deadline : searchDeadline;
   if (nodesSearched % 1000 === 0 && Date.now() > effectiveDeadline) {
-    return { score: evaluateBoard(game, maximizingFaction), action: null, timeout: true };
+    return {
+      score: evaluateBoard(game, maximizingFaction),
+      action: null,
+      timeout: true,
+    };
   }
 
   // Use incremental Zobrist hash if available, otherwise compute
-  const hash = game._zobristHash !== undefined ? game._zobristHash : computeZobristHash(game);
+  const hash =
+    game._zobristHash !== undefined
+      ? game._zobristHash
+      : computeZobristHash(game);
   const ttProbeResult = ttProbe(hash, depth, alpha, beta);
   if (ttProbeResult) {
-    if (ttProbeResult.flag === 'exact' || ttProbeResult.flag === 'lower' || ttProbeResult.flag === 'upper') {
+    if (
+      ttProbeResult.flag === "exact" ||
+      ttProbeResult.flag === "lower" ||
+      ttProbeResult.flag === "upper"
+    ) {
       return { score: ttProbeResult.score, action: ttProbeResult.action };
     }
     // TT hit but depth not sufficient - use narrowed bounds
@@ -1170,7 +1376,7 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     beta = ttProbeResult.beta;
   }
 
-  if (game.state === 'game_over') {
+  if (game.state === "game_over") {
     return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
 
@@ -1186,7 +1392,9 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
   // ─── Null-Move Pruning (R=2) ───────────────────────────────────────
   // Only when: depth >= 3, not in check, current faction has > 1 piece
   const inCheck = isKingdomCheck(game, currentFaction);
-  const myPieces = game.pieces.filter(p => p.faction === currentFaction && p.alive);
+  const myPieces = game.pieces.filter(
+    (p) => p.faction === currentFaction && p.alive,
+  );
   const canNullMove = depth >= 3 && !inCheck && myPieces.length > 1;
 
   if (canNullMove) {
@@ -1202,7 +1410,15 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     rebuildOccupiedMap(game);
 
     const R = 2; // Null-move reduction
-    const nullResult = minimax(game, depth - 1 - R, -beta, -beta + 1, maximizingFaction, game.currentFaction, effectiveDeadline);
+    const nullResult = minimax(
+      game,
+      depth - 1 - R,
+      -beta,
+      -beta + 1,
+      maximizingFaction,
+      game.currentFaction,
+      effectiveDeadline,
+    );
 
     // Restore
     game.currentFactionIdx = savedFactionIdx;
@@ -1215,7 +1431,8 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
   }
 
   // Get TT best move for move ordering (from probe result)
-  const ttBestMove = ttProbeResult && ttProbeResult.bestMove ? ttProbeResult.bestMove : null;
+  const ttBestMove =
+    ttProbeResult && ttProbeResult.bestMove ? ttProbeResult.bestMove : null;
 
   let bestScore = -Infinity;
   let bestAction = null;
@@ -1223,8 +1440,14 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
   actions.sort((a, b) => {
     // Primary: TT move (highest priority)
     if (ttBestMove) {
-      const aIsTT = a.piece.id === ttBestMove.pieceId && a.target.key === ttBestMove.targetKey && a.type === ttBestMove.type;
-      const bIsTT = b.piece.id === ttBestMove.pieceId && b.target.key === ttBestMove.targetKey && b.type === ttBestMove.type;
+      const aIsTT =
+        a.piece.id === ttBestMove.pieceId &&
+        a.target.key === ttBestMove.targetKey &&
+        a.type === ttBestMove.type;
+      const bIsTT =
+        b.piece.id === ttBestMove.pieceId &&
+        b.target.key === ttBestMove.targetKey &&
+        b.type === ttBestMove.type;
       if (aIsTT !== bIsTT) return aIsTT ? -1 : 1;
     }
     // Secondary: Check escape moves (high priority when in check)
@@ -1235,25 +1458,28 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
       if (aCheckEscape !== bCheckEscape) return bCheckEscape - aCheckEscape;
     }
     // Tertiary: quickSee for captures (MVV-LVA + RPS aware)
-    const aSee = a.type === 'attack' ? quickSee(game, a) : 0;
-    const bSee = b.type === 'attack' ? quickSee(game, b) : 0;
+    const aSee = a.type === "attack" ? quickSee(game, a) : 0;
+    const bSee = b.type === "attack" ? quickSee(game, b) : 0;
     if (aSee !== bSee) return bSee - aSee;
     // Quaternary: Killer moves
-    const aKiller = killerMoves[`${depth},${a.piece.id},${a.target.key}`] ? 10000 : 0;
-    const bKiller = killerMoves[`${depth},${b.piece.id},${b.target.key}`] ? 10000 : 0;
+    const aKiller = killerMoves[`${depth},${a.piece.id},${a.target.key}`]
+      ? 10000
+      : 0;
+    const bKiller = killerMoves[`${depth},${b.piece.id},${b.target.key}`]
+      ? 10000
+      : 0;
     // Quinary: History heuristic
     const aHistory = historyTable[`${a.piece.id},${a.target.key}`] || 0;
     const bHistory = historyTable[`${b.piece.id},${b.target.key}`] || 0;
-    return (bKiller + bHistory) - (aKiller + aHistory);
+    return bKiller + bHistory - (aKiller + aHistory);
   });
-
 
   // Convert to array and track move index for LMR
   const actionsArray = [...actions];
 
   for (let moveIndex = 0; moveIndex < actionsArray.length; moveIndex++) {
     const action = actionsArray[moveIndex];
-    const isQuiet = action.type !== 'attack';
+    const isQuiet = action.type !== "attack";
 
     // ─── Futility Pruning (depth <= 3, quiet moves only) ─────────────
     if (isQuiet && depth <= 3) {
@@ -1279,7 +1505,8 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     // Skip LMR for: first few moves, captures, depth too low
     let lmrReduction = 0;
     if (depth >= LMR_MIN_DEPTH && moveIndex >= LMR_MOVE_THRESHOLD && isQuiet) {
-      const lmrFactor = Math.log2(depth) * Math.log2(moveIndex + 1) * LMR_BASE_REDUCTION;
+      const lmrFactor =
+        Math.log2(depth) * Math.log2(moveIndex + 1) * LMR_BASE_REDUCTION;
       lmrReduction = Math.min(Math.floor(lmrFactor), depth - 1); // Cap at depth-1
     }
 
@@ -1293,9 +1520,17 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
         const probeDepth = depth - PROBCUT_REDUCTION;
         const undo = simulateMove(game, action.piece, action.target);
         const nextFaction = game.currentFaction;
-        const probeResult = minimax(game, probeDepth, beta - 1, beta, maximizingFaction, nextFaction, effectiveDeadline);
+        const probeResult = minimax(
+          game,
+          probeDepth,
+          beta - 1,
+          beta,
+          maximizingFaction,
+          nextFaction,
+          effectiveDeadline,
+        );
         undoMove(game, undo);
-        
+
         if (!probeResult.timeout && probeResult.score >= beta) {
           // Probcut confirmed: this move beats beta, return beta immediately
           probcutScore = beta;
@@ -1306,22 +1541,43 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
     // If probcut didn't trigger or wasn't applicable, do normal search
     let searchDepth = depth - 1 - razorReduction - lmrReduction;
     let result;
-    
+
     if (probcutScore !== null) {
       result = { score: probcutScore };
     } else {
       const undo = simulateMove(game, action.piece, action.target);
       const nextFaction = game.currentFaction;
-      result = minimax(game, searchDepth, alpha, beta, maximizingFaction, nextFaction, effectiveDeadline);
+      result = minimax(
+        game,
+        searchDepth,
+        alpha,
+        beta,
+        maximizingFaction,
+        nextFaction,
+        effectiveDeadline,
+      );
       undoMove(game, undo);
     }
 
     // LMR re-search: if reduced search beats alpha, re-search at full depth
     // (Only if LMR was applied and we didn't already hit beta)
-    if (lmrReduction > 0 && !result.timeout && result.score > alpha && result.score < beta) {
+    if (
+      lmrReduction > 0 &&
+      !result.timeout &&
+      result.score > alpha &&
+      result.score < beta
+    ) {
       const undo = simulateMove(game, action.piece, action.target);
       const nextFaction = game.currentFaction;
-      const fullDepthResult = minimax(game, depth - 1 - razorReduction, alpha, beta, maximizingFaction, nextFaction, effectiveDeadline);
+      const fullDepthResult = minimax(
+        game,
+        depth - 1 - razorReduction,
+        alpha,
+        beta,
+        maximizingFaction,
+        nextFaction,
+        effectiveDeadline,
+      );
       undoMove(game, undo);
       if (!fullDepthResult.timeout) {
         result = fullDepthResult;
@@ -1337,38 +1593,64 @@ export function minimax(game, depth, alpha, beta, maximizingFaction, currentFact
       if (!killerMoves[`${depth},${action.piece.id},${action.target.key}`]) {
         killerMoves[`${depth},${action.piece.id},${action.target.key}`] = true;
       }
-      historyTable[`${action.piece.id},${action.target.key}`] = (historyTable[`${action.piece.id},${action.target.key}`] || 0) + depth * depth;
+      historyTable[`${action.piece.id},${action.target.key}`] =
+        (historyTable[`${action.piece.id},${action.target.key}`] || 0) +
+        depth * depth;
       break;
     }
   }
 
-  const flag = bestScore <= alpha ? 'upper' : (bestScore >= beta ? 'lower' : 'exact');
-  ttStore(hash, depth, bestScore, flag, bestAction ? {
-    pieceId: bestAction.piece.id,
-    targetKey: bestAction.target.key,
-    type: bestAction.type,
-    rps: bestAction.rps
-  } : null);
+  const flag =
+    bestScore <= alpha ? "upper" : bestScore >= beta ? "lower" : "exact";
+  ttStore(
+    hash,
+    depth,
+    bestScore,
+    flag,
+    bestAction
+      ? {
+          pieceId: bestAction.piece.id,
+          targetKey: bestAction.target.key,
+          type: bestAction.type,
+          rps: bestAction.rps,
+        }
+      : null,
+  );
 
   return { score: bestScore, action: bestAction };
 }
 
-export function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qDepth = 0) {
+export function quiesce(
+  game,
+  alpha,
+  beta,
+  maximizingFaction,
+  currentFaction,
+  qDepth = 0,
+) {
   const standPat = evaluateBoard(game, maximizingFaction);
   if (qDepth >= 4) return { score: standPat };
-  
+
   if (currentFaction === maximizingFaction) {
     if (standPat >= beta) return { score: beta };
     alpha = Math.max(alpha, standPat);
-    
-    const attackActions = getAllActions(game, currentFaction)
-      .filter(a => a.type === 'attack' && a.rps !== 'disadvantage');
-    
+
+    const attackActions = getAllActions(game, currentFaction).filter(
+      (a) => a.type === "attack" && a.rps !== "disadvantage",
+    );
+
     for (const action of attackActions) {
       const undo = simulateMove(game, action.piece, action.target);
-      const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
+      const result = quiesce(
+        game,
+        alpha,
+        beta,
+        maximizingFaction,
+        game.currentFaction,
+        qDepth + 1,
+      );
       undoMove(game, undo);
-      
+
       if (result.score >= beta) return { score: beta };
       alpha = Math.max(alpha, result.score);
     }
@@ -1376,15 +1658,23 @@ export function quiesce(game, alpha, beta, maximizingFaction, currentFaction, qD
   } else {
     if (standPat <= alpha) return { score: alpha };
     beta = Math.min(beta, standPat);
-    
-    const attackActions = getAllActions(game, currentFaction)
-      .filter(a => a.type === 'attack' && a.rps !== 'disadvantage');
-    
+
+    const attackActions = getAllActions(game, currentFaction).filter(
+      (a) => a.type === "attack" && a.rps !== "disadvantage",
+    );
+
     for (const action of attackActions) {
       const undo = simulateMove(game, action.piece, action.target);
-      const result = quiesce(game, alpha, beta, maximizingFaction, game.currentFaction, qDepth + 1);
+      const result = quiesce(
+        game,
+        alpha,
+        beta,
+        maximizingFaction,
+        game.currentFaction,
+        qDepth + 1,
+      );
       undoMove(game, undo);
-      
+
       if (result.score <= alpha) return { score: alpha };
       beta = Math.min(beta, result.score);
     }
@@ -1397,8 +1687,8 @@ export function iterativeDeepening(game, faction) {
   searchDeadline = Date.now() + timeBudget;
   nodesSearched = 0;
   // Keep TT across moves - only age out old entries via ttNewSearch()
-  Object.keys(killerMoves).forEach(k => delete killerMoves[k]);
-  Object.keys(historyTable).forEach(k => delete historyTable[k]);
+  Object.keys(killerMoves).forEach((k) => delete killerMoves[k]);
+  Object.keys(historyTable).forEach((k) => delete historyTable[k]);
 
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
@@ -1413,25 +1703,61 @@ export function iterativeDeepening(game, faction) {
     if (Date.now() > searchDeadline - timeBudget * 0.2) break;
     let alpha, beta;
     if (depth <= 1) {
-      alpha = -Infinity; beta = Infinity;
+      alpha = -Infinity;
+      beta = Infinity;
     } else {
       const windowSize = 50;
       alpha = prevScore - windowSize;
       beta = prevScore + windowSize;
     }
-    
-    let result = minimax(game, depth, alpha, beta, faction, faction, searchDeadline);
-    
+
+    let result = minimax(
+      game,
+      depth,
+      alpha,
+      beta,
+      faction,
+      faction,
+      searchDeadline,
+    );
+
     if (!result.timeout && result.score <= alpha) {
-      result = minimax(game, depth, -Infinity, beta, faction, faction, searchDeadline);
+      result = minimax(
+        game,
+        depth,
+        -Infinity,
+        beta,
+        faction,
+        faction,
+        searchDeadline,
+      );
     } else if (!result.timeout && result.score >= beta) {
-      result = minimax(game, depth, alpha, Infinity, faction, faction, searchDeadline);
+      result = minimax(
+        game,
+        depth,
+        alpha,
+        Infinity,
+        faction,
+        faction,
+        searchDeadline,
+      );
     }
-    
-    if (!result.timeout && (result.score <= -Infinity + 1 || result.score >= Infinity - 1)) {
-      result = minimax(game, depth, -Infinity, Infinity, faction, faction, searchDeadline);
+
+    if (
+      !result.timeout &&
+      (result.score <= -Infinity + 1 || result.score >= Infinity - 1)
+    ) {
+      result = minimax(
+        game,
+        depth,
+        -Infinity,
+        Infinity,
+        faction,
+        faction,
+        searchDeadline,
+      );
     }
-    
+
     if (!result.timeout) {
       bestResult = result;
       prevScore = result.score;
@@ -1439,35 +1765,39 @@ export function iterativeDeepening(game, faction) {
       break;
     }
   }
-  
+
   return bestResult.action;
 }
 
 export function greedyBestMove(game, faction, actions) {
   let bestActions = [];
   let bestScore = -Infinity;
-  
+
   for (const action of actions) {
     let score = 0;
-    if (action.type === 'attack') {
-      const defender = game.pieces.find(p => p.alive && p.pos.equals(action.target));
+    if (action.type === "attack") {
+      const defender = game.pieces.find(
+        (p) => p.alive && p.pos.equals(action.target),
+      );
       if (!defender) continue;
-      if (action.rps === 'advantage' || action.rps === 'neutral') {
+      if (action.rps === "advantage" || action.rps === "neutral") {
         score = 100 + PIECE_STRENGTH[defender.type] * 10;
-        score += (10 - PIECE_STRENGTH[action.piece.type]);
-        if (defender.type === 'king') score += 500;
+        score += 10 - PIECE_STRENGTH[action.piece.type];
+        if (defender.type === "king") score += 500;
       } else {
         score = -1000;
       }
     } else {
-      const pv = getPSTValue({ type: 'pawn', pos: action.target });
+      const pv = getPSTValue({ type: "pawn", pos: action.target });
       const distFromCenter = Math.max(
-        Math.abs(action.piece.pos.q), Math.abs(action.piece.pos.r),
-        Math.abs(-action.piece.pos.q - action.piece.pos.r)
+        Math.abs(action.piece.pos.q),
+        Math.abs(action.piece.pos.r),
+        Math.abs(-action.piece.pos.q - action.piece.pos.r),
       );
       const distToCenter = Math.max(
-        Math.abs(action.target.q), Math.abs(action.target.r),
-        Math.abs(-action.target.q - action.target.r)
+        Math.abs(action.target.q),
+        Math.abs(action.target.r),
+        Math.abs(-action.target.q - action.target.r),
       );
       score = (distFromCenter - distToCenter) * 10 + pv * 2;
     }
@@ -1492,34 +1822,41 @@ export function calculateBestMove(game, faction) {
     buildOpeningBook(game.constructor);
     _bookBuilt = true;
   }
-  
+
   rebuildOccupiedMap(game);
-  
+
   const bookMove = pickBookMove(game);
   if (bookMove) {
     const actions = getAllActions(game, faction);
-    const isLegal = actions.some(a => 
-      a.piece.id === bookMove.piece.id && a.target.equals(bookMove.target)
+    const isLegal = actions.some(
+      (a) =>
+        a.piece.id === bookMove.piece.id && a.target.equals(bookMove.target),
     );
     if (isLegal) {
-      return { piece: bookMove.piece, target: bookMove.target, type: 'move', rps: 'neutral' };
+      return {
+        piece: bookMove.piece,
+        target: bookMove.target,
+        type: "move",
+        rps: "neutral",
+      };
     }
   }
-  
+
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
-  
-  const nonSuicide = actions.filter(a => !(a.type === 'attack' && a.rps === 'disadvantage'));
+
+  const nonSuicide = actions.filter(
+    (a) => !(a.type === "attack" && a.rps === "disadvantage"),
+  );
   const usableActions = nonSuicide.length > 0 ? nonSuicide : actions;
-  const pieceCount = game.pieces.filter(p => p.alive).length;
-  
+  const pieceCount = game.pieces.filter((p) => p.alive).length;
+
   if (pieceCount > 24 || usableActions.length > 40) {
     return greedyBestMove(game, faction, usableActions);
   }
-  
+
   return iterativeDeepening(game, faction);
 }
-
 
 export function getAIDepth() {
   return MAX_DEPTH;
@@ -1534,14 +1871,14 @@ export function getAIPersonalities() {
 
 export function deserializeGame(state) {
   const game = {
-    pieces: state.pieces.map(p => ({
+    pieces: state.pieces.map((p) => ({
       id: p.id,
       type: p.type,
       faction: p.faction,
       pos: new Hex(p.pos.q, p.pos.r),
       symbol: p.symbol,
       alive: p.alive,
-      hasMoved: p.hasMoved
+      hasMoved: p.hasMoved,
     })),
     currentFactionIdx: state.currentFactionIdx,
     currentFaction: state.currentFaction,
@@ -1553,7 +1890,7 @@ export function deserializeGame(state) {
     capturedPieces: state.capturedPieces,
     moveHistory: [],
     _positionHistory: new Map(),
-    _halfmoveClock: state._halfmoveClock || 0
+    _halfmoveClock: state._halfmoveClock || 0,
   };
   rebuildOccupiedMap(game);
   return game;
@@ -1626,7 +1963,7 @@ export function startPondering(game, opponentFaction) {
  */
 async function runPonderSearch() {
   const { game, opponentFaction, maximizingFaction, timeBudget } = ponderState;
-  
+
   if (!game || ponderState.aborted) return;
 
   const actions = getAllActions(game, opponentFaction);
@@ -1647,7 +1984,10 @@ async function runPonderSearch() {
   let prevScore = 0;
 
   for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
-    if (ponderState.aborted || Date.now() > ponderState.searchDeadline - timeBudget * 0.15) {
+    if (
+      ponderState.aborted ||
+      Date.now() > ponderState.searchDeadline - timeBudget * 0.15
+    ) {
       break;
     }
 
@@ -1667,9 +2007,17 @@ async function runPonderSearch() {
     // Search at this depth
     let result;
     try {
-      result = minimax(game, depth, alpha, beta, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+      result = minimax(
+        game,
+        depth,
+        alpha,
+        beta,
+        maximizingFaction,
+        opponentFaction,
+        ponderState.searchDeadline,
+      );
     } catch (e) {
-      if (e instanceof Error && e.message === 'ponder-aborted') {
+      if (e instanceof Error && e.message === "ponder-aborted") {
         break;
       }
       throw e;
@@ -1681,13 +2029,40 @@ async function runPonderSearch() {
 
     // Research if aspiration window failed
     if (result.score <= alpha) {
-      result = minimax(game, depth, -Infinity, beta, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+      result = minimax(
+        game,
+        depth,
+        -Infinity,
+        beta,
+        maximizingFaction,
+        opponentFaction,
+        ponderState.searchDeadline,
+      );
     } else if (result.score >= beta) {
-      result = minimax(game, depth, alpha, Infinity, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+      result = minimax(
+        game,
+        depth,
+        alpha,
+        Infinity,
+        maximizingFaction,
+        opponentFaction,
+        ponderState.searchDeadline,
+      );
     }
 
-    if (!result.timeout && (result.score <= -Infinity + 1 || result.score >= Infinity - 1)) {
-      result = minimax(game, depth, -Infinity, Infinity, maximizingFaction, opponentFaction, ponderState.searchDeadline);
+    if (
+      !result.timeout &&
+      (result.score <= -Infinity + 1 || result.score >= Infinity - 1)
+    ) {
+      result = minimax(
+        game,
+        depth,
+        -Infinity,
+        Infinity,
+        maximizingFaction,
+        opponentFaction,
+        ponderState.searchDeadline,
+      );
     }
 
     if (!result.timeout && result.action) {
@@ -1696,7 +2071,7 @@ async function runPonderSearch() {
       prevScore = result.score;
 
       // Progress callback for UI (optional)
-      if (typeof reportPonderProgress === 'function') {
+      if (typeof reportPonderProgress === "function") {
         reportPonderProgress(depth, result.score, ponderState.nodesSearched);
       }
     } else if (result.timeout) {
@@ -1707,7 +2082,7 @@ async function runPonderSearch() {
     ttNewSearch();
 
     // Yield control back to event loop to allow stopPondering to be called
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
   }
 
   // Pondering complete (either finished depths or time ran out / aborted)
@@ -1728,10 +2103,10 @@ export async function stopPondering() {
   ponderState.active = false;
 
   // Small delay to allow search loop to exit gracefully
-  await new Promise(resolve => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 
   const move = ponderState.bestMove;
-  
+
   // Clear state
   ponderState.game = null;
   ponderState.opponentFaction = null;

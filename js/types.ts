@@ -5,7 +5,7 @@
 
 // ─── Hex Coordinates ────────────────────────────────────────────────
 
-import { Hex as HexClass } from './hex.ts';
+import { Hex as HexClass } from "./hex.ts";
 
 export interface Hex {
   readonly q: number;
@@ -30,48 +30,100 @@ export function createHex(q: number, r: number): Hex {
 
 // ─── Factions & RPS ────────────────────────────────────────────────
 
-export type Faction = 'fire' | 'water' | 'nature';
+export type Faction = "fire" | "water" | "nature";
 
-export const FACTIONS: Faction[] = ['fire', 'water', 'nature'];
+export const FACTIONS: Faction[] = ["fire", "water", "nature"];
 
-export const FACTION_COLORS: Record<Faction, {
-  primary: string;
-  secondary: string;
-  glow: string;
-  name: string;
-}> = {
-  fire:   { primary: '#FF4500', secondary: '#FF6B35', glow: '#FF6B3566', name: 'Feuer 🔥' },
-  water:  { primary: '#0099FF', secondary: '#00BFFF', glow: '#00BFFF66', name: 'Wasser 🌊' },
-  nature: { primary: '#22CC44', secondary: '#32CD32', glow: '#32CD3266', name: 'Natur 🌿' },
+export const FACTION_COLORS: Record<
+  Faction,
+  {
+    primary: string;
+    secondary: string;
+    glow: string;
+    name: string;
+  }
+> = {
+  fire: {
+    primary: "#FF4500",
+    secondary: "#FF6B35",
+    glow: "#FF6B3566",
+    name: "Feuer 🔥",
+  },
+  water: {
+    primary: "#0099FF",
+    secondary: "#00BFFF",
+    glow: "#00BFFF66",
+    name: "Wasser 🌊",
+  },
+  nature: {
+    primary: "#22CC44",
+    secondary: "#32CD32",
+    glow: "#32CD3266",
+    name: "Natur 🌿",
+  },
 };
 
-export type RPSResult = 'advantage' | 'neutral' | 'disadvantage';
+export type RPSResult = "advantage" | "neutral" | "disadvantage";
 
 export const RPS: Record<Faction, Faction> = {
-  fire: 'nature',
-  nature: 'water',
-  water: 'fire',
+  fire: "nature",
+  nature: "water",
+  water: "fire",
 };
 
 export function getRPSResult(attacker: Faction, defender: Faction): RPSResult {
-  if (attacker === defender) return 'neutral';
-  return RPS[attacker] === defender ? 'advantage' : 'disadvantage';
+  if (attacker === defender) return "neutral";
+  return RPS[attacker] === defender ? "advantage" : "disadvantage";
 }
 
 // ─── Piece Types ──────────────────────────────────────────────────
 
-export type PieceType = 'king' | 'queen' | 'rook' | 'bishop' | 'knight' | 'pawn';
+export type PieceType =
+  | "king"
+  | "queen"
+  | "rook"
+  | "bishop"
+  | "knight"
+  | "pawn";
 
-export const PIECE_TYPES: PieceType[] = ['king', 'queen', 'rook', 'bishop', 'knight', 'pawn'];
+export const PIECE_TYPES: PieceType[] = [
+  "king",
+  "queen",
+  "rook",
+  "bishop",
+  "knight",
+  "pawn",
+];
 
 // PIECE_STRENGTH is defined in pieces.ts with game-specific values
 // Type alias provided for other modules
 export type PIECE_STRENGTH = Record<PieceType, number>;
 
 export const PIECE_SYMBOLS: Record<Faction, Record<PieceType, string>> = {
-  fire:   { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' },
-  water:  { king: '♔', queen: '♕', rook: '♖', bishop: '♗', knight: '♘', pawn: '♙' },
-  nature: { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' },
+  fire: {
+    king: "♚",
+    queen: "♛",
+    rook: "♜",
+    bishop: "♝",
+    knight: "♞",
+    pawn: "♟",
+  },
+  water: {
+    king: "♔",
+    queen: "♕",
+    rook: "♖",
+    bishop: "♗",
+    knight: "♘",
+    pawn: "♙",
+  },
+  nature: {
+    king: "♚",
+    queen: "♛",
+    rook: "♜",
+    bishop: "♝",
+    knight: "♞",
+    pawn: "♟",
+  },
 };
 
 export interface Piece {
@@ -100,59 +152,59 @@ export type PAWN_ATTACK_MAP = Record<Faction, readonly Hex[]>;
 
 // ─── Game State ───────────────────────────────────────────────────
 
-export type GameState = 
-  | 'select_piece' 
-  | 'select_target' 
-  | 'game_over' 
-  | 'combat' 
-  | 'promotion'
-  | 'draw_repetition'
-  | 'draw_50move';
+export type GameState =
+  | "select_piece"
+  | "select_target"
+  | "game_over"
+  | "combat"
+  | "promotion"
+  | "draw_repetition"
+  | "draw_50move";
 
 export const GAME_STATE = {
-  SELECT_PIECE: 'select_piece' as GameState,
-  SELECT_TARGET: 'select_target' as GameState,
-  GAME_OVER: 'game_over' as GameState,
-  COMBAT: 'combat' as GameState,
-  PROMOTION: 'promotion' as GameState,
-  DRAW_REPETITION: 'draw_repetition' as GameState,
-  DRAW_50MOVE: 'draw_50move' as GameState,
+  SELECT_PIECE: "select_piece" as GameState,
+  SELECT_TARGET: "select_target" as GameState,
+  GAME_OVER: "game_over" as GameState,
+  COMBAT: "combat" as GameState,
+  PROMOTION: "promotion" as GameState,
+  DRAW_REPETITION: "draw_repetition" as GameState,
+  DRAW_50MOVE: "draw_50move" as GameState,
 };
 
 export interface Cell {
   hex: Hex;
-  zone: 'triangle' | 'start_fire' | 'start_water' | 'start_nature';
+  zone: "triangle" | "start_fire" | "start_water" | "start_nature";
   faction: Faction | null;
 }
 
 export interface Zone {
-  TRIANGLE: 'triangle';
-  START_FIRE: 'start_fire';
-  START_WATER: 'start_water';
-  START_NATURE: 'start_nature';
+  TRIANGLE: "triangle";
+  START_FIRE: "start_fire";
+  START_WATER: "start_water";
+  START_NATURE: "start_nature";
 }
 
 export const ZONE: Zone = {
-  TRIANGLE: 'triangle',
-  START_FIRE: 'start_fire',
-  START_WATER: 'start_water',
-  START_NATURE: 'start_nature',
+  TRIANGLE: "triangle",
+  START_FIRE: "start_fire",
+  START_WATER: "start_water",
+  START_NATURE: "start_nature",
 };
 
 export interface TurnOrder {
-  FIRE: 'fire';
-  WATER: 'water';
-  NATURE: 'nature';
+  FIRE: "fire";
+  WATER: "water";
+  NATURE: "nature";
 }
 
 export const TURN_ORDER: TurnOrder = {
-  FIRE: 'fire',
-  WATER: 'water',
-  NATURE: 'nature',
+  FIRE: "fire",
+  WATER: "water",
+  NATURE: "nature",
 };
 
 export interface GameResult {
-  action: 'move' | 'combat' | 'promotion' | 'select' | 'deselect';
+  action: "move" | "combat" | "promotion" | "select" | "deselect";
   piece?: Piece;
   from?: Hex | string;
   to?: Hex | string;
@@ -242,7 +294,7 @@ export interface IGame {
   onCombat: ((result: GameResult) => void) | null;
   onGameOver: ((winner: Faction | null) => void) | null;
   onElimination: ((faction: Faction) => void) | null;
-  onDraw: ((type: 'repetition' | '50move') => void) | null;
+  onDraw: ((type: "repetition" | "50move") => void) | null;
   onPromotion: ((piece: Piece) => void) | null;
   boardCells: Map<string, Cell> | null;
   rpsEnabled: boolean;
@@ -282,7 +334,11 @@ export type Game = IGame;
 
 // ─── AI Types ─────────────────────────────────────────────────────
 
-export type AIPersonality = 'balanced' | 'aggressive' | 'defensive' | 'tactical';
+export type AIPersonality =
+  | "balanced"
+  | "aggressive"
+  | "defensive"
+  | "tactical";
 
 export interface PersonalityWeights {
   material: number;
@@ -303,8 +359,8 @@ export interface PersonalityConfig {
 
 export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
   balanced: {
-    name: 'Ausgewogen',
-    description: 'Standard-Spielweise, ausgewogene Bewertung',
+    name: "Ausgewogen",
+    description: "Standard-Spielweise, ausgewogene Bewertung",
     weights: {
       material: 1.0,
       positional: 1.0,
@@ -317,8 +373,9 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
     aggression: 0.0,
   },
   aggressive: {
-    name: 'Aggressiv',
-    description: 'Angreifend, sucht taktische Komplikationen, opfert Material für Initiative',
+    name: "Aggressiv",
+    description:
+      "Angreifend, sucht taktische Komplikationen, opfert Material für Initiative",
     weights: {
       material: 0.8,
       positional: 1.3,
@@ -331,8 +388,8 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
     aggression: 0.3,
   },
   defensive: {
-    name: 'Defensiv',
-    description: 'Solid, minimiert Risiken, wartet auf Fehler des Gegners',
+    name: "Defensiv",
+    description: "Solid, minimiert Risiken, wartet auf Fehler des Gegners",
     weights: {
       material: 1.2,
       positional: 0.8,
@@ -345,8 +402,8 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
     aggression: -0.3,
   },
   tactical: {
-    name: 'Taktisch',
-    description: 'Fokus auf Taktik, Opfersuchend, scharfes Spiel',
+    name: "Taktisch",
+    description: "Fokus auf Taktik, Opfersuchend, scharfes Spiel",
     weights: {
       material: 0.7,
       positional: 1.4,
@@ -363,7 +420,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
 export interface AIAction {
   piece: Piece;
   target: Hex;
-  type: 'move' | 'attack';
+  type: "move" | "attack";
   rps?: RPSResult;
 }
 
@@ -377,7 +434,7 @@ export interface TranspositionEntry {
   depth: number;
   score: number;
   action: AIAction | null;
-  flag: 'exact' | 'lower' | 'upper';
+  flag: "exact" | "lower" | "upper";
 }
 
 // ─── Opening Book ─────────────────────────────────────────────────
@@ -418,7 +475,7 @@ export interface TSPNMove {
   pieceType: PieceType;
   from: [number, number];
   to: [number, number];
-  action: 'move' | 'combat' | 'promotion';
+  action: "move" | "combat" | "promotion";
   rpsResult?: RPSResult;
   promotionTo?: PieceType;
 }
@@ -481,7 +538,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
   aiDepth: 3,
   boardRotation: 0,
   autoBattle: false,
-  aiPersonality: 'balanced',
+  aiPersonality: "balanced",
 };
 
 // ─── Utility Types ────────────────────────────────────────────────

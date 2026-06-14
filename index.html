@@ -1,175 +1,216 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TriSchach – 3-Fraktionen Schach mit Schere-Stein-Papier</title>
-  <meta name="description" content="TriSchach: Ein strategisches Schachspiel für 3 Spieler auf einem Dreieck-Hexfeld mit Schere-Stein-Papier Kampfmechanik.">
-  <meta name="theme-color" content="#FF4500">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="TriSchach">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-  <div id="app">
-    <header id="header">
-      <h1>⚔️ TriSchach</h1>
-      <p class="subtitle">3 Fraktionen · Schere-Stein-Papier · Hexagon-Schach</p>
-    </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TriSchach – 3-Fraktionen Schach mit Schere-Stein-Papier</title>
+    <meta
+      name="description"
+      content="TriSchach: Ein strategisches Schachspiel für 3 Spieler auf einem Dreieck-Hexfeld mit Schere-Stein-Papier Kampfmechanik."
+    />
+    <meta name="theme-color" content="#FF4500" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="TriSchach" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="header">
+        <h1>⚔️ TriSchach</h1>
+        <p class="subtitle">
+          3 Fraktionen · Schere-Stein-Papier · Hexagon-Schach
+        </p>
+      </header>
 
-    <main id="main">
-      <aside id="sidebar-left" class="sidebar">
-        <div id="panel-nature" class="faction-panel nature">
-          <div class="faction-header">
-            <h2>🌿 Natur</h2>
-            <div class="rps-hint">schlägt 🌊</div>
+      <main id="main">
+        <aside id="sidebar-left" class="sidebar">
+          <div id="panel-nature" class="faction-panel nature">
+            <div class="faction-header">
+              <h2>🌿 Natur</h2>
+              <div class="rps-hint">schlägt 🌊</div>
+            </div>
+            <div id="captures-nature" class="captured-pieces"></div>
           </div>
-          <div id="captures-nature" class="captured-pieces"></div>
-        </div>
-        <div id="rps-info" class="rps-diagram">
-          <div class="rps-cycle">
-            <span class="rps-item fire">🔥</span>
-            <span class="rps-arrow">→</span>
-            <span class="rps-item nature">🌿</span>
-            <span class="rps-arrow">→</span>
-            <span class="rps-item water">🌊</span>
-            <span class="rps-arrow">→</span>
-            <span class="rps-item fire">🔥</span>
+          <div id="rps-info" class="rps-diagram">
+            <div class="rps-cycle">
+              <span class="rps-item fire">🔥</span>
+              <span class="rps-arrow">→</span>
+              <span class="rps-item nature">🌿</span>
+              <span class="rps-arrow">→</span>
+              <span class="rps-item water">🌊</span>
+              <span class="rps-arrow">→</span>
+              <span class="rps-item fire">🔥</span>
+            </div>
           </div>
-        </div>
-      </aside>
+        </aside>
 
-      <section id="board-container">
-        <div id="turn-bar">
-          <span>Am Zug: </span>
-          <span id="turn-indicator">Feuer 🔥</span>
-          <span> · </span>
-          <span id="status">Wähle eine Figur</span>
-        </div>
-        <div id="eval-bar-container">
-          <div id="eval-bar">
-            <div id="eval-fire" class="eval-segment fire"></div>
-            <div id="eval-nature" class="eval-segment nature"></div>
-            <div id="eval-water" class="eval-segment water"></div>
+        <section id="board-container">
+          <div id="turn-bar">
+            <span>Am Zug: </span>
+            <span id="turn-indicator">Feuer 🔥</span>
+            <span> · </span>
+            <span id="status">Wähle eine Figur</span>
           </div>
-          <div id="eval-labels">
-            <span class="eval-label fire">🔥</span>
-            <span class="eval-label nature">🌿</span>
-            <span class="eval-label water">🌊</span>
+          <div id="eval-bar-container">
+            <div id="eval-bar">
+              <div id="eval-fire" class="eval-segment fire"></div>
+              <div id="eval-nature" class="eval-segment nature"></div>
+              <div id="eval-water" class="eval-segment water"></div>
+            </div>
+            <div id="eval-labels">
+              <span class="eval-label fire">🔥</span>
+              <span class="eval-label nature">🌿</span>
+              <span class="eval-label water">🌊</span>
+            </div>
           </div>
-        </div>
-        <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-        <div class="controls">
-          <div class="rps-toggle-container">
-            <span class="toggle-label">RPS</span>
-            <label class="switch">
-              <input type="checkbox" id="rps-toggle" checked>
-              <span class="slider round"></span>
-            </label>
+          <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="controls">
+            <div class="rps-toggle-container">
+              <span class="toggle-label">RPS</span>
+              <label class="switch">
+                <input type="checkbox" id="rps-toggle" checked />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="rps-toggle-container">
+              <span class="toggle-label">Sound</span>
+              <label class="switch">
+                <input type="checkbox" id="sound-toggle" checked />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="rps-toggle-container">
+              <span class="toggle-label" id="depth-label">KI: Mittel</span>
+              <input
+                type="range"
+                id="depth-slider"
+                min="1"
+                max="4"
+                value="3"
+                style="width: 80px"
+              />
+            </div>
+            <div class="rps-toggle-container">
+              <span class="toggle-label">KI-Modus</span>
+              <select
+                id="personality-select"
+                style="width: 110px; padding: 4px"
+              >
+                <option value="balanced">⚖️ Ausgewogen</option>
+                <option value="aggressive">⚔️ Aggressiv</option>
+                <option value="defensive">🛡️ Defensiv</option>
+                <option value="tactical">🎯 Taktisch</option>
+              </select>
+            </div>
+            <button id="rotate-btn">🔃 Board drehen</button>
+            <button id="restart-btn">🔄 Neues Spiel</button>
+            <button id="auto-battle-btn">🤖 Auto Battle</button>
+            <button id="undo-btn">↩ Undo</button>
+            <button id="save-btn" title="Spiel als .tspn speichern">
+              💾 Speichern
+            </button>
+            <button id="load-btn" title="Spiel aus .tspn laden">
+              📂 Laden
+            </button>
+            <button id="copy-btn" title="Spiel in Zwischenablage kopieren">
+              📋 Kopieren
+            </button>
           </div>
-          <div class="rps-toggle-container">
-            <span class="toggle-label">Sound</span>
-            <label class="switch">
-              <input type="checkbox" id="sound-toggle" checked>
-              <span class="slider round"></span>
-            </label>
+          <div
+            id="replay-controls"
+            class="controls replay-controls"
+            style="display: none; margin-top: 0.5rem"
+          >
+            <div class="rps-toggle-container replay-btn-group">
+              <button id="replay-first" title="Zum Anfang">⏮</button>
+              <button id="replay-prev" title="Zurück">⏪</button>
+              <button id="replay-play" title="Abspielen">▶️</button>
+              <button id="replay-pause" title="Pause" style="display: none">
+                ⏸️
+              </button>
+              <button id="replay-next" title="Vorwärts">⏩</button>
+              <button id="replay-last" title="Zum Ende">⏭</button>
+            </div>
+            <div class="rps-toggle-container replay-info">
+              <span id="replay-move-info">Zug 0 / 0</span>
+              <input
+                type="range"
+                id="replay-speed"
+                min="0.5"
+                max="3"
+                step="0.25"
+                value="1"
+                style="width: 80px"
+              />
+            </div>
           </div>
-          <div class="rps-toggle-container">
-            <span class="toggle-label" id="depth-label">KI: Mittel</span>
-            <input type="range" id="depth-slider" min="1" max="4" value="3" style="width:80px">
-          </div>
-          <div class="rps-toggle-container">
-            <span class="toggle-label">KI-Modus</span>
-            <select id="personality-select" style="width:110px; padding:4px;">
-              <option value="balanced">⚖️ Ausgewogen</option>
-              <option value="aggressive">⚔️ Aggressiv</option>
-              <option value="defensive">🛡️ Defensiv</option>
-              <option value="tactical">🎯 Taktisch</option>
-            </select>
-          </div>
-          <button id="rotate-btn">🔃 Board drehen</button>
-          <button id="restart-btn">🔄 Neues Spiel</button>
-          <button id="auto-battle-btn">🤖 Auto Battle</button>
-          <button id="undo-btn">↩ Undo</button>
-          <button id="save-btn" title="Spiel als .tspn speichern">💾 Speichern</button>
-          <button id="load-btn" title="Spiel aus .tspn laden">📂 Laden</button>
-          <button id="copy-btn" title="Spiel in Zwischenablage kopieren">📋 Kopieren</button>
-        </div>
-        <div id="replay-controls" class="controls replay-controls" style="display:none; margin-top: 0.5rem;">
-          <div class="rps-toggle-container replay-btn-group">
-            <button id="replay-first" title="Zum Anfang">⏮</button>
-            <button id="replay-prev" title="Zurück">⏪</button>
-            <button id="replay-play" title="Abspielen">▶️</button>
-            <button id="replay-pause" title="Pause" style="display:none">⏸️</button>
-            <button id="replay-next" title="Vorwärts">⏩</button>
-            <button id="replay-last" title="Zum Ende">⏭</button>
-          </div>
-          <div class="rps-toggle-container replay-info">
-            <span id="replay-move-info">Zug 0 / 0</span>
-            <input type="range" id="replay-speed" min="0.5" max="3" step="0.25" value="1" style="width:80px">
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <aside id="sidebar-right" class="sidebar">
-        <div id="panel-water" class="faction-panel water">
-          <div class="faction-header">
-            <h2>🌊 Wasser</h2>
-            <div class="rps-hint">schlägt 🔥</div>
+        <aside id="sidebar-right" class="sidebar">
+          <div id="panel-water" class="faction-panel water">
+            <div class="faction-header">
+              <h2>🌊 Wasser</h2>
+              <div class="rps-hint">schlägt 🔥</div>
+            </div>
+            <div id="captures-water" class="captured-pieces"></div>
           </div>
-          <div id="captures-water" class="captured-pieces"></div>
-        </div>
-        <div id="panel-fire" class="faction-panel fire">
-          <div class="faction-header">
-            <h2>🔥 Feuer</h2>
-            <div class="rps-hint">schlägt 🌿</div>
+          <div id="panel-fire" class="faction-panel fire">
+            <div class="faction-header">
+              <h2>🔥 Feuer</h2>
+              <div class="rps-hint">schlägt 🌿</div>
+            </div>
+            <div id="captures-fire" class="captured-pieces"></div>
           </div>
-          <div id="captures-fire" class="captured-pieces"></div>
-        </div>
 
-        <div id="move-history-container" class="history-panel">
-          <h3>📜 Verlauf</h3>
-          <div id="move-log"></div>
-        </div>
-      </aside>
-    </main>
+          <div id="move-history-container" class="history-panel">
+            <h3>📜 Verlauf</h3>
+            <div id="move-log"></div>
+          </div>
+        </aside>
+      </main>
 
-    <div id="combat-overlay"></div>
-    <div id="promotion-overlay"></div>
-  </div>
+      <div id="combat-overlay"></div>
+      <div id="promotion-overlay"></div>
+    </div>
 
-  <script type="module" src="main.js"></script>
-  <script>
-    // Register Service Worker for PWA offline support
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(registration => {
-            console.log('[PWA] Service Worker registered:', registration.scope);
-            
-            // Check for updates periodically
-            setInterval(() => {
-              registration.update();
-            }, 60 * 60 * 1000); // Every hour
-          })
-          .catch(error => {
-            console.warn('[PWA] Service Worker registration failed:', error);
-          });
-      });
-      
-      // Handle install prompt
-      let deferredPrompt;
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        // Could show custom install button here
-        console.log('[PWA] Install prompt available');
-      });
+    <script type="module" src="main.js"></script>
+    <script>
+      // Register Service Worker for PWA offline support
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(registration => {
+              console.log('[PWA] Service Worker registered:', registration.scope);
+
+              // Check for updates periodically
+              setInterval(() => {
+                registration.update();
+              }, 60 * 60 * 1000); // Every hour
+            })
+            .catch(error => {
+              console.warn('[PWA] Service Worker registration failed:', error);
+            });
+        });
+
+        // Handle install prompt
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          deferredPrompt = e;
+          // Could show custom install button here
+          console.log('[PWA] Install prompt available');
+        });
     </script>
   </body>
 </html>

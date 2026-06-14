@@ -6,11 +6,7 @@
     "generatorVersion": "1.0.0",
     "game": "TriSchach",
     "boardSize": "Hexagonal 9x9",
-    "factions": [
-      "fire",
-      "water",
-      "nature"
-    ],
+    "factions": ["fire", "water", "nature"],
     "maxPly": 8,
     "description": "Opening book for TriSchach - 3-player hexagonal chess with RPS mechanics",
     "compiled": "2026-06-14T16:24:28.897Z",

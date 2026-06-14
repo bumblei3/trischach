@@ -1,10 +1,10 @@
-import { expect, test, describe, beforeEach } from 'vitest';
-import { Game, GAME_STATE } from '../js/game.js';
-import { FACTION, generateBoard } from '../js/board.js';
-import { Piece, PIECE_TYPE } from '../js/pieces.js';
-import { Hex } from '../js/hex.js';
+import { expect, test, describe, beforeEach } from "vitest";
+import { Game, GAME_STATE } from "../js/game.js";
+import { FACTION, generateBoard } from "../js/board.js";
+import { Piece, PIECE_TYPE } from "../js/pieces.js";
+import { Hex } from "../js/hex.js";
 
-describe('Game logic', () => {
+describe("Game logic", () => {
   let game;
   let boardCells;
 
@@ -14,7 +14,7 @@ describe('Game logic', () => {
     game.init(boardCells);
   });
 
-  test('initializes correctly', () => {
+  test("initializes correctly", () => {
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
     expect(game.currentFaction).toBe(FACTION.FIRE);
     expect(game.getAlivePieces().length).toBeGreaterThan(0);
@@ -22,30 +22,32 @@ describe('Game logic', () => {
     expect(game.currentFactionName).toBeDefined();
   });
 
-  test('executes a normal move correctly', () => {
+  test("executes a normal move correctly", () => {
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [firePawn];
     game._rebuildOccupiedMap();
     const target = new Hex(0, 4);
     game.handleCellClick(firePawn.pos);
     const result = game.handleCellClick(target);
-    expect(result.action).toBe('move');
+    expect(result.action).toBe("move");
     expect(firePawn.pos.equals(target)).toBe(true);
     expect(firePawn.hasMoved).toBe(true);
   });
 
-  test('reselects another own piece correctly', () => {
-    const firePieces = game.getAlivePieces().filter(p => p.faction === FACTION.FIRE);
+  test("reselects another own piece correctly", () => {
+    const firePieces = game
+      .getAlivePieces()
+      .filter((p) => p.faction === FACTION.FIRE);
     const p1 = firePieces[0];
     const p2 = firePieces[1];
     game.handleCellClick(p1.pos);
     expect(game.selectedPiece).toBe(p1);
     const result = game.handleCellClick(p2.pos);
-    expect(result.action).toBe('select');
+    expect(result.action).toBe("select");
     expect(game.selectedPiece).toBe(p2);
   });
 
-  test('init fails with invalid data', () => {
+  test("init fails with invalid data", () => {
     const brokenGame = new Game();
     const originalError = console.error;
     console.error = () => {};
@@ -53,97 +55,119 @@ describe('Game logic', () => {
     console.error = originalError;
   });
 
-  test('clicking invalid cell in SELECT_TARGET state aborts move', () => {
-    const firePawn = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN);
+  test("clicking invalid cell in SELECT_TARGET state aborts move", () => {
+    const firePawn = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN);
     firePawn.pos = new Hex(0, 0);
     game.handleCellClick(firePawn.pos);
     const result = game.handleCellClick(new Hex(0, 5));
-    expect(result.action).toBe('deselect');
+    expect(result.action).toBe("deselect");
   });
 
-  test('select piece changes state', () => {
-    const firePiece = game.getAlivePieces().find(p => p.faction === FACTION.FIRE);
+  test("select piece changes state", () => {
+    const firePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE);
     const result = game.handleCellClick(firePiece.pos);
-    expect(result.action).toBe('select');
+    expect(result.action).toBe("select");
     expect(game.state).toBe(GAME_STATE.SELECT_TARGET);
     expect(game.selectedPiece).toBe(firePiece);
   });
 
-  test('cannot select opponent piece directly', () => {
-    const waterPiece = game.getAlivePieces().find(p => p.faction === FACTION.WATER);
+  test("cannot select opponent piece directly", () => {
+    const waterPiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.WATER);
     const result = game.handleCellClick(waterPiece.pos);
-    expect(result.action).toBe('deselect');
+    expect(result.action).toBe("deselect");
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
   });
 
-  test('getPieceAt returns null for empty hex', () => {
+  test("getPieceAt returns null for empty hex", () => {
     expect(game.getPieceAt(new Hex(0, 0))).toBeNull();
   });
 
-  test('returns deselect when selecting enemy piece directly', () => {
-    const waterPiece = game.getAlivePieces().find(p => p.faction === FACTION.WATER);
+  test("returns deselect when selecting enemy piece directly", () => {
+    const waterPiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.WATER);
     const result = game.handleCellClick(waterPiece.pos);
-    expect(result.action).toBe('deselect');
+    expect(result.action).toBe("deselect");
   });
 
-  test('deselecting piece returns to select state', () => {
-    const firePiece = game.getAlivePieces().find(p => p.faction === FACTION.FIRE);
+  test("deselecting piece returns to select state", () => {
+    const firePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE);
     game.handleCellClick(firePiece.pos);
     const emptyHex = new Hex(0, 0);
     const result = game.handleCellClick(emptyHex);
-    if (result.action === 'deselect') {
+    if (result.action === "deselect") {
       expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
       expect(game.selectedPiece).toBeNull();
     }
   });
 
-  test('RPS combat resolution: Fire vs Nature', () => {
+  test("RPS combat resolution: Fire vs Nature", () => {
     game.rpsEnabled = true;
-    const firePiece = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
-    const naturePiece = game.getAlivePieces().find(p => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.QUEEN);
+    const firePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
+    const naturePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.QUEEN);
     firePiece.pos = new Hex(0, 0);
     naturePiece.pos = new Hex(0, 1);
     game._rebuildOccupiedMap();
     game.handleCellClick(firePiece.pos);
     const result = game.handleCellClick(naturePiece.pos);
-    expect(result.action).toBe('combat');
-    expect(result.rpsResult).toBe('advantage');
+    expect(result.action).toBe("combat");
+    expect(result.rpsResult).toBe("advantage");
     expect(naturePiece.alive).toBe(false);
     expect(firePiece.alive).toBe(true);
   });
 
-  test('RPS combat resolution: Fire vs Water', () => {
+  test("RPS combat resolution: Fire vs Water", () => {
     game.rpsEnabled = true;
-    const firePiece = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
-    const waterPiece = game.getAlivePieces().find(p => p.faction === FACTION.WATER && p.type === PIECE_TYPE.QUEEN);
+    const firePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
+    const waterPiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.QUEEN);
     firePiece.pos = new Hex(0, 0);
     waterPiece.pos = new Hex(1, 0);
     game._rebuildOccupiedMap();
     game.handleCellClick(firePiece.pos);
     const result = game.handleCellClick(waterPiece.pos);
-    if (result.action === 'deselect') return;
-    expect(result.action).toBe('combat');
-    expect(result.rpsResult).toBe('disadvantage');
+    if (result.action === "deselect") return;
+    expect(result.action).toBe("combat");
+    expect(result.rpsResult).toBe("disadvantage");
     expect(waterPiece.alive).toBe(true);
     expect(firePiece.alive).toBe(false);
   });
 
-  test('RPS combat resolution: Attacker dies (Disadvantage)', () => {
+  test("RPS combat resolution: Attacker dies (Disadvantage)", () => {
     game.rpsEnabled = true;
-    const firePawn = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN);
-    const waterQueen = game.getAlivePieces().find(p => p.faction === FACTION.WATER && p.type === PIECE_TYPE.QUEEN);
+    const firePawn = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN);
+    const waterQueen = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.QUEEN);
     firePawn.pos = new Hex(0, 2);
     waterQueen.pos = new Hex(1, 1);
     game._rebuildOccupiedMap();
     game.handleCellClick(firePawn.pos);
     const result = game.handleCellClick(waterQueen.pos);
-    expect(result.action).toBe('combat');
-    expect(result.rpsResult).toBe('disadvantage');
+    expect(result.action).toBe("combat");
+    expect(result.rpsResult).toBe("disadvantage");
     expect(firePawn.alive).toBe(false);
     expect(waterQueen.alive).toBe(true);
   });
 
-  test('nextTurn skips eliminated factions', () => {
+  test("nextTurn skips eliminated factions", () => {
     game.eliminatedFactions.add(FACTION.WATER);
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [firePawn];
@@ -153,35 +177,48 @@ describe('Game logic', () => {
     expect(game.currentFaction).toBe(FACTION.NATURE);
   });
 
-  test('handleCellClick returns null in invalid state or game over', () => {
+  test("handleCellClick returns null in invalid state or game over", () => {
     game.state = GAME_STATE.GAME_OVER;
     expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
-    game.state = 'invalid_state';
+    game.state = "invalid_state";
     expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
   });
 
-  test('king elimination eliminates faction', () => {
+  test("king elimination eliminates faction", () => {
     game.rpsEnabled = true;
-    const fireQueen = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
-    const natureKing = game.getAlivePieces().find(p => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING);
+    const fireQueen = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
+    const natureKing = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING);
     fireQueen.pos = new Hex(0, 0);
     natureKing.pos = new Hex(0, 1);
     game._rebuildOccupiedMap();
     game.handleCellClick(fireQueen.pos);
     const result = game.handleCellClick(natureKing.pos);
-    expect(result.action).toBe('combat');
+    expect(result.action).toBe("combat");
     expect(natureKing.alive).toBe(false);
     expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
   });
 
-  test('triggers callbacks and ends game when only one faction remains', () => {
-    let gameOverWinner = null, eliminatedFaction = null;
-    game.onGameOver = (w) => { gameOverWinner = w; };
-    game.onElimination = (f) => { eliminatedFaction = f; };
+  test("triggers callbacks and ends game when only one faction remains", () => {
+    let gameOverWinner = null,
+      eliminatedFaction = null;
+    game.onGameOver = (w) => {
+      gameOverWinner = w;
+    };
+    game.onElimination = (f) => {
+      eliminatedFaction = f;
+    };
     game.rpsEnabled = false;
     game.eliminatedFactions.add(FACTION.NATURE);
-    const fireQueen = game.getAlivePieces().find(p => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
-    const waterKing = game.getAlivePieces().find(p => p.faction === FACTION.WATER && p.type === PIECE_TYPE.KING);
+    const fireQueen = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
+    const waterKing = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.KING);
     fireQueen.pos = new Hex(0, 0);
     waterKing.pos = new Hex(0, 1);
     game._rebuildOccupiedMap();
@@ -192,11 +229,15 @@ describe('Game logic', () => {
     expect(result.winner_faction).toBe(FACTION.FIRE);
   });
 
-  test('winner_faction is null if all factions eliminated', () => {
+  test("winner_faction is null if all factions eliminated", () => {
     game.eliminatedFactions.add(FACTION.FIRE);
     game.eliminatedFactions.add(FACTION.WATER);
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
-    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(1, 1));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(1, 1),
+    );
     game.pieces = [firePawn, natureKing];
     game._rebuildOccupiedMap();
     game.handleCellClick(firePawn.pos);
@@ -205,28 +246,32 @@ describe('Game logic', () => {
     expect(result.winner_faction).toBeNull();
   });
 
-  test('onUpdate is safely skipped if not set', () => {
+  test("onUpdate is safely skipped if not set", () => {
     game.onUpdate = null;
     const piece = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [piece];
     game._rebuildOccupiedMap();
     game.handleCellClick(piece.pos);
     const result = game.handleCellClick(new Hex(0, 4));
-    expect(result.action).toBe('move');
+    expect(result.action).toBe("move");
   });
 });
 
 // ─── Draw Rules Tests (each test creates its own fresh Game) ───
 
-describe('Draw Rules: _positionHash includes current player', () => {
-  test('hash differs for same position with different player to move', () => {
+describe("Draw Rules: _positionHash includes current player", () => {
+  test("hash differs for same position with different player to move", () => {
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
     g.eliminatedFactions.clear();
     g.eliminatedFactions.add(FACTION.WATER);
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5));
-    const natureQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2));
+    const natureQueen = new Piece(
+      PIECE_TYPE.QUEEN,
+      FACTION.NATURE,
+      new Hex(-1, 2),
+    );
     g.pieces = [fireQueen, natureQueen];
     g._rebuildOccupiedMap();
     g.eliminatedFactions.clear();
@@ -237,7 +282,7 @@ describe('Draw Rules: _positionHash includes current player', () => {
     expect(hash1).not.toBe(hash2);
   });
 
-  test('hash same for same position AND same player to move', () => {
+  test("hash same for same position AND same player to move", () => {
     const fq1 = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5));
     const nq1 = new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2));
     const g1 = new Game();
@@ -245,12 +290,15 @@ describe('Draw Rules: _positionHash includes current player', () => {
     g1.rpsEnabled = false;
     g1.eliminatedFactions.clear();
     g1.eliminatedFactions.add(FACTION.WATER);
-    g1.pieces = [new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5)), new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2))];
+    g1.pieces = [
+      new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5)),
+      new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2)),
+    ];
     g1._rebuildOccupiedMap();
     g1.eliminatedFactions.clear();
     g1.eliminatedFactions.add(FACTION.WATER);
     const hash1 = g1._positionHash();
-    
+
     const fq2 = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5));
     const nq2 = new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2));
     const g2 = new Game();
@@ -266,10 +314,14 @@ describe('Draw Rules: _positionHash includes current player', () => {
   });
 });
 
-describe('Draw Rules: Threefold Repetition (_updateDrawState)', () => {
-  test('detects threefold repetition via direct draw state calls', () => {
+describe("Draw Rules: Threefold Repetition (_updateDrawState)", () => {
+  test("detects threefold repetition via direct draw state calls", () => {
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5));
-    const natureQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2));
+    const natureQueen = new Piece(
+      PIECE_TYPE.QUEEN,
+      FACTION.NATURE,
+      new Hex(-1, 2),
+    );
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
@@ -305,8 +357,8 @@ describe('Draw Rules: Threefold Repetition (_updateDrawState)', () => {
   });
 });
 
-describe('Draw Rules: 50-Move Rule (_updateDrawState)', () => {
-  test('resets halfmove clock on capture', () => {
+describe("Draw Rules: 50-Move Rule (_updateDrawState)", () => {
+  test("resets halfmove clock on capture", () => {
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
@@ -317,7 +369,7 @@ describe('Draw Rules: 50-Move Rule (_updateDrawState)', () => {
     expect(game._halfmoveClock).toBe(0);
   });
 
-  test('resets halfmove clock on pawn move', () => {
+  test("resets halfmove clock on pawn move", () => {
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
@@ -328,7 +380,7 @@ describe('Draw Rules: 50-Move Rule (_updateDrawState)', () => {
     expect(game._halfmoveClock).toBe(0);
   });
 
-  test('detects 50-move rule at 100 half-moves', () => {
+  test("detects 50-move rule at 100 half-moves", () => {
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
@@ -341,7 +393,7 @@ describe('Draw Rules: 50-Move Rule (_updateDrawState)', () => {
     expect(g.state).toBe(GAME_STATE.DRAW_50MOVE);
   });
 
-  test('capture resets clock before 50-move rule', () => {
+  test("capture resets clock before 50-move rule", () => {
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
@@ -354,8 +406,8 @@ describe('Draw Rules: 50-Move Rule (_updateDrawState)', () => {
   });
 });
 
-describe('Draw Rules: Integration with handleCellClick', () => {
-  test('handleCellClick returns draw=true on 50-move rule', () => {
+describe("Draw Rules: Integration with handleCellClick", () => {
+  test("handleCellClick returns draw=true on 50-move rule", () => {
     const g = new Game();
     g.init(generateBoard());
     g.rpsEnabled = false;
@@ -364,7 +416,11 @@ describe('Draw Rules: Integration with handleCellClick', () => {
     g._positionHistory.clear();
 
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 5));
-    const natureQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(-1, 2));
+    const natureQueen = new Piece(
+      PIECE_TYPE.QUEEN,
+      FACTION.NATURE,
+      new Hex(-1, 2),
+    );
     const pieces = [fireQueen, natureQueen];
     g.pieces = pieces;
     g._rebuildOccupiedMap();

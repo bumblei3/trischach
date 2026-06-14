@@ -1,25 +1,38 @@
-import { FACTION, getRPSResult, FACTION_COLORS } from './board.js';
-import { getValidMoves, createInitialPieces, PIECE_TYPE } from './pieces.js';
-import { Hex } from './hex.js';
-import { isKingdomCheck, legalMoveCheck, isCheckmateInternal, isStalemateInternal } from './game-check.js';
+import { FACTION, getRPSResult, FACTION_COLORS } from "./board.js";
+import { getValidMoves, createInitialPieces, PIECE_TYPE } from "./pieces.js";
+import { Hex } from "./hex.js";
+import {
+  isKingdomCheck,
+  legalMoveCheck,
+  isCheckmateInternal,
+  isStalemateInternal,
+} from "./game-check.js";
 
 // Re-export for backwards compatibility
-export { isKingdomCheck as isKingInCheck, legalMoveCheck as wouldBeInCheck, isCheckmateInternal as isCheckmate, isStalemateInternal as isStalemate };
+export {
+  isKingdomCheck as isKingInCheck,
+  legalMoveCheck as wouldBeInCheck,
+  isCheckmateInternal as isCheckmate,
+  isStalemateInternal as isStalemate,
+};
 
 export const GAME_STATE = {
-  SELECT_PIECE: 'select_piece',
-  SELECT_TARGET: 'select_target',
-  PROMOTION: 'promotion',
-  GAME_OVER: 'game_over',
-  DRAW_REPETITION: 'draw_repetition',
-  DRAW_50MOVE: 'draw_50move',
+  SELECT_PIECE: "select_piece",
+  SELECT_TARGET: "select_target",
+  PROMOTION: "promotion",
+  GAME_OVER: "game_over",
+  DRAW_REPETITION: "draw_repetition",
+  DRAW_50MOVE: "draw_50move",
 };
 
 const TURN_ORDER = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 // Promotion: piece types a pawn can promote to (excluding king and pawn)
 const PROMOTION_CHOICES = [
-  PIECE_TYPE.QUEEN, PIECE_TYPE.ROOK, PIECE_TYPE.BISHOP, PIECE_TYPE.KNIGHT
+  PIECE_TYPE.QUEEN,
+  PIECE_TYPE.ROOK,
+  PIECE_TYPE.BISHOP,
+  PIECE_TYPE.KNIGHT,
 ];
 
 export { PROMOTION_CHOICES };
@@ -41,7 +54,11 @@ export class Game {
     this.onDraw = null;
     this.boardCells = null;
     this.rpsEnabled = true;
-    this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
+    this.capturedPieces = {
+      [FACTION.FIRE]: [],
+      [FACTION.WATER]: [],
+      [FACTION.NATURE]: [],
+    };
     this.pendingPromotion = null;
     this.onPromotion = null;
     this._undoStack = [];
@@ -63,7 +80,11 @@ export class Game {
     this.eliminatedFactions.clear();
     this.moveHistory = [];
     this.selectedPiece = null;
-    this.capturedPieces = { [FACTION.FIRE]: [], [FACTION.WATER]: [], [FACTION.NATURE]: [] };
+    this.capturedPieces = {
+      [FACTION.FIRE]: [],
+      [FACTION.WATER]: [],
+      [FACTION.NATURE]: [],
+    };
     this.pendingPromotion = null;
     this._rebuildOccupiedMap();
     this._positionHistory = new Map();
@@ -71,7 +92,7 @@ export class Game {
   }
 
   getAlivePieces() {
-    return this.pieces.filter(p => p.alive);
+    return this.pieces.filter((p) => p.alive);
   }
 
   getPieceAt(hex) {
@@ -90,7 +111,11 @@ export class Game {
   }
 
   getLegalMoves(piece) {
-    const { moves, attacks } = getValidMoves(piece, this.boardCells, this._occupiedMap);
+    const { moves, attacks } = getValidMoves(
+      piece,
+      this.boardCells,
+      this._occupiedMap,
+    );
     const legalMoves = [];
     const legalAttacks = [];
 
@@ -133,10 +158,17 @@ export class Game {
 
     const oldSymbol = piece.symbol;
     piece.type = newType;
-    piece.symbol = { king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟' }[newType];
+    piece.symbol = {
+      king: "♚",
+      queen: "♛",
+      rook: "♜",
+      bishop: "♝",
+      knight: "♞",
+      pawn: "♟",
+    }[newType];
 
     const result = {
-      action: 'promotion',
+      action: "promotion",
       piece,
       from: oldSymbol,
       to: piece.symbol,
@@ -149,7 +181,7 @@ export class Game {
     this._rebuildOccupiedMap();
 
     // Check game over after promotion
-    const alive = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
+    const alive = TURN_ORDER.filter((f) => !this.eliminatedFactions.has(f));
     if (alive.length <= 1) {
       this.state = GAME_STATE.GAME_OVER;
       result.gameOver = true;
@@ -167,10 +199,13 @@ export class Game {
 
   handleCellClick(hex) {
     // Handle draw states - no moves allowed after draw
-    if (this.state === GAME_STATE.DRAW_REPETITION || this.state === GAME_STATE.DRAW_50MOVE) {
+    if (
+      this.state === GAME_STATE.DRAW_REPETITION ||
+      this.state === GAME_STATE.DRAW_50MOVE
+    ) {
       return null;
     }
-    
+
     if (this.state === GAME_STATE.GAME_OVER) return null;
     if (this.state === GAME_STATE.PROMOTION) return null;
 
@@ -188,7 +223,7 @@ export class Game {
       // Maybe they clicked another of their pieces
       this.selectedPiece = null;
       this.state = GAME_STATE.SELECT_PIECE;
-      return { action: 'deselect' };
+      return { action: "deselect" };
     }
 
     this.selectedPiece = piece;
@@ -199,8 +234,10 @@ export class Game {
     this.state = GAME_STATE.SELECT_TARGET;
 
     // Categorize attacks by RPS result for UI color-coding
-    const rpsAttacks = this.rpsEnabled ? categorizeAttacks(piece, attacks, this) : null;
-    return { action: 'select', piece, moves, attacks, rpsAttacks };
+    const rpsAttacks = this.rpsEnabled
+      ? categorizeAttacks(piece, attacks, this)
+      : null;
+    return { action: "select", piece, moves, attacks, rpsAttacks };
   }
 
   _selectTarget(hex) {
@@ -211,32 +248,34 @@ export class Game {
       return this._selectPiece(hex);
     }
 
-    const isMove = this.validMoves.some(m => m.equals(hex));
-    const isAttack = this.validAttacks.some(a => a.equals(hex));
+    const isMove = this.validMoves.some((m) => m.equals(hex));
+    const isAttack = this.validAttacks.some((a) => a.equals(hex));
 
     if (!isMove && !isAttack) {
       // Cancel selection
       this.selectedPiece = null;
       this.state = GAME_STATE.SELECT_PIECE;
-      return { action: 'deselect' };
+      return { action: "deselect" };
     }
 
-    const result = { 
-      action: 'move', 
-      piece: this.selectedPiece, 
-      from: this.selectedPiece.pos, 
+    const result = {
+      action: "move",
+      piece: this.selectedPiece,
+      from: this.selectedPiece.pos,
       to: hex,
-      notation: `${this.selectedPiece.pos.q},${this.selectedPiece.pos.r} ➔ ${hex.q},${hex.r}`
+      notation: `${this.selectedPiece.pos.q},${this.selectedPiece.pos.r} ➔ ${hex.q},${hex.r}`,
     };
 
     if (isAttack) {
       const defender = this.getPieceAt(hex);
-      const rps = this.rpsEnabled ? getRPSResult(this.selectedPiece.faction, defender.faction) : 'advantage';
-      result.action = 'combat';
+      const rps = this.rpsEnabled
+        ? getRPSResult(this.selectedPiece.faction, defender.faction)
+        : "advantage";
+      result.action = "combat";
       result.defender = defender;
       result.rpsResult = rps;
 
-      if (rps === 'advantage' || rps === 'neutral') {
+      if (rps === "advantage" || rps === "neutral") {
         // Attacker wins – normal capture
         defender.alive = false;
         this.selectedPiece.pos = hex;
@@ -284,7 +323,8 @@ export class Game {
     }
 
     // Update draw state (threefold repetition + 50-move rule)
-    const wasCapture = result.action === 'combat' && result.rpsResult !== 'disadvantage';
+    const wasCapture =
+      result.action === "combat" && result.rpsResult !== "disadvantage";
     const wasPawnMove = this.selectedPiece.type === PIECE_TYPE.PAWN;
     const isDraw = this._updateDrawState(wasCapture, wasPawnMove);
     if (isDraw) {
@@ -293,7 +333,7 @@ export class Game {
     }
 
     // Check game over
-    const alive = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
+    const alive = TURN_ORDER.filter((f) => !this.eliminatedFactions.has(f));
     if (alive.length <= 1) {
       this.state = GAME_STATE.GAME_OVER;
       result.gameOver = true;
@@ -334,7 +374,9 @@ export class Game {
         if (this.onElimination) this.onElimination(checkedFaction);
 
         // Check game over after elimination
-        const aliveAfter = TURN_ORDER.filter(f => !this.eliminatedFactions.has(f));
+        const aliveAfter = TURN_ORDER.filter(
+          (f) => !this.eliminatedFactions.has(f),
+        );
         if (aliveAfter.length <= 1) {
           this.state = GAME_STATE.GAME_OVER;
           result.gameOver = true;
@@ -388,9 +430,11 @@ export class Game {
       undo.wasAttack = true;
       undo.defender = defender;
 
-      const rps = this.rpsEnabled ? getRPSResult(piece.faction, defender.faction) : 'advantage';
+      const rps = this.rpsEnabled
+        ? getRPSResult(piece.faction, defender.faction)
+        : "advantage";
 
-      if (rps === 'advantage' || rps === 'neutral') {
+      if (rps === "advantage" || rps === "neutral") {
         // Attacker wins
         defender.alive = false;
         undo.defenderWasKilled = true;
@@ -491,22 +535,22 @@ export class Game {
    */
   snapshot() {
     return {
-      pieces: this.pieces.map(p => ({
+      pieces: this.pieces.map((p) => ({
         id: p.id,
         faction: p.faction,
         type: p.type,
         pos: { q: p.pos.q, r: p.pos.r },
         alive: p.alive,
-        hasMoved: p.hasMoved
+        hasMoved: p.hasMoved,
       })),
       currentFactionIdx: this.currentFactionIdx,
       eliminatedFactions: new Set(this.eliminatedFactions),
       capturedPieces: {
-        fire: this.capturedPieces[FACTION.FIRE].map(p => p.id),
-        water: this.capturedPieces[FACTION.WATER].map(p => p.id),
-        nature: this.capturedPieces[FACTION.NATURE].map(p => p.id)
+        fire: this.capturedPieces[FACTION.FIRE].map((p) => p.id),
+        water: this.capturedPieces[FACTION.WATER].map((p) => p.id),
+        nature: this.capturedPieces[FACTION.NATURE].map((p) => p.id),
       },
-      moveHistoryLength: this.moveHistory.length
+      moveHistoryLength: this.moveHistory.length,
     };
   }
 
@@ -516,8 +560,8 @@ export class Game {
    */
   restore(snap) {
     // Restore pieces
-    this.pieces.forEach(p => {
-      const sp = snap.pieces.find(sp => sp.id === p.id);
+    this.pieces.forEach((p) => {
+      const sp = snap.pieces.find((sp) => sp.id === p.id);
       if (sp) {
         p.faction = sp.faction;
         p.type = sp.type;
@@ -536,7 +580,7 @@ export class Game {
     for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
       const ids = snap.capturedPieces[fac.toLowerCase()];
       for (const id of ids) {
-        const piece = this.pieces.find(p => p.id === id);
+        const piece = this.pieces.find((p) => p.id === id);
         if (piece) this.capturedPieces[fac].push(piece);
       }
     }
@@ -568,10 +612,10 @@ export class Game {
    */
   _positionHash() {
     const pieces = this.getAlivePieces()
-      .filter(p => p.alive)
-      .map(p => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+      .filter((p) => p.alive)
+      .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
       .sort()
-      .join('|');
+      .join("|");
     // Include current faction index for proper threefold repetition (same position + same player to move)
     return `${pieces}#${this.currentFactionIdx}`;
   }
@@ -582,32 +626,32 @@ export class Game {
    */
   _updateDrawState(wasCapture, wasPawnMove) {
     const hash = this._positionHash();
-    
+
     // Threefold repetition: increment count for current position
     const count = (this._positionHistory.get(hash) || 0) + 1;
     this._positionHistory.set(hash, count);
-    
+
     // 50-move rule: increment on any half-move, reset on capture or pawn move
     if (wasCapture || wasPawnMove) {
       this._halfmoveClock = 0;
     } else {
       this._halfmoveClock++;
     }
-    
+
     // Check for draws
     if (count >= 3) {
       this.state = GAME_STATE.DRAW_REPETITION;
-      if (this.onDraw) this.onDraw('repetition');
+      if (this.onDraw) this.onDraw("repetition");
       return true;
     }
-    if (this._halfmoveClock >= 100) { // 50 full moves = 100 half-moves
+    if (this._halfmoveClock >= 100) {
+      // 50 full moves = 100 half-moves
       this.state = GAME_STATE.DRAW_50MOVE;
-      if (this.onDraw) this.onDraw('50move');
+      if (this.onDraw) this.onDraw("50move");
       return true;
     }
     return false;
   }
-
 }
 
 // ─── RPS Attack Categorization ─────────────────────────────────────────
@@ -622,8 +666,8 @@ function categorizeAttacks(piece, attacks, game) {
     const defender = game.getPieceAt(target);
     if (!defender) continue;
     const rps = getRPSResult(piece.faction, defender.faction);
-    if (rps === 'advantage') result.advantage.push(target);
-    else if (rps === 'disadvantage') result.disadvantage.push(target);
+    if (rps === "advantage") result.advantage.push(target);
+    else if (rps === "disadvantage") result.disadvantage.push(target);
     else result.neutral.push(target);
   }
   return result;

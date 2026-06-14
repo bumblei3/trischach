@@ -4,13 +4,7 @@
     "GAMES_PER_PAIRING": 2,
     "AI_DEPTH": 2
   },
-  "engines": [
-    "tactical",
-    "balanced",
-    "defensive",
-    "aggressive",
-    "random"
-  ],
+  "engines": ["tactical", "balanced", "defensive", "aggressive", "random"],
   "elo": {
     "balanced": 1218,
     "aggressive": 1192,

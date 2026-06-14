@@ -1,17 +1,31 @@
-import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from './hex.js';
-import { FACTION } from './board.js';
+import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from "./hex.js";
+import { FACTION } from "./board.js";
 
 export const PIECE_TYPE = {
-  KING: 'king', QUEEN: 'queen', ROOK: 'rook',
-  BISHOP: 'bishop', KNIGHT: 'knight', PAWN: 'pawn'
+  KING: "king",
+  QUEEN: "queen",
+  ROOK: "rook",
+  BISHOP: "bishop",
+  KNIGHT: "knight",
+  PAWN: "pawn",
 };
 
 const SYMBOLS = {
-  king: '♚', queen: '♛', rook: '♜', bishop: '♝', knight: '♞', pawn: '♟'
+  king: "♚",
+  queen: "♛",
+  rook: "♜",
+  bishop: "♝",
+  knight: "♞",
+  pawn: "♟",
 };
 
 export const PIECE_STRENGTH = {
-  king: 100, queen: 9, rook: 5, bishop: 3, knight: 3, pawn: 1
+  king: 100,
+  queen: 9,
+  rook: 5,
+  bishop: 3,
+  knight: 3,
+  pawn: 1,
 };
 
 let _pieceIdCounter = 0;
@@ -31,9 +45,9 @@ export class Piece {
 // Forward directions per faction (toward the center/enemy)
 // Perfectly symmetric 120-degree rotations
 const PAWN_FORWARD = {
-  [FACTION.FIRE]: [new Hex(0,-1), new Hex(1,-1)],    // NW, NE
-  [FACTION.NATURE]: [new Hex(1,0), new Hex(0,1)],    // E, SE
-  [FACTION.WATER]: [new Hex(-1,1), new Hex(-1,0)],   // SW, W
+  [FACTION.FIRE]: [new Hex(0, -1), new Hex(1, -1)], // NW, NE
+  [FACTION.NATURE]: [new Hex(1, 0), new Hex(0, 1)], // E, SE
+  [FACTION.WATER]: [new Hex(-1, 1), new Hex(-1, 0)], // SW, W
 };
 // Attacks are the same as forward moves (like checkers/draughts) for simplicity
 const PAWN_ATTACK = PAWN_FORWARD;
@@ -61,7 +75,10 @@ export function getValidMoves(piece, boardCells, occupied) {
         const target = piece.pos.add(dir.scale(i));
         if (!isOnBoard(target)) break;
         if (isFriendly(target)) break;
-        if (isEnemy(target)) { attacks.push(target); break; }
+        if (isEnemy(target)) {
+          attacks.push(target);
+          break;
+        }
         moves.push(target);
       }
     }
@@ -130,8 +147,14 @@ export function createInitialPieces() {
 
   // Back row order
   const pieceOrder = [
-    PIECE_TYPE.ROOK, PIECE_TYPE.KNIGHT, PIECE_TYPE.BISHOP, PIECE_TYPE.QUEEN,
-    PIECE_TYPE.KING, PIECE_TYPE.BISHOP, PIECE_TYPE.KNIGHT, PIECE_TYPE.ROOK
+    PIECE_TYPE.ROOK,
+    PIECE_TYPE.KNIGHT,
+    PIECE_TYPE.BISHOP,
+    PIECE_TYPE.QUEEN,
+    PIECE_TYPE.KING,
+    PIECE_TYPE.BISHOP,
+    PIECE_TYPE.KNIGHT,
+    PIECE_TYPE.ROOK,
   ];
 
   // Fire (bottom zone): attached to base r=N

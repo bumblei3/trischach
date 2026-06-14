@@ -1,10 +1,10 @@
-import { expect, test, describe, beforeEach } from 'vitest';
-import { Game } from '../js/game.js';
-import { FACTION, generateBoard } from '../js/board.js';
-import { Piece, PIECE_TYPE } from '../js/pieces.js';
-import { Hex } from '../js/hex.js';
+import { expect, test, describe, beforeEach } from "vitest";
+import { Game } from "../js/game.js";
+import { FACTION, generateBoard } from "../js/board.js";
+import { Piece, PIECE_TYPE } from "../js/pieces.js";
+import { Hex } from "../js/hex.js";
 
-describe('simulateMove / undoMove', () => {
+describe("simulateMove / undoMove", () => {
   let game;
 
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe('simulateMove / undoMove', () => {
     game.rpsEnabled = true;
   });
 
-  test('simulateMove: normal move can be undone', () => {
+  test("simulateMove: normal move can be undone", () => {
     const p = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
     game.pieces = [p];
     game._rebuildOccupiedMap();
@@ -29,7 +29,7 @@ describe('simulateMove / undoMove', () => {
     expect(p.hasMoved).toBe(false);
   });
 
-  test('simulateMove: attack (advantage) can be undone', () => {
+  test("simulateMove: attack (advantage) can be undone", () => {
     const attacker = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
     const defender = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 0));
     game.pieces = [attacker, defender];
@@ -44,7 +44,7 @@ describe('simulateMove / undoMove', () => {
     expect(attacker.pos.equals(new Hex(0, 1))).toBe(true);
   });
 
-  test('simulateMove: attack (disadvantage) can be undone', () => {
+  test("simulateMove: attack (disadvantage) can be undone", () => {
     const attacker = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
     const defender = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 0));
     game.pieces = [attacker, defender];
@@ -59,10 +59,14 @@ describe('simulateMove / undoMove', () => {
     expect(attacker.pos.equals(new Hex(0, 1))).toBe(true);
   });
 
-  test('simulateMove: king elimination can be undone', () => {
+  test("simulateMove: king elimination can be undone", () => {
     const attacker = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 1));
     const enemyKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 0));
-    const extraPiece = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+    const extraPiece = new Piece(
+      PIECE_TYPE.PAWN,
+      FACTION.NATURE,
+      new Hex(1, 0),
+    );
     game.pieces = [attacker, enemyKing, extraPiece];
     game._rebuildOccupiedMap();
 
@@ -77,7 +81,7 @@ describe('simulateMove / undoMove', () => {
     expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(false);
   });
 
-  test('simulateMove: turn order advances and restores', () => {
+  test("simulateMove: turn order advances and restores", () => {
     const p = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
     game.pieces = [p];
     game._rebuildOccupiedMap();
@@ -90,7 +94,7 @@ describe('simulateMove / undoMove', () => {
     expect(game.currentFaction).toBe(FACTION.FIRE);
   });
 
-  test('multiple simulate/undo cycles are stable', () => {
+  test("multiple simulate/undo cycles are stable", () => {
     const p = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
     game.pieces = [p];
     game._rebuildOccupiedMap();
@@ -104,7 +108,7 @@ describe('simulateMove / undoMove', () => {
     expect(p.hasMoved).toBe(false);
   });
 
-  test('capturedPieces restored after undo', () => {
+  test("capturedPieces restored after undo", () => {
     const attacker = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
     const defender = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 0));
     game.pieces = [attacker, defender];

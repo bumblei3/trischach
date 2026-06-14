@@ -12,5 +12,14 @@
     "no-unused-vars": "warn",
     "no-console": "off"
   },
-  "ignorePatterns": ["dist/", "playwright-report/", "test-results/", "coverage/", "js/*.js", "js/*.js.map", "generate-puzzles.js", "sw.js"]
+  "ignorePatterns": [
+    "dist/",
+    "playwright-report/",
+    "test-results/",
+    "coverage/",
+    "js/*.js",
+    "js/*.js.map",
+    "generate-puzzles.js",
+    "sw.js"
+  ]
 }

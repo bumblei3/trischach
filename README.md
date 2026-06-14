@@ -57,12 +57,14 @@ Fällt ein König, scheidet die gesamte Fraktion sofort aus. Wer als Letzter noc
 Lokal lässt sich TriSchach in Sekunden starten:
 
 1. Repository klonen:
+
    ```bash
    git clone https://github.com/bumblei3/trischach.git
    cd trischach
    ```
 
 2. Lokalen Webserver starten:
+
    ```bash
    # Mit Python
    python3 -m http.server 8080
@@ -141,15 +143,15 @@ elo-Hierarchie (Beispiel): Ausgewogen > Aggressiv > Defensiv > Taktisch > Random
 
 Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 
-| Job | Trigger | Beschreibung |
-|-----|---------|--------------|
-| `lint-test` | Push/PR | TypeScript, ESLint, Unit Tests (Node 18/20/22), Coverage ≥80% |
-| `codeql` | Push/PR | Security Scanning (JavaScript) |
-| `e2e-tests` | Push/PR | Playwright E2E (parallel zu lint-test) |
-| `benchmark` | Push/PR | Quick Tournament (4 Games @ Depth 2), PR-Comment |
-| `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact |
-| `release` | Tag `v*` | Auto GitHub Release mit Release Notes |
-| `deploy` | Push main | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
+| Job          | Trigger                       | Beschreibung                                                  |
+| ------------ | ----------------------------- | ------------------------------------------------------------- |
+| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 18/20/22), Coverage ≥80% |
+| `codeql`     | Push/PR                       | Security Scanning (JavaScript)                                |
+| `e2e-tests`  | Push/PR                       | Playwright E2E (parallel zu lint-test)                        |
+| `benchmark`  | Push/PR                       | Quick Tournament (4 Games @ Depth 2), PR-Comment              |
+| `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact            |
+| `release`    | Tag `v*`                      | Auto GitHub Release mit Release Notes                         |
+| `deploy`     | Push main                     | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql)     |
 
 ## 📜 Lizenz
 

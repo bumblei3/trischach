@@ -1,29 +1,29 @@
-import { defineConfig } from 'vite';
-import { resolve } from 'path';
+import { defineConfig } from "vite";
+import { resolve } from "path";
 
 export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'js/main.js'),
-        'ai-worker': resolve(__dirname, 'js/ai-worker.js'),
+        main: resolve(__dirname, "js/main.js"),
+        "ai-worker": resolve(__dirname, "js/ai-worker.js"),
       },
       output: {
-        entryFileNames: '[name].js',
-        chunkFileNames: '[name].js',
-        assetFileNames: '[name].[ext]',
+        entryFileNames: "[name].js",
+        chunkFileNames: "[name].js",
+        assetFileNames: "[name].[ext]",
         inlineDynamicImports: false,
-        format: 'es',
+        format: "es",
       },
     },
-    outDir: 'dist',
+    outDir: "dist",
     sourcemap: true,
-    minify: 'terser',
-    target: 'es2022',
+    minify: "terser",
+    target: "es2022",
   },
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'js'),
+      "@": resolve(__dirname, "js"),
     },
   },
 });

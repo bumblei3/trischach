@@ -1,22 +1,28 @@
-import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from './hex.js';
-import type { Faction, PieceType, ValidMoves, PAWN_FORWARD_MAP, PAWN_ATTACK_MAP } from './types.js';
+import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from "./hex.js";
+import type {
+  Faction,
+  PieceType,
+  ValidMoves,
+  PAWN_FORWARD_MAP,
+  PAWN_ATTACK_MAP,
+} from "./types.js";
 
 export const PIECE_TYPE = {
-  KING: 'king',
-  QUEEN: 'queen',
-  ROOK: 'rook',
-  BISHOP: 'bishop',
-  KNIGHT: 'knight',
-  PAWN: 'pawn',
+  KING: "king",
+  QUEEN: "queen",
+  ROOK: "rook",
+  BISHOP: "bishop",
+  KNIGHT: "knight",
+  PAWN: "pawn",
 } as const;
 
 const SYMBOLS: Record<PieceType, string> = {
-  king: '♚',
-  queen: '♛',
-  rook: '♜',
-  bishop: '♝',
-  knight: '♞',
-  pawn: '♟',
+  king: "♚",
+  queen: "♛",
+  rook: "♜",
+  bishop: "♝",
+  knight: "♞",
+  pawn: "♟",
 };
 
 export const PIECE_STRENGTH: Record<PieceType, number> = {
@@ -53,9 +59,9 @@ export class Piece {
 // Forward directions per faction (toward the center/enemy)
 // Perfectly symmetric 120-degree rotations
 const PAWN_FORWARD: PAWN_FORWARD_MAP = {
-  fire: [new Hex(0, -1), new Hex(1, -1)],    // NW, NE
-  nature: [new Hex(1, 0), new Hex(0, 1)],    // E, SE
-  water: [new Hex(-1, 1), new Hex(-1, 0)],   // SW, W
+  fire: [new Hex(0, -1), new Hex(1, -1)], // NW, NE
+  nature: [new Hex(1, 0), new Hex(0, 1)], // E, SE
+  water: [new Hex(-1, 1), new Hex(-1, 0)], // SW, W
 };
 
 // Attacks are the same as forward moves (like checkers/draughts) for simplicity
@@ -67,7 +73,7 @@ const PAWN_ATTACK: PAWN_ATTACK_MAP = PAWN_FORWARD;
 export function getValidMoves(
   piece: Piece,
   boardCells: Map<string, { hex: Hex; zone: string; faction: Faction | null }>,
-  occupied: Map<string, Piece>
+  occupied: Map<string, Piece>,
 ): ValidMoves {
   const moves: Hex[] = [];
   const attacks: Hex[] = [];
@@ -89,7 +95,10 @@ export function getValidMoves(
         const target = piece.pos.add(dir.scale(i));
         if (!isOnBoard(target)) break;
         if (isFriendly(target)) break;
-        if (isEnemy(target)) { attacks.push(target); break; }
+        if (isEnemy(target)) {
+          attacks.push(target);
+          break;
+        }
         moves.push(target);
       }
     }
@@ -161,8 +170,14 @@ export function createInitialPieces(): Piece[] {
 
   // Back row order
   const pieceOrder: PieceType[] = [
-    PIECE_TYPE.ROOK, PIECE_TYPE.KNIGHT, PIECE_TYPE.BISHOP, PIECE_TYPE.QUEEN,
-    PIECE_TYPE.KING, PIECE_TYPE.BISHOP, PIECE_TYPE.KNIGHT, PIECE_TYPE.ROOK
+    PIECE_TYPE.ROOK,
+    PIECE_TYPE.KNIGHT,
+    PIECE_TYPE.BISHOP,
+    PIECE_TYPE.QUEEN,
+    PIECE_TYPE.KING,
+    PIECE_TYPE.BISHOP,
+    PIECE_TYPE.KNIGHT,
+    PIECE_TYPE.ROOK,
   ];
 
   // Fire (bottom zone): attached to base r=N
@@ -170,10 +185,10 @@ export function createInitialPieces(): Piece[] {
   // d=2 (Back, r=7): q from -7 to 0 (8 pieces)
   for (let i = 0; i < 8; i++) {
     const type = pieceOrder[i]!;
-    pieces.push(new Piece(type, 'fire', new Hex(-7 + i, N + 2)));
+    pieces.push(new Piece(type, "fire", new Hex(-7 + i, N + 2)));
   }
   for (let q = -N - 1; q <= 0; q++) {
-    pieces.push(new Piece(PIECE_TYPE.PAWN, 'fire', new Hex(q, N + 1)));
+    pieces.push(new Piece(PIECE_TYPE.PAWN, "fire", new Hex(q, N + 1)));
   }
 
   // Water (right zone): attached to right edge q=0
@@ -181,10 +196,10 @@ export function createInitialPieces(): Piece[] {
   // d=2 (Back, q=2): r from -2 to 5 (8 pieces)
   for (let i = 0; i < 8; i++) {
     const type = pieceOrder[i]!;
-    pieces.push(new Piece(type, 'water', new Hex(2, -2 + i)));
+    pieces.push(new Piece(type, "water", new Hex(2, -2 + i)));
   }
   for (let r = -1; r <= N; r++) {
-    pieces.push(new Piece(PIECE_TYPE.PAWN, 'water', new Hex(1, r)));
+    pieces.push(new Piece(PIECE_TYPE.PAWN, "water", new Hex(1, r)));
   }
 
   // Nature (left zone): attached to left edge s=0 (q=-r)
@@ -193,10 +208,10 @@ export function createInitialPieces(): Piece[] {
   for (let i = 0; i < 8; i++) {
     const r = -2 + i;
     const type = pieceOrder[i]!;
-    pieces.push(new Piece(type, 'nature', new Hex(-r - 2, r)));
+    pieces.push(new Piece(type, "nature", new Hex(-r - 2, r)));
   }
   for (let r = -1; r <= N; r++) {
-    pieces.push(new Piece(PIECE_TYPE.PAWN, 'nature', new Hex(-r - 1, r)));
+    pieces.push(new Piece(PIECE_TYPE.PAWN, "nature", new Hex(-r - 1, r)));
   }
 
   return pieces;

@@ -1,28 +1,28 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    environment: 'happy-dom',
-    setupFiles: ['./tests/setup.ts'],
-    exclude: ['node_modules', 'tests-e2e'],
+    environment: "happy-dom",
+    setupFiles: ["./tests/setup.ts"],
+    exclude: ["node_modules", "tests-e2e"],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      provider: "v8",
+      reporter: ["text", "json", "html"],
       exclude: [
-        'node_modules/**',
-        'tests/**',
-        'tests-e2e/**',
-        '*.config.*',
-        'tournament.js',
-        'js/**/*.ts',  // TypeScript files excluded from coverage (tested via .js)
-        'js/main.js',  // UI code - tested via E2E
-        'js/board.js',  // Touch handlers - tested via E2E
-        'js/sounds.js',  // Audio - hard to unit test
-        'js/ai-worker.js',  // Worker wrapper - tested via ai.test.js
-        'generate-*.js',  // Build scripts
-        'generate-icons.js',
-        'sw.js',  // Service worker
-        'js/typedefs.js',
+        "node_modules/**",
+        "tests/**",
+        "tests-e2e/**",
+        "*.config.*",
+        "tournament.js",
+        "js/**/*.ts", // TypeScript files excluded from coverage (tested via .js)
+        "js/main.js", // UI code - tested via E2E
+        "js/board.js", // Touch handlers - tested via E2E
+        "js/sounds.js", // Audio - hard to unit test
+        "js/ai-worker.js", // Worker wrapper - tested via ai.test.js
+        "generate-*.js", // Build scripts
+        "generate-icons.js",
+        "sw.js", // Service worker
+        "js/typedefs.js",
       ],
       thresholds: {
         lines: 80,

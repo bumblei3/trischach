@@ -1,17 +1,23 @@
-import { PIECE_TYPE } from './pieces.js';
-import { getValidMoves } from './pieces.js';
+import { PIECE_TYPE } from "./pieces.js";
+import { getValidMoves } from "./pieces.js";
 
 /**
  * Check if the king of `faction` is currently in check.
  */
 export function isKingdomCheck(game, faction) {
-  const king = game.pieces.find(p => p.faction === faction && p.type === PIECE_TYPE.KING && p.alive);
+  const king = game.pieces.find(
+    (p) => p.faction === faction && p.type === PIECE_TYPE.KING && p.alive,
+  );
   if (!king) return false;
 
-  const enemies = game.pieces.filter(p => p.faction !== faction && p.alive);
+  const enemies = game.pieces.filter((p) => p.faction !== faction && p.alive);
   for (const enemy of enemies) {
-    const { attacks } = getValidMoves(enemy, game.boardCells, game._occupiedMap);
-    if (attacks.some(a => a.equals(king.pos))) return true;
+    const { attacks } = getValidMoves(
+      enemy,
+      game.boardCells,
+      game._occupiedMap,
+    );
+    if (attacks.some((a) => a.equals(king.pos))) return true;
   }
   return false;
 }
@@ -37,7 +43,7 @@ export function legalMoveCheck(game, piece, target, faction) {
  * Check if `faction` has any legal moves at all.
  */
 function hasLegalMoves(game, faction) {
-  const myPieces = game.pieces.filter(p => p.faction === faction && p.alive);
+  const myPieces = game.pieces.filter((p) => p.faction === faction && p.alive);
   for (const piece of myPieces) {
     const { moves, attacks } = game.getLegalMoves(piece);
     if (moves.length > 0 || attacks.length > 0) return true;
