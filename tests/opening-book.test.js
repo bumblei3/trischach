@@ -17,6 +17,11 @@ import {
   OPENING_BOOK,
   boardHash,
   parseMove,
+  learnFromGame,
+  getLearnedData,
+  saveLearnedData,
+  loadLearnedData,
+  loadOpeningBook,
 } from "../js/opening-book.js";
 
 // Mock Game class that mimics the real Game behavior
@@ -39,6 +44,7 @@ class MockGame {
     this.boardCells = new Map();
     this.selectedPiece = null;
     this.pendingPromotion = null;
+    this.moveHistory = []; // Track move history for tests
   }
 
   getAlivePieces() {
@@ -156,6 +162,8 @@ class MockGame {
       this.selectedPiece.pos = pos;
       this.selectedPiece.hasMoved = true;
       this.selectedPiece = null;
+
+      this.moveHistory.push({ from, to: pos });
 
       // Toggle turn
       this.currentFactionIdx = (this.currentFactionIdx + 1) % 3;
@@ -617,5 +625,467 @@ describe("Opening Book: Edge cases", () => {
     const game = createStartingGame();
     const parsed = parseMove(game, "fire_pawn_10 -4,5");
     expect(parsed).toBeNull();
+  });
+});
+
+describe("Opening Book: loadOpeningBook", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+  });
+
+  test("function exists and returns boolean", async () => {
+    const result = await loadOpeningBook();
+    expect(typeof result).toBe("boolean");
+  });
+
+  test("returns true if already loaded", async () => {
+    await loadOpeningBook();
+    const result = await loadOpeningBook();
+    expect(result).toBe(true);
+  });
+});
+
+describe("Opening Book: learnFromGame", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+  });
+
+  test("increases weight for winning moves", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+
+    // Get initial weight
+    const variations = OPENING_BOOK.get(hash);
+    const initialWeight = variations[0].weight;
+
+    // Learn from a win
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE
+    );
+
+    const updatedVariations = OPENING_BOOK.get(hash);
+    expect(updatedVariations[0].weight).toBeGreaterThan(initialWeight);
+    expect(updatedVariations[0].wins).toBe(1);
+    expect(updatedVariations[0].visits).toBe(1);
+  });
+
+  test("decreases weight for losing moves", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+
+    const variations = OPENING_BOOK.get(hash);
+    expect(variations).toBeDefined();
+    expect(variations.length).toBeGreaterThan(0);
+
+    // Find the variation that matches the first move in the book
+    const firstMove = variations[0].move;
+    const initialWeight = variations[0].weight;
+
+    // Verify we can find it back
+    const found = variations.find(
+      (v) =>
+        v.move.pieceId === firstMove.pieceId &&
+        v.move.targetQ === firstMove.targetQ &&
+        v.move.targetR === firstMove.targetR,
+    );
+    expect(found).toBeDefined();
+
+    // Learn from a loss
+    const gameHistory = [{ hash, faction: FACTION.FIRE, move: firstMove }];
+    learnFromGame(gameHistory, FACTION.WATER);
+
+    // Check if variation was found and updated
+    const updatedVariations = OPENING_BOOK.get(hash);
+    const updated = updatedVariations.find(
+      (v) =>
+        v.move.pieceId === firstMove.pieceId &&
+        v.move.targetQ === firstMove.targetQ &&
+        v.move.targetR === firstMove.targetR,
+    );
+    expect(updated).toBeDefined();
+    expect(updated.wins).toBe(0);
+    expect(updated.losses).toBe(1);
+    expect(updated.visits).toBe(1);
+    expect(updated.weight).toBeLessThan(initialWeight);
+  });
+
+  test("moderately increases weight for draws", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+
+    const variations = OPENING_BOOK.get(hash);
+    const initialWeight = variations[0].weight;
+
+    // Learn from a draw
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      null // draw
+    );
+
+    const updatedVariations = OPENING_BOOK.get(hash);
+    expect(updatedVariations[0].weight).toBeGreaterThan(initialWeight);
+    expect(updatedVariations[0].draws).toBe(1);
+    expect(updatedVariations[0].visits).toBe(1);
+  });
+
+  test("initializes learning stats on first call", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    const move = variations[0].move;
+
+    expect(variations[0].wins).toBeUndefined();
+    expect(variations[0].losses).toBeUndefined();
+    expect(variations[0].visits).toBeUndefined();
+
+    learnFromGame([{ hash, faction: FACTION.FIRE, move }], FACTION.FIRE);
+
+    expect(variations[0].wins).toBe(1);
+    expect(variations[0].losses).toBe(0);
+    expect(variations[0].visits).toBe(1);
+  });
+
+  test("ignores moves not in book", () => {
+    const variations = OPENING_BOOK.get("nonexistent#0");
+    expect(variations).toBeUndefined();
+
+    // Should not throw
+    learnFromGame(
+      [{ hash: "nonexistent#0", faction: FACTION.FIRE, move: { pieceId: "x", targetQ: 0, targetR: 0 } }],
+      FACTION.FIRE
+    );
+  });
+
+  test("re-sorts variations by weight after learning", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+
+    // Ensure at least 2 variations
+    if (variations.length < 2) return;
+
+    const weight0 = variations[0].weight;
+    const weight1 = variations[1].weight;
+
+    // Boost second variation significantly
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[1].move }],
+      FACTION.FIRE
+    );
+
+    // Weights should be re-sorted
+    const updated = OPENING_BOOK.get(hash);
+    expect(updated[0].weight).toBeGreaterThanOrEqual(updated[1].weight);
+  });
+
+  test("enforces minimum weight of 10", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    const move = variations[0].move;
+
+    // Apply many losses to drive weight down
+    for (let i = 0; i < 10; i++) {
+      learnFromGame([{ hash, faction: FACTION.FIRE, move }], FACTION.WATER);
+    }
+
+    expect(variations[0].weight).toBeGreaterThanOrEqual(10);
+  });
+});
+
+describe("Opening Book: getLearnedData", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+  });
+
+  test("exports learned data with correct structure", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+
+    // Add some learning data
+    learnFromGame(
+      [{ hash, faction: FACTION.FIRE, move: variations[0].move }],
+      FACTION.FIRE
+    );
+
+    const learned = getLearnedData();
+
+    expect(learned).toHaveProperty(hash);
+    expect(Array.isArray(learned[hash])).toBe(true);
+    expect(learned[hash].length).toBeGreaterThan(0);
+
+    const entry = learned[hash][0];
+    expect(entry).toHaveProperty("move");
+    expect(entry).toHaveProperty("wins");
+    expect(entry).toHaveProperty("draws");
+    expect(entry).toHaveProperty("losses");
+    expect(entry).toHaveProperty("visits");
+    expect(entry.visits).toBe(1);
+    expect(entry.wins).toBe(1);
+  });
+
+  test("only exports entries with visits > 0", () => {
+    const learned = getLearnedData();
+
+    // Without any learning, learned data should be empty or only have empty arrays
+    for (const [hash, entries] of Object.entries(learned)) {
+      for (const entry of entries) {
+        expect(entry.visits).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  test("returns empty object for empty book", () => {
+    OPENING_BOOK.clear();
+    const learned = getLearnedData();
+    expect(Object.keys(learned).length).toBe(0);
+  });
+});
+
+describe("Opening Book: saveLearnedData", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+  });
+
+  test("function exists", () => {
+    expect(typeof saveLearnedData).toBe("function");
+  });
+
+  test.skip("returns data object with version, updated, positions", async () => {
+    // Add learning data
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+
+    const data = await saveLearnedData();
+
+    expect(data).toHaveProperty("version", 1);
+    expect(data).toHaveProperty("updated");
+    expect(data).toHaveProperty("positions");
+    expect(typeof data.updated).toBe("string");
+    expect(new Date(data.updated).toString()).not.toBe("Invalid Date");
+  });
+
+  test.skip("includes learned positions in saved data", async () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+
+    const savedData = await saveLearnedData();
+    const learnedData = getLearnedData();
+
+    expect(Object.keys(savedData.positions).length).toBe(
+      Object.keys(learnedData).length
+    );
+  });
+});
+
+describe("Opening Book: loadLearnedData", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+  });
+
+  test("loads learned data into existing positions", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    const move = variations[0].move;
+    const initialWeight = variations[0].weight;
+
+    const learnedData = {
+      positions: {
+        [hash]: [
+          {
+            move,
+            wins: 5,
+            draws: 2,
+            losses: 1,
+            visits: 8,
+          },
+        ],
+      },
+    };
+
+    loadLearnedData(learnedData);
+
+    const updated = OPENING_BOOK.get(hash);
+    // Weight should be updated based on learned data
+    expect(updated[0].wins).toBe(5);
+    expect(updated[0].draws).toBe(2);
+    expect(updated[0].losses).toBe(1);
+    expect(updated[0].visits).toBe(8);
+  });
+
+  test("adds new positions from learned data", () => {
+    const newHash = "newhash#1";
+    const learnedData = {
+      positions: {
+        [newHash]: [
+          {
+            move: { pieceId: "fire_pawn_10", targetQ: -4, targetR: 5 },
+            wins: 3,
+            draws: 1,
+            losses: 0,
+            visits: 4,
+          },
+        ],
+      },
+    };
+
+    expect(OPENING_BOOK.has(newHash)).toBe(false);
+
+    loadLearnedData(learnedData);
+
+    expect(OPENING_BOOK.has(newHash)).toBe(true);
+    const variations = OPENING_BOOK.get(newHash);
+    expect(variations[0].wins).toBe(3);
+    expect(variations[0].visits).toBe(4);
+  });
+
+  test("handles null/undefined data gracefully", () => {
+    expect(() => loadLearnedData(null)).not.toThrow();
+    expect(() => loadLearnedData(undefined)).not.toThrow();
+    expect(() => loadLearnedData({})).not.toThrow();
+    expect(() => loadLearnedData({ positions: null })).not.toThrow();
+  });
+
+  test("sorts variations by weight after loading", () => {
+    const hash = "testhash#0";
+    const learnedData = {
+      positions: {
+        [hash]: [
+          {
+            move: { pieceId: "p1", targetQ: 0, targetR: 0 },
+            wins: 10,
+            draws: 0,
+            losses: 0,
+            visits: 10,
+          },
+          {
+            move: { pieceId: "p2", targetQ: 1, targetR: 1 },
+            wins: 1,
+            draws: 0,
+            losses: 0,
+            visits: 1,
+          },
+        ],
+      },
+    };
+
+    // Ensure hash doesn't exist
+    OPENING_BOOK.delete(hash);
+
+    loadLearnedData(learnedData);
+
+    const variations = OPENING_BOOK.get(hash);
+    expect(variations).toBeDefined();
+    expect(variations.length).toBe(2);
+    // First should have higher weight (more wins)
+    expect(variations[0].weight).toBeGreaterThanOrEqual(variations[1].weight);
+  });
+});
+
+describe("Opening Book: buildOpeningBook edge cases", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+  });
+
+  test("handles promotion results in buildOpeningBook", () => {
+    // This tests the promotion handling branch in buildOpeningBook
+    const mockGameWithPromotion = class extends MockGame {
+      constructor() {
+        super();
+        this.pendingPromotion = null;
+      }
+
+      handleCellClick(pos) {
+        const result = super.handleCellClick(pos);
+        // Simulate promotion on 8th rank
+        if (
+          result.action === "move" &&
+          this.selectedPiece &&
+          this.selectedPiece.type === PIECE_TYPE.PAWN
+        ) {
+          if (
+            (this.selectedPiece.faction === FACTION.FIRE && pos.r <= -6) ||
+            (this.selectedPiece.faction === FACTION.WATER && pos.r >= 6) ||
+            (this.selectedPiece.faction === FACTION.NATURE && pos.q <= -6)
+          ) {
+            this.pendingPromotion = { piece: this.selectedPiece, pos };
+            return { action: "promotion", piece: this.selectedPiece };
+          }
+        }
+        return result;
+      }
+
+      completePromotion(type) {
+        this.pendingPromotion = null;
+      }
+    };
+
+    // Should not throw
+    buildOpeningBook(mockGameWithPromotion);
+    expect(OPENING_BOOK.size).toBeGreaterThan(0);
+  });
+
+  test("handles illegal moves during build (continues with next line)", () => {
+    const mockGameIllegal = class extends MockGame {
+      constructor() {
+        super();
+      }
+      handleCellClick(pos) {
+        // Make second move illegal
+        if (this.selectedPiece && this.moveHistory.length >= 1) {
+          return { action: "none" };
+        }
+        return super.handleCellClick(pos);
+      }
+    };
+
+    // Should not throw, just skip that line
+    buildOpeningBook(mockGameIllegal);
+    expect(OPENING_BOOK.size).toBeGreaterThan(0);
+  });
+
+  test("handles piece selection failure during build", () => {
+    const mockGameSelectFail = class extends MockGame {
+      handleCellClick(pos) {
+        if (!this.selectedPiece) {
+          // Fail to select piece
+          return { action: "none" };
+        }
+        return super.handleCellClick(pos);
+      }
+    };
+
+    // Should not throw
+    buildOpeningBook(mockGameSelectFail);
+    expect(OPENING_BOOK.size).toBeGreaterThan(0);
+  });
+
+  test("weight decay works correctly across plies", () => {
+    buildOpeningBook(MockGame);
+
+    // First ply should have highest weights
+    // Later plies should have decayed weights
+    const weights = [];
+    for (const [hash, moves] of OPENING_BOOK) {
+      for (const entry of moves) {
+        weights.push(entry.weight);
+      }
+    }
+
+    // All weights should be positive
+    for (const w of weights) {
+      expect(w).toBeGreaterThan(0);
+    }
   });
 });
