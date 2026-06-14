@@ -387,6 +387,20 @@ export const ZOBRIST_ELIMINATED_KEYS = ZOBRIST_FACTIONS.map(() => zobristRng.nex
 // RPS enabled flag
 export const ZOBRIST_RPS_KEY = zobristRng.next();
 
+// ─── Zobrist Key Access Helpers ──────────────────────────────────
+// TypeScript doesn't track array bounds, so we use these helpers for safe access
+
+// Get piece key from 3D array with bounds checking
+function getZobristPieceKey(ptIdx: number, facIdx: number, sqIdx: number): bigint {
+  // ptIdx, facIdx, sqIdx already validated by callers
+  return ZOBRIST_PIECE_KEYS[ptIdx]![facIdx]![sqIdx];
+}
+
+// Get piece key for updateZobristHash (from destination index)
+function getZobristPieceKeyAt(ptIdx: number, facIdx: number, sqIdx: number): bigint {
+  return ZOBRIST_PIECE_KEYS[ptIdx]![facIdx]![sqIdx];
+}
+
 // Transposition Table Entry
 export class TTEntry {
   key: bigint = 0n;
@@ -417,9 +431,9 @@ export function computeZobristHash(game: IGame): bigint {
     const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
     const sqIdx = SQUARE_TO_INDEX.get(piece.pos.key);
     if (ptIdx >= 0 && facIdx >= 0 && sqIdx !== undefined) {
-      // sqIdx is number here, safe to access array
-      const key = ZOBRIST_PIECE_KEYS[ptIdx][facIdx][sqIdx];
-      if (key !== undefined) hash ^= key;
+      const pieceKeys = ZOBRIST_PIECE_KEYS[ptIdx] as bigint[][];
+      const factionKeys = pieceKeys[facIdx] as bigint[];
+      hash ^= factionKeys[sqIdx];
     }
   }
 
@@ -427,15 +441,13 @@ export function computeZobristHash(game: IGame): bigint {
   const sideIdx = game.currentFactionIdx !== undefined ? game.currentFactionIdx :
                   (game.currentFaction ? ZOBRIST_FACTIONS.indexOf(game.currentFaction) : 0);
   if (sideIdx >= 0) {
-    const key = ZOBRIST_SIDE_KEYS[sideIdx];
-    if (key !== undefined) hash ^= key;
+    hash ^= ZOBRIST_SIDE_KEYS[sideIdx]!;
   }
 
   // Eliminated factions
   for (const fac of ZOBRIST_FACTIONS) {
     if (game.eliminatedFactions.has(fac)) {
-      const key = ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(fac)];
-      if (key !== undefined) hash ^= key;
+      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(fac)]!;
     }
   }
 
@@ -463,8 +475,7 @@ export function updateZobristHash(
   // Remove piece from source square
   const fromIdx = SQUARE_TO_INDEX.get(fromKey);
   if (fromIdx !== undefined) {
-    const key = ZOBRIST_PIECE_KEYS[ptIdx][facIdx][fromIdx];
-    if (key !== undefined) hash ^= key;
+    hash ^= getZobristPieceKeyAt(ptIdx, facIdx, fromIdx);
   }
 
   // Add piece to destination square (handle promotion)
@@ -472,8 +483,7 @@ export function updateZobristHash(
   const finalPtIdx = ZOBRIST_PIECE_TYPES.indexOf(finalType);
   const toIdx = SQUARE_TO_INDEX.get(toKey);
   if (toIdx !== undefined) {
-    const key = ZOBRIST_PIECE_KEYS[finalPtIdx][facIdx][toIdx];
-    if (key !== undefined) hash ^= key;
+    hash ^= getZobristPieceKeyAt(finalPtIdx, facIdx, toIdx);
   }
 
   // Remove captured piece
@@ -481,25 +491,17 @@ export function updateZobristHash(
     const capPtIdx = ZOBRIST_PIECE_TYPES.indexOf(capturedPiece.type);
     const capFacIdx = ZOBRIST_FACTIONS.indexOf(capturedPiece.faction);
     if (capPtIdx >= 0 && capFacIdx >= 0 && toIdx !== undefined) {
-      const key = ZOBRIST_PIECE_KEYS[capPtIdx][capFacIdx][toIdx];
-      if (key !== undefined) hash ^= key;
+      hash ^= getZobristPieceKeyAt(capPtIdx, capFacIdx, toIdx);
     }
     // If king captured -> faction eliminated
     if (capturedPiece.type === 'king' && eliminatedFaction) {
-      const key = ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)];
-      if (key !== undefined) hash ^= key;
+      hash ^= ZOBRIST_ELIMINATED_KEYS[ZOBRIST_FACTIONS.indexOf(eliminatedFaction)]!;
     }
   }
 
   // Side to move changes
-  if (oldSideIdx >= 0) {
-    const key = ZOBRIST_SIDE_KEYS[oldSideIdx];
-    if (key !== undefined) hash ^= key;
-  }
-  if (newSideIdx >= 0) {
-    const key = ZOBRIST_SIDE_KEYS[newSideIdx];
-    if (key !== undefined) hash ^= key;
-  }
+  if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx]!;
+  if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx]!;
 
   return hash;
 }
