@@ -1462,6 +1462,30 @@ function initEventListeners(): void {
     updateReplayUI();
   });
 
+  const replayExport = document.getElementById(
+    "replay-export",
+  ) as HTMLButtonElement;
+  replayExport?.addEventListener("click", () => {
+    const controller = window.replayController;
+    if (!controller) return;
+    
+    try {
+      const tspn = controller.exportTSPN();
+      const blob = new Blob([tspn], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const moveNum = controller.getCurrentMoveNumber();
+      const total = controller.getTotalMoves();
+      a.download = `trischach-pos-${moveNum}-of-${total}-${new Date().toISOString().slice(0,10)}.tspn`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+      alert("Export fehlgeschlagen: " + err.message);
+    }
+  });
+
   replaySpeed?.addEventListener("input", () => {
     if (replayPlayTimer) {
       replayPlay();

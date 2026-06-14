@@ -493,6 +493,37 @@ export class ReplayController {
   getCurrentMoveNumber() {
     return this.currentIndex + 1;
   }
+
+  /** Export current game state as TSPN string (including all moves played so far) */
+  exportTSPN(headers = {}) {
+    // Reconstruct a temporary game to serialize
+    const tempGame = {
+      pieces: this.initialGame.pieces.map(p => ({ ...p })),
+      currentFaction: this.initialGame.currentFaction,
+      currentFactionIdx: this.initialGame.currentFactionIdx,
+      state: this.initialGame.state,
+      eliminatedFactions: new Set(this.initialGame.eliminatedFactions),
+      rpsEnabled: this.initialGame.rpsEnabled,
+      moveHistory: this.moveHistory.slice(0, this.currentIndex + 1)
+    };
+    
+    const defaultHeaders = {
+      Event: 'TriSchach Game',
+      Site: 'Local',
+      Date: new Date().toISOString().split('T')[0],
+      Round: '1',
+      White: 'Fire',
+      Black: 'Water',
+      Green: 'Nature',
+      Result: '*',
+      RPS: tempGame.rpsEnabled ? 'on' : 'off',
+      Variant: 'TriSchach',
+      Version: '1.0'
+    };
+    
+    const allHeaders = { ...defaultHeaders, ...headers };
+    return serializeGame(tempGame, { ...headers, ...allHeaders });
+  }
 }
 
 /**
