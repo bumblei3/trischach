@@ -13,6 +13,7 @@ import { getRPSResult, FACTION } from "./board.js";
 import { Hex } from "./hex.js";
 import { isKingdomCheck } from "./game-check.js";
 import { pickBookMove, buildOpeningBook, inBook } from "./opening-book.js";
+import { Game } from "./game.js";
 
 // ─── Constants ────────────────────────────────────────────────────
 
@@ -1819,7 +1820,7 @@ let _bookBuilt = false;
 
 export function calculateBestMove(game, faction) {
   if (!_bookBuilt) {
-    buildOpeningBook(game.constructor);
+    buildOpeningBook(Game);
     _bookBuilt = true;
   }
 
