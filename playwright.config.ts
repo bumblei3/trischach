@@ -1,4 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync } from 'node:fs';
+
+// Check if system chromium exists
+const hasSystemChromium = existsSync('/usr/bin/chromium-browser');
 
 export default defineConfig({
   testDir: './tests-e2e',
@@ -17,11 +21,14 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        // Use system chromium on Ubuntu 26.04 (Playwright doesn't support it officially)
-        launchOptions: {
-          executablePath: '/usr/bin/chromium-browser',
-          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-        },
+        // CI: uses npx playwright install --with-deps (Playwright's own chromium)
+        // Local with system chromium: use /usr/bin/chromium-browser
+        // Local without system chromium: use Playwright's bundled chromium (if installed)
+        launchOptions: process.env.CI 
+          ? {}  // Use Playwright's installed browser on CI
+          : hasSystemChromium
+            ? { executablePath: '/usr/bin/chromium-browser', args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'] }
+            : {}, // Use Playwright's bundled browser if available
       },
     },
   ],
