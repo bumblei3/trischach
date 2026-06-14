@@ -1,7 +1,7 @@
 /**
  * opening-book.test.js - Tests for TriSchach Opening Book
  */
-import { expect, test, describe, beforeEach } from "vitest";
+import { expect, test, describe, beforeEach, vi } from "vitest";
 import { FACTION, generateBoard } from "../js/board.js";
 import { PIECE_TYPE, Piece } from "../js/pieces.js";
 import { GAME_STATE } from "../js/game.js";
@@ -22,6 +22,8 @@ import {
   saveLearnedData,
   loadLearnedData,
   loadOpeningBook,
+  saveLearnedDataToStorage,
+  loadLearnedDataFromStorage,
 } from "../js/opening-book.js";
 
 // Mock Game class that mimics the real Game behavior
@@ -1094,5 +1096,254 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
     for (const w of weights) {
       expect(w).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("Opening Book: saveLearnedDataToStorage / loadLearnedDataFromStorage", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+    localStorage.clear();
+  });
+
+  test("saveLearnedDataToStorage saves to localStorage", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+
+    const result = saveLearnedDataToStorage();
+    expect(result).toBe(true);
+
+    const stored = localStorage.getItem("trischach-opening-book-learned");
+    expect(stored).not.toBeNull();
+
+    const data = JSON.parse(stored);
+    expect(data).toHaveProperty("version", 1);
+    expect(data).toHaveProperty("updated");
+    expect(data).toHaveProperty("positions");
+    expect(Object.keys(data.positions).length).toBeGreaterThan(0);
+  });
+
+  test("loadLearnedDataFromStorage loads from localStorage", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+    saveLearnedDataToStorage();
+
+    // Clear and reload
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+
+    const result = loadLearnedDataFromStorage();
+    expect(result).toBe(true);
+
+    const loadedVariations = OPENING_BOOK.get(hash);
+    expect(loadedVariations[0].wins).toBe(1);
+    expect(loadedVariations[0].visits).toBe(1);
+  });
+
+  test("loadLearnedDataFromStorage returns false if no data", () => {
+    localStorage.clear();
+    const result = loadLearnedDataFromStorage();
+    expect(result).toBe(false);
+  });
+
+  test("loadLearnedDataFromStorage handles corrupted data", () => {
+    localStorage.setItem("trischach-opening-book-learned", "invalid json");
+    const result = loadLearnedDataFromStorage();
+    expect(result).toBe(false);
+  });
+});
+
+describe("Opening Book: saveLearnedData (file)", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+  });
+
+  test("returns data object with version, updated, positions", async () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+
+    const data = await saveLearnedData();
+
+    expect(data).toHaveProperty("version", 1);
+    expect(data).toHaveProperty("updated");
+    expect(data).toHaveProperty("positions");
+    expect(typeof data.updated).toBe("string");
+    expect(new Date(data.updated).toString()).not.toBe("Invalid Date");
+  });
+
+  test("includes learned positions in saved data", async () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    learnFromGame([{ hash, faction: FACTION.FIRE, move: variations[0].move }], FACTION.FIRE);
+
+    const savedData = await saveLearnedData();
+    const learnedData = getLearnedData();
+
+    expect(Object.keys(savedData.positions).length).toBe(Object.keys(learnedData).length);
+  });
+
+  test("handles empty book", async () => {
+    OPENING_BOOK.clear();
+    const data = await saveLearnedData();
+    expect(data.positions).toEqual({});
+  });
+});
+
+describe("Opening Book: loadOpeningBook with mocked import", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    vi.resetModules();
+  });
+
+  test("loads compiled book and populates BOOK_INFO", async () => {
+    const mockBookData = {
+      version: "2.0",
+      metadata: {
+        stats: { totalPositions: 42, totalVariations: 100, maxDepth: 15 },
+        compiled: "2026-01-01T00:00:00.000Z",
+        lastUpdated: "2026-01-01T00:00:00.000Z",
+      },
+      book: {
+        "testhash#0": [
+          { move: { pieceId: "p1", targetQ: 0, targetR: 0 }, weight: 100 },
+        ],
+      },
+    };
+
+    // Mock the dynamic import
+    vi.doMock("../opening-book.compiled.json", () => ({
+      default: mockBookData,
+    }));
+
+    // Re-import to get mocked version
+    const { loadOpeningBook: mockedLoad, BOOK_INFO: mockedInfo } = await import("../js/opening-book.js");
+    const result = await mockedLoad();
+
+    expect(result).toBe(true);
+    expect(mockedInfo.version).toBe("2.0");
+    expect(mockedInfo.totalPositions).toBe(42);
+    expect(mockedInfo.maxPly).toBe(15);
+  });
+
+  test("handles missing file gracefully", async () => {
+    vi.doMock("../opening-book.compiled.json", () => {
+      throw new Error("Module not found");
+    });
+
+    const { loadOpeningBook: mockedLoad } = await import("../js/opening-book.js");
+    const result = await mockedLoad();
+
+    expect(result).toBe(false);
+  });
+
+  test("handles invalid book format", async () => {
+    vi.doMock("../opening-book.compiled.json", () => ({
+      default: { invalid: "format" },
+    }));
+
+    const { loadOpeningBook: mockedLoad } = await import("../js/opening-book.js");
+    const result = await mockedLoad();
+
+    expect(result).toBe(false);
+  });
+});
+
+describe("Opening Book: loadLearnedData advanced", () => {
+  beforeEach(() => {
+    OPENING_BOOK.clear();
+    buildOpeningBook(MockGame);
+  });
+
+  test("merges learned data with existing book entries", () => {
+    const game = createStartingGame();
+    const hash = boardHash(game);
+    const variations = OPENING_BOOK.get(hash);
+    const originalWeight = variations[0].weight;
+
+    const learnedData = {
+      positions: {
+        [hash]: [
+          {
+            move: variations[0].move,
+            wins: 5,
+            draws: 2,
+            losses: 1,
+            visits: 8,
+          },
+        ],
+      },
+    };
+
+    loadLearnedData(learnedData);
+
+    const updated = OPENING_BOOK.get(hash);
+    expect(updated[0].wins).toBe(5);
+    expect(updated[0].draws).toBe(2);
+    expect(updated[0].losses).toBe(1);
+    expect(updated[0].visits).toBe(8);
+    // Weight should be updated based on learned data (wins + draws * 0.5)
+    expect(updated[0].weight).toBe(Math.max(originalWeight, 5 + 2 * 0.5));
+  });
+
+  test("adds new variation for new move at existing position", () => {
+    const hash = "existinghash#0";
+    OPENING_BOOK.set(hash, [{ move: { pieceId: "p1", targetQ: 0, targetR: 0 }, weight: 50 }]);
+
+    const learnedData = {
+      positions: {
+        [hash]: [
+          { move: { pieceId: "p2", targetQ: 1, targetR: 1 }, wins: 3, draws: 0, losses: 0, visits: 3 },
+        ],
+      },
+    };
+
+    loadLearnedData(learnedData);
+
+    const variations = OPENING_BOOK.get(hash);
+    expect(variations.length).toBe(2);
+    expect(variations.find((v) => v.move.pieceId === "p2")).toBeDefined();
+  });
+
+  test("creates new position from learned data", () => {
+    const newHash = "newhash#0";
+    expect(OPENING_BOOK.has(newHash)).toBe(false);
+
+    const learnedData = {
+      positions: {
+        [newHash]: [
+          { move: { pieceId: "p1", targetQ: 0, targetR: 0 }, wins: 2, draws: 1, losses: 0, visits: 3 },
+        ],
+      },
+    };
+
+    loadLearnedData(learnedData);
+
+    expect(OPENING_BOOK.has(newHash)).toBe(true);
+    const variations = OPENING_BOOK.get(newHash);
+    expect(variations[0].wins).toBe(2);
+    expect(variations[0].draws).toBe(1);
+  });
+
+  test("applies minimum weight of 10", () => {
+    const learnedData = {
+      positions: {
+        "testhash#0": [
+          { move: { pieceId: "p1", targetQ: 0, targetR: 0 }, wins: 0, draws: 0, losses: 10, visits: 10 },
+        ],
+      },
+    };
+
+    loadLearnedData(learnedData);
+
+    const variations = OPENING_BOOK.get("testhash#0");
+    expect(variations[0].weight).toBeGreaterThanOrEqual(10);
   });
 });
