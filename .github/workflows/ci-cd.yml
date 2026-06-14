@@ -231,7 +231,7 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            
+
             // Read coverage
             let coverageMsg = '';
             if (fs.existsSync('coverage/coverage-summary.json')) {
@@ -240,7 +240,7 @@ jobs:
               const status = pct >= 80 ? '✅' : '❌';
               coverageMsg = `${status} **Coverage**: ${pct}% (threshold: 80%)`;
             }
-            
+
             // Read E2E results
             let e2eMsg = '';
             if (fs.existsSync('test-results/results.json')) {
@@ -251,15 +251,15 @@ jobs:
               const status = failed === 0 ? '✅' : '❌';
               e2eMsg = `${status} **E2E Tests**: ${passed}/${total} passed`;
             }
-            
+
             // Read bundle size from env
             const mainGzip = process.env.BUNDLE_MAIN_GZIP || 'N/A';
             const coreGzip = process.env.BUNDLE_CORE_GZIP || 'N/A';
             const workerGzip = process.env.BUNDLE_WORKER_GZIP || 'N/A';
             const bundleMsg = `📦 **Bundle sizes (gzipped)**: main=${mainGzip}B, ai-core=${coreGzip}B, ai-worker=${workerGzip}B`;
-            
+
             const body = `## 📊 CI Summary\n\n${coverageMsg}\n${e2eMsg}\n${bundleMsg}\n\n*Node: 20*`;
-            
+
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
