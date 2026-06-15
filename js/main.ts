@@ -39,6 +39,20 @@ import {
   reconstructGameFromTSPN,
   ReplayController,
 } from "./replay.ts";
+import {
+  generatePuzzlesFromBook,
+  loadPuzzle,
+  getPuzzleState,
+  makePuzzleMove,
+  requestHint,
+  resetPuzzle,
+  abandonPuzzle,
+  getDailyPuzzle,
+  Puzzle,
+  PuzzleMove,
+  PuzzleState,
+} from "./puzzle.ts";
+import type { Hex } from "./hex.ts";
 
 // ─── Settings Persistence (localStorage) ────────────────────────────────
 
@@ -101,6 +115,8 @@ const combatOverlay = document.getElementById("combat-overlay") as HTMLElement;
 const promotionOverlay = document.getElementById(
   "promotion-overlay",
 ) as HTMLElement;
+const puzzleOverlay = document.getElementById("puzzle-overlay") as HTMLElement;
+
 const restartBtn = document.getElementById("restart-btn") as HTMLButtonElement;
 const autoBattleBtn = document.getElementById(
   "auto-battle-btn",
@@ -113,6 +129,7 @@ const moveLogEl = document.getElementById("move-log") as HTMLElement;
 const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
 const loadBtn = document.getElementById("load-btn") as HTMLButtonElement;
 const copyBtn = document.getElementById("copy-btn") as HTMLButtonElement;
+const puzzleBtn = document.getElementById("puzzle-btn") as HTMLButtonElement;
 
 const fileInput = document.createElement("input");
 fileInput.type = "file";
@@ -1224,6 +1241,12 @@ function initEventListeners(): void {
     }
   });
 
+  const puzzleBtn = document.getElementById("puzzle-btn") as HTMLButtonElement;
+  puzzleBtn?.addEventListener("click", () => {
+    if (game.state === "game_over") return;
+    showPuzzleMenu();
+  });
+
   const loadBtn = document.getElementById("load-btn") as HTMLButtonElement;
   const fileInput = document.createElement("input");
   fileInput.type = "file";
@@ -1539,6 +1562,473 @@ function initEventListeners(): void {
       replayPlay();
     }
   });
+
+  // ─── Puzzle Mode ────────────────────────────────────────────────────
+
+  let puzzleGame: Game | null = null;
+  let puzzleRenderer: BoardRenderer | null = null;
+  let puzzleBoardGroup: SVGGElement | null = null;
+  let puzzleTimerInterval: ReturnType<typeof setInterval> | null = null;
+  let puzzleStartTime: number = 0;
+
+  async function showPuzzleMenu(): Promise<void> {
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title">♟ Puzzle Modus</h2>
+          <button class="puzzle-close-btn" id="puzzle-close-btn" title="Schließen">✕</button>
+        </div>
+        <div class="puzzle-info" id="puzzle-menu-info">
+          <div class="puzzle-info-item"><strong>Tagespuzzle</strong></div>
+          <span class="puzzle-difficulty medium" id="puzzle-daily-difficulty">Medium</span>
+        </div>
+        <div class="puzzle-actions">
+          <button class="puzzle-btn primary" id="puzzle-daily-btn">📅 Tagespuzzle</button>
+          <button class="puzzle-btn secondary" id="puzzle-generate-btn">🔄 Neu generieren</button>
+          <button class="puzzle-btn secondary" id="puzzle-continue-btn" style="display: none">▶️ Fortsetzen</button>
+        </div>
+      </div>
+    `;
+    puzzleOverlay.classList.add("visible");
+
+    document.getElementById("puzzle-close-btn")?.addEventListener("click", () => {
+      puzzleOverlay.classList.remove("visible");
+    });
+
+    document.getElementById("puzzle-daily-btn")?.addEventListener("click", async () => {
+      await loadAndShowDailyPuzzle();
+    });
+
+    document.getElementById("puzzle-generate-btn")?.addEventListener("click", async () => {
+      await generateAndShowPuzzles();
+    });
+
+    document.getElementById("puzzle-continue-btn")?.addEventListener("click", () => {
+      const state = getPuzzleState();
+      if (state.currentPuzzle) {
+        showPuzzleBoard(state.currentPuzzle);
+      }
+    });
+
+    // Check for saved progress
+    const state = getPuzzleState();
+    if (state.currentPuzzle) {
+      (document.getElementById("puzzle-continue-btn") as HTMLButtonElement).style.display = "inline-block";
+    }
+  }
+
+  async function loadAndShowDailyPuzzle(): Promise<void> {
+    showLoading("Lade Tagespuzzle...");
+    const daily = await getDailyPuzzle();
+    hideLoading();
+    if (daily) {
+      showPuzzleBoard(daily);
+    } else {
+      showError("Konnte Tagespuzzle nicht laden.");
+    }
+  }
+
+  async function generateAndShowPuzzles(): Promise<void> {
+    showLoading("Generiere Puzzles...");
+    const puzzles = await generatePuzzlesFromBook(5);
+    hideLoading();
+    if (puzzles.length > 0) {
+      showPuzzleSelection(puzzles);
+    } else {
+      showError("Keine Puzzles gefunden.");
+    }
+  }
+
+  function showPuzzleSelection(puzzles: Puzzle[]): void {
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title">Wähle ein Puzzle</h2>
+          <button class="puzzle-close-btn" id="puzzle-back-btn" title="Zurück">✕</button>
+        </div>
+        <div class="puzzle-solution-list" style="max-height: 400px;">
+          ${puzzles.map((p, i) => `
+            <div class="puzzle-move" data-index="${i}">
+              <span class="puzzle-move-number">${i + 1}.</span>
+              <span class="puzzle-move-san">Matt in ${p.mateIn} (${p.difficulty})</span>
+              <span class="puzzle-move-status pending">${p.faction}</span>
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+
+    document.getElementById("puzzle-back-btn")?.addEventListener("click", () => {
+      showPuzzleMenu();
+    });
+
+    puzzleOverlay.querySelectorAll(".puzzle-move[data-index]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const index = parseInt(el.getAttribute("data-index")!);
+        showPuzzleBoard(puzzles[index]);
+      });
+    });
+  }
+
+  function showPuzzleBoard(puzzle: Puzzle): void {
+    // Create a new game from the puzzle position
+    const testGame = new Game();
+    const cells = generateBoard();
+    testGame.init(cells);
+
+    // Deserialize the puzzle position
+    const gameFromFen = deserializePuzzleFEN(puzzle.fen);
+    if (!gameFromFen) {
+      showError("Ungültige Puzzle-Position.");
+      return;
+    }
+
+    // Copy state to testGame
+    Object.assign(testGame, gameFromFen);
+    testGame._undoStack = []; // No undo in puzzle mode
+
+    puzzleGame = testGame;
+    puzzleStartTime = Date.now();
+
+    // Create a temporary renderer for the puzzle board
+    const puzzleBoardContainer = document.createElement("div");
+    puzzleBoardContainer.className = "puzzle-board-container";
+
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title">♟ Matt in ${puzzle.mateIn}</h2>
+          <button class="puzzle-close-btn" id="puzzle-close-btn" title="Abbrechen">✕</button>
+        </div>
+        <div class="puzzle-info">
+          <span class="puzzle-difficulty ${puzzle.difficulty}">${puzzle.difficulty.toUpperCase()}</span>
+          <span class="puzzle-info-item">Am Zug: <strong>${FACTION_COLORS[puzzle.faction].name}</strong></span>
+        </div>
+        <div id="puzzle-board-wrapper" class="puzzle-board-container"></div>
+        <div class="puzzle-progress">
+          <div class="puzzle-progress-bar" id="puzzle-progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="puzzle-timer" id="puzzle-timer">00:00</div>
+        <div class="puzzle-solution-title">Lösungsweg</div>
+        <div class="puzzle-solution-list" id="puzzle-solution-list"></div>
+        <div class="puzzle-actions">
+          <button class="puzzle-btn secondary" id="puzzle-hint-btn">💡 Hinweis</button>
+          <button class="puzzle-btn danger" id="puzzle-giveup-btn">🏳 Aufgeben</button>
+          <button class="puzzle-btn primary" id="puzzle-reset-btn" style="display: none">🔄 Neustart</button>
+        </div>
+      </div>
+    `;
+    puzzleOverlay.classList.add("visible");
+
+    // Render the board in the wrapper
+    const boardWrapper = document.getElementById("puzzle-board-wrapper")!;
+    const puzzleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    puzzleSvg.id = "puzzle-board-svg";
+    puzzleSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    boardWrapper.appendChild(puzzleSvg);
+
+    puzzleRenderer = new BoardRenderer(puzzleSvg);
+    puzzleRenderer.render();
+    puzzleBoardGroup = puzzleRenderer.pieceElements.size ? puzzleSvg.querySelector("#board-group") : null;
+
+    // Render pieces
+    for (const p of puzzleGame.getAlivePieces()) {
+      puzzleRenderer.renderPiece(p);
+    }
+
+    // Render solution list
+    renderSolutionList(puzzle);
+
+    // Start timer
+    puzzleTimerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60).toString().padStart(2, "0");
+      const secs = (elapsed % 60).toString().padStart(2, "0");
+      (document.getElementById("puzzle-timer") as HTMLElement).textContent = `${mins}:${secs}`;
+    }, 1000);
+
+    // Event listeners
+    document.getElementById("puzzle-close-btn")?.addEventListener("click", () => {
+      abandonPuzzle();
+      cleanupPuzzle();
+      showPuzzleMenu();
+    });
+
+    document.getElementById("puzzle-hint-btn")?.addEventListener("click", () => {
+      const hint = requestHint();
+      if (hint) {
+        showHintToast(`Zug: ${hint.san}`);
+      }
+    });
+
+    document.getElementById("puzzle-giveup-btn")?.addEventListener("click", () => {
+      showPuzzleResult(false, puzzle);
+    });
+
+    document.getElementById("puzzle-reset-btn")?.addEventListener("click", () => {
+      resetPuzzle();
+      showPuzzleBoard(puzzle);
+    });
+
+    // Handle clicks on the puzzle board
+    puzzleSvg.addEventListener("click", (e) => handlePuzzleBoardClick(e, puzzleGame!));
+  }
+
+  function renderSolutionList(puzzle: Puzzle): void {
+    const listEl = document.getElementById("puzzle-solution-list")!;
+    const state = getPuzzleState();
+
+    listEl.innerHTML = puzzle.solution.map((move, i) => {
+      let statusClass = "pending";
+      let statusText = "⏳";
+      if (i < state.currentMoveIndex) {
+        statusClass = "correct";
+        statusText = "✅";
+      } else if (i === state.currentMoveIndex) {
+        statusClass = "current";
+        statusText = "▶️";
+      }
+      return `
+        <div class="puzzle-move ${statusClass}">
+          <span class="puzzle-move-number">${i + 1}.</span>
+          <span class="puzzle-move-san">${move.san}</span>
+          <span class="puzzle-move-status ${statusClass}">${statusText}</span>
+        </div>
+      `;
+    }).join("");
+
+    // Update progress bar
+    const progress = (state.currentMoveIndex / puzzle.solution.length) * 100;
+    (document.getElementById("puzzle-progress-bar") as HTMLElement).style.width = `${progress}%`;
+  }
+
+  function handlePuzzleBoardClick(event: MouseEvent, pg: Game): void {
+    if (!pg || getPuzzleState().isComplete) return;
+
+    // Find clicked hex from SVG coordinates
+    const svg = event.target as SVGElement;
+    const boardGroup = svg.closest("#board-group") as SVGGElement;
+    if (!boardGroup) return;
+
+    // Get click coordinates relative to SVG
+    const svgEl = document.getElementById("puzzle-board-svg") as SVGSVGElement;
+    const rect = svgEl.getBoundingClientRect();
+    const clientX = event.clientX - rect.left;
+    const clientY = event.clientY - rect.top;
+
+    // Find hex under click (simplified - use renderer's hit testing)
+    // For now, we'll use a simpler approach: check which piece was clicked
+    const target = event.target as SVGGElement;
+    const pieceEl = target.closest(".piece") as SVGGElement;
+    const cellEl = target.closest(".cell") as SVGGElement;
+
+    if (pieceEl) {
+      const pieceId = pieceEl.dataset.pieceId;
+      if (!pieceId) return;
+
+      const piece = pg.getAlivePieces().find((p) => p.id === pieceId);
+      if (!piece) return;
+
+      const state = getPuzzleState();
+      if (state.currentMoveIndex >= state.currentPuzzle!.solution.length) return;
+
+      const expectedMove = state.currentPuzzle!.solution[state.currentMoveIndex];
+
+      if (pieceId === expectedMove.pieceId) {
+        // Correct piece selected, now wait for target click
+        pg.handleCellClick(piece.pos); // Select the piece
+        showSelectionHighlights(piece);
+      }
+    } else if (cellEl) {
+      const hexKey = cellEl.dataset.hexKey;
+      if (!hexKey) return;
+
+      const [q, r] = hexKey.split(",").map(Number);
+      const targetHex = new Hex(q, r);
+
+      // Try to make the move
+      const result = makePuzzleMove(pg, getPuzzleState().currentPuzzle!.solution[getPuzzleState().currentMoveIndex].pieceId, targetHex);
+
+      if (result.correct) {
+        // Move was correct
+        sounds.playMove();
+        const move = pg.moveHistory[pg.moveHistory.length - 1];
+        addToLog(move);
+        puzzleGame?.getAlivePieces().forEach(p => puzzleRenderer?.renderPiece(p));
+        renderSolutionList(getPuzzleState().currentPuzzle!);
+
+        if (result.gameOver) {
+          setTimeout(() => showPuzzleResult(true, getPuzzleState().currentPuzzle!), 500);
+        }
+      } else {
+        // Wrong move
+        sounds.playError();
+        showPuzzleResult(false, getPuzzleState().currentPuzzle!);
+      }
+    }
+
+    pg._rebuildOccupiedMap();
+  }
+
+  function showSelectionHighlights(piece: { pos: Hex; id: string }): void {
+    if (!puzzleGame || !puzzleRenderer) return;
+    puzzleRenderer.clearHighlights();
+    puzzleRenderer.clearSelection();
+    puzzleRenderer.selectCell(piece.pos);
+    const { moves, attacks } = puzzleGame.getLegalMoves(piece);
+    puzzleRenderer.highlightCells(moves, "highlight-move");
+    if (puzzleGame.rpsEnabled) {
+      // We don't have rpsAttacks here, just use attacks
+      puzzleRenderer.highlightCells(attacks, "highlight-attack");
+    } else {
+      puzzleRenderer.highlightCells(attacks, "highlight-attack");
+    }
+  }
+
+  function showPuzzleResult(success: boolean, puzzle: Puzzle): void {
+    if (puzzleTimerInterval) {
+      clearInterval(puzzleTimerInterval);
+      puzzleTimerInterval = null;
+    }
+
+    const state = getPuzzleState();
+    const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
+    const mins = Math.floor(elapsed / 60).toString().padStart(2, "0");
+    const secs = (elapsed % 60).toString().padStart(2, "0");
+
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title">${success ? "🎉 Gelöst!" : "😔 Gescheitert"}</h2>
+          <button class="puzzle-close-btn" id="puzzle-result-close" title="Schließen">✕</button>
+        </div>
+        <div class="puzzle-result ${success ? "success" : "failed"}">
+          <div class="puzzle-result-title">${success ? "Matt gesetzt!" : "Falscher Zug"}</div>
+          <div class="puzzle-result-stats">
+            <span>Zeit: <strong>${mins}:${secs}</strong></span>
+            <span>Züge: <strong>${state.currentMoveIndex}/${puzzle.solution.length}</strong></span>
+            ${success && state.hintUsed ? '<span style="color: var(--water)">Hinweis genutzt</span>' : ""}
+            ${!success && state.expectedMove ? `<span>Richtig: <strong>${state.expectedMove.san}</strong></span>` : ""}
+          </div>
+        </div>
+        <div class="puzzle-actions">
+          <button class="puzzle-btn primary" id="puzzle-again-btn">🔄 Nochmal</button>
+          <button class="puzzle-btn secondary" id="puzzle-menu-btn">📋 Menü</button>
+        </div>
+      </div>
+    `;
+
+    document.getElementById("puzzle-result-close")?.addEventListener("click", () => {
+      cleanupPuzzle();
+      showPuzzleMenu();
+    });
+
+    document.getElementById("puzzle-again-btn")?.addEventListener("click", () => {
+      resetPuzzle();
+      showPuzzleBoard(puzzle);
+    });
+
+    document.getElementById("puzzle-menu-btn")?.addEventListener("click", () => {
+      cleanupPuzzle();
+      showPuzzleMenu();
+    });
+  }
+
+  function cleanupPuzzle(): void {
+    if (puzzleTimerInterval) {
+      clearInterval(puzzleTimerInterval);
+      puzzleTimerInterval = null;
+    }
+    puzzleGame = null;
+    puzzleRenderer = null;
+    puzzleBoardGroup = null;
+  }
+
+  function deserializePuzzleFEN(fen: string): Game | null {
+    try {
+      const [piecesStr, factionIdxStr] = fen.split("#");
+      const factionIdx = parseInt(factionIdxStr, 10);
+
+      const game = new Game();
+      const cells = generateBoard();
+      game.init(cells);
+
+      for (const p of game.pieces) p.alive = false;
+
+      if (piecesStr) {
+        const pieceEntries = piecesStr.split("|");
+        for (const entry of pieceEntries) {
+          if (!entry) continue;
+          const factionChar = entry[0];
+          const typeChar = entry[1];
+          const coords = entry.slice(2).split(",");
+          const q = parseInt(coords[0], 10);
+          const r = parseInt(coords[1], 10);
+
+          const faction = factionChar === "F" ? "fire" : factionChar === "W" ? "water" : "nature";
+          const piece = game.pieces.find(
+            (p) => p.faction === faction && p.pos.q === q && p.pos.r === r,
+          );
+          if (piece) piece.alive = true;
+        }
+      }
+
+      game.currentFactionIdx = factionIdx % 3;
+      game.currentFaction = ["fire", "water", "nature"][game.currentFactionIdx];
+      game._rebuildOccupiedMap();
+
+      return game;
+    } catch {
+      return null;
+    }
+  }
+
+  function showLoading(message: string): void {
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-title">${message}</div>
+        <div style="margin-top: 1rem; color: var(--water);">⏳</div>
+      </div>
+    `;
+    puzzleOverlay.classList.add("visible");
+  }
+
+  function hideLoading(): void {
+    // Will be replaced by next screen
+  }
+
+  function showError(message: string): void {
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title" style="color: var(--fire)">⚠️ Fehler</h2>
+          <button class="puzzle-close-btn" id="puzzle-error-close">✕</button>
+        </div>
+        <p style="color: var(--text-dim); margin: 1rem 0;">${message}</p>
+        <button class="puzzle-btn primary" id="puzzle-error-retry">OK</button>
+      </div>
+    `;
+    document.getElementById("puzzle-error-close")?.addEventListener("click", () => showPuzzleMenu());
+    document.getElementById("puzzle-error-retry")?.addEventListener("click", () => showPuzzleMenu());
+  }
+
+  function showHintToast(message: string): void {
+    const existing = document.getElementById("puzzle-hint-toast");
+    if (existing) existing.remove();
+
+    const toast = document.createElement("div");
+    toast.id = "puzzle-hint-toast";
+    toast.className = "puzzle-hint-toast";
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.add("visible"));
+
+    setTimeout(() => {
+      toast.classList.remove("visible");
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
 
   // Personality Selector
   const personalitySelect = document.getElementById(
