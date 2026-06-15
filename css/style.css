@@ -8,6 +8,7 @@
 }
 
 :root {
+  /* Dark theme (default) */
   --bg: #0a0a12;
   --bg2: #12121e;
   --surface: #1a1a2e;
@@ -23,6 +24,51 @@
   --glass: rgba(255, 255, 255, 0.04);
   --glass-border: rgba(255, 255, 255, 0.08);
   --radius: 12px;
+  --header-bg: var(--surface);
+  --status-info-bg: #1e3a5f;
+  --status-info-color: #60a5fa;
+  --status-error-bg: #5f1e1e;
+  --status-error-color: #f87171;
+  --status-success-bg: #1e5f1e;
+  --status-success-color: #4ade80;
+  --slider-track: #333;
+  --slider-thumb: var(--water);
+  --eval-marker: #fff;
+  --move-hover: #2a2a44;
+  --move-current: #1e3a5f;
+  --btn-primary: var(--water);
+  --btn-primary-hover: var(--water2);
+}
+
+[data-theme="light"] {
+  --bg: #f8f9fa;
+  --bg2: #e9ecef;
+  --surface: #ffffff;
+  --border: #dee2e6;
+  --text: #1a1a2e;
+  --text-dim: #6c757d;
+  --fire: #dc2626;
+  --fire2: #ef4444;
+  --water: #2563eb;
+  --water2: #3b82f6;
+  --nature: #16a34a;
+  --nature2: #22c55e;
+  --glass: rgba(0, 0, 0, 0.04);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --header-bg: var(--surface);
+  --status-info-bg: #dbeafe;
+  --status-info-color: #1e40af;
+  --status-error-bg: #fee2e2;
+  --status-error-color: #dc2626;
+  --status-success-bg: #dcfce7;
+  --status-success-color: #16a34a;
+  --slider-track: #ccc;
+  --slider-thumb: var(--water);
+  --eval-marker: #000;
+  --move-hover: #e9ecef;
+  --move-current: #dbeafe;
+  --btn-primary: var(--water);
+  --btn-primary-hover: var(--water2);
 }
 
 body {
@@ -1855,6 +1901,33 @@ input:checked + .slider:before {
   background: #dc2626;
   color: #fff;
   border-color: #dc2626;
+}
+
+/* Dark Mode Toggle Button */
+.toggle-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.toggle-btn:hover {
+  background: var(--btn-primary);
+  border-color: var(--btn-primary);
+  color: #fff;
+  transform: scale(1.1);
+}
+.toggle-btn.active {
+  background: var(--btn-primary);
+  border-color: var(--btn-primary);
+  color: #fff;
 }
 
 @media (max-width: 600px) {

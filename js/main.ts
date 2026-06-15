@@ -164,6 +164,9 @@ const settingsCloseBtn = document.getElementById(
 ) as HTMLButtonElement;
 const settingsTabs = document.querySelectorAll(".settings-tab");
 const settingsPanels = document.querySelectorAll(".settings-panel");
+const darkModeBtn = document.getElementById(
+  "darkmode-btn",
+) as HTMLButtonElement;
 
 const fileInput = document.createElement("input");
 fileInput.type = "file";
@@ -2305,6 +2308,27 @@ function initEventListeners(): void {
       });
     });
 
+  // Global keyboard shortcuts (when not in input/select)
+  document.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLSelectElement ||
+      e.target instanceof HTMLTextAreaElement
+    ) {
+      return;
+    }
+    switch (e.key.toLowerCase()) {
+      case "d":
+        toggleDarkMode();
+        break;
+      case "?":
+        showHintToast(
+          "Shortcuts: ←/→ Nav, Space Play/Pause, F Flip, D Dark, C Copy, ? Help",
+        );
+        break;
+    }
+  });
+
   // Run Auto-Battle Learning button
   const runAbBtn = document.getElementById(
     "run-auto-battle-learning",
@@ -2637,6 +2661,39 @@ function initEventListeners(): void {
   obTab?.addEventListener("click", () => {
     loadOpeningBookStats();
   });
+
+  // Dark Mode Toggle
+  function loadDarkModePreference(): void {
+    const saved = localStorage.getItem("trischach-dark-mode");
+    if (saved === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+      darkModeBtn?.classList.add("active");
+    } else {
+      document.documentElement.removeAttribute("data-theme");
+      darkModeBtn?.classList.remove("active");
+    }
+  }
+
+  function toggleDarkMode(): void {
+    const isLight =
+      document.documentElement.getAttribute("data-theme") === "light";
+    if (isLight) {
+      document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("trischach-dark-mode", "dark");
+      darkModeBtn?.classList.remove("active");
+    } else {
+      document.documentElement.setAttribute("data-theme", "light");
+      localStorage.setItem("trischach-dark-mode", "light");
+      darkModeBtn?.classList.add("active");
+    }
+  }
+
+  darkModeBtn?.addEventListener("click", () => {
+    toggleDarkMode();
+  });
+
+  // Load dark mode preference on startup
+  loadDarkModePreference();
 
   // We can also just load once when initEventListeners runs
   loadOpeningBookStats();
