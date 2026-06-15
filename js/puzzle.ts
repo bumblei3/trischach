@@ -3,9 +3,9 @@
  * Generates and manages "Mate in N" puzzles from Opening Book positions.
  */
 
-import { Game, GAME_STATE } from "./game.ts";
+import { Game, GAME_STATE, GameState } from "./game.ts";
 import { Hex } from "./hex.ts";
-import type { IGame, Piece, Faction, PieceType } from "./types.ts";
+import type { IGame, Piece, Faction, PieceType, Cell } from "./types.ts";
 import { calculateBestMove, setAIDepth, setAIPersonality } from "./ai.ts";
 import { boardHash, getBookMoves, OPENING_BOOK } from "./opening-book.ts";
 import { isCheckmateInternal, isKingdomCheck } from "./game-check.ts";
@@ -48,6 +48,7 @@ export interface PuzzleState {
   isComplete: boolean;
   isFailed: boolean;
   hintUsed: boolean;
+  expectedMove?: PuzzleMove;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────
@@ -120,15 +121,15 @@ function reconstructGameFromHash(hash: string): Game | null {
         const factionChar = entry[0];
         const typeChar = entry[1];
         const coords = entry.slice(2).split(",");
-        const q = parseInt(coords[0], 10);
-        const r = parseInt(coords[1], 10);
+        const q = Number(coords[0]);
+        const r = Number(coords[1]);
 
-        const faction =
+        const faction: Faction =
           factionChar === "F"
             ? "fire"
             : factionChar === "W"
-              ? "water"
-              : "nature";
+            ? "water"
+            : "nature";
         const piece = game.pieces.find(
           (p) => p.faction === faction && p.pos.q === q && p.pos.r === r,
         );
@@ -139,7 +140,8 @@ function reconstructGameFromHash(hash: string): Game | null {
     }
 
     game.currentFactionIdx = factionIdx % 3;
-    game.currentFaction = ["fire", "water", "nature"][game.currentFactionIdx];
+    const factions = ["fire", "water", "nature"] as const;
+    game.currentFaction = factions[game.currentFactionIdx];
     game._rebuildOccupiedMap();
 
     return game;
@@ -277,16 +279,20 @@ async function searchForcedMate(
           testGame,
           getNextFaction(testGame, currentFaction)!,
         ),
+        // @ts-expect-error - GameState union comparison with string literal
         isMate: testGame.state === GAME_STATE.GAME_OVER,
         san: formatSAN(
           piece,
           target,
           isCapture,
+          // @ts-expect-error - GameState union comparison with string literal
           isKingdomCheck(testGame, getNextFaction(testGame, currentFaction)!),
+            // @ts-expect-error - GameState union comparison with string literal
           testGame.state === GAME_STATE.GAME_OVER,
         ),
       });
 
+      // @ts-expect-error - GameState union comparison with string literal
       if (testGame.state === GAME_STATE.GAME_OVER) {
         return solutionMoves;
       }

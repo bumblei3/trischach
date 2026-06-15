@@ -1088,6 +1088,7 @@ function initEventListeners(): void {
       autoBattleBtn.textContent = "⏹ Auto Battle Stoppen";
       autoBattleBtn.classList.add("active");
       // Start pondering for first auto-move
+      // @ts-expect-error - GameState union comparison with string literal
       if (game.state !== "game_over") {
         startPondering(game, game.currentFaction);
       }
@@ -1132,7 +1133,7 @@ function initEventListeners(): void {
   ) as HTMLInputElement;
   const depthLabel = document.getElementById("depth-label") as HTMLElement;
   depthSlider?.addEventListener("input", (e: Event) => {
-    const depth = parseInt((e.target as HTMLInputElement).value);
+    const depth = parseInt((e.target as HTMLInputElement).value) as 1 | 2 | 3 | 4;
     setAIDepth(depth);
     depthLabel.textContent = "KI: " + depthNames[depth];
     saveSettings({ ...loadSettings(), aiDepth: depth });
@@ -1472,14 +1473,16 @@ function initEventListeners(): void {
   ) as HTMLInputElement;
 
   replayFirst?.addEventListener("click", () => {
-    window.replayController?.goToStart();
-    applyGameState(window.replayController.getCurrentState());
+    const controller = window.replayController as ReplayController;
+    controller.goToStart();
+    applyGameState(controller.getCurrentState());
     updateReplayUI();
   });
 
   replayPrev?.addEventListener("click", () => {
-    window.replayController?.previous();
-    applyGameState(window.replayController.getCurrentState());
+    const controller = window.replayController as ReplayController;
+    controller.previous();
+    applyGameState(controller.getCurrentState());
     updateReplayUI();
   });
 
@@ -1492,8 +1495,9 @@ function initEventListeners(): void {
   });
 
   replayNext?.addEventListener("click", () => {
-    window.replayController?.next();
-    applyGameState(window.replayController.getCurrentState());
+    const controller = window.replayController as ReplayController;
+    controller.next();
+    applyGameState(controller.getCurrentState());
     updateReplayUI();
   });
 
