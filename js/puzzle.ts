@@ -6,11 +6,7 @@
 import { Game, GAME_STATE } from "./game.ts";
 import { Hex } from "./hex.ts";
 import type { IGame, Piece, Faction, PieceType } from "./types.ts";
-import {
-  calculateBestMove,
-  setAIDepth,
-  setAIPersonality,
-} from "./ai.ts";
+import { calculateBestMove, setAIDepth, setAIPersonality } from "./ai.ts";
 import { boardHash, getBookMoves, OPENING_BOOK } from "./opening-book.ts";
 import { isCheckmateInternal, isKingdomCheck } from "./game-check.ts";
 
@@ -73,7 +69,9 @@ export async function generatePuzzlesFromBook(
   const bookPositions = Array.from(OPENING_BOOK.entries());
   const bookStats = getBookStats();
 
-  console.log(`Puzzle Generator: ${bookStats.positions} book positions available`);
+  console.log(
+    `Puzzle Generator: ${bookStats.positions} book positions available`,
+  );
 
   // Shuffle positions for variety
   shuffleArray(bookPositions);
@@ -125,7 +123,12 @@ function reconstructGameFromHash(hash: string): Game | null {
         const q = parseInt(coords[0], 10);
         const r = parseInt(coords[1], 10);
 
-        const faction = factionChar === "F" ? "fire" : factionChar === "W" ? "water" : "nature";
+        const faction =
+          factionChar === "F"
+            ? "fire"
+            : factionChar === "W"
+              ? "water"
+              : "nature";
         const piece = game.pieces.find(
           (p) => p.faction === faction && p.pos.q === q && p.pos.r === r,
         );
@@ -187,9 +190,9 @@ async function findMatePuzzle(game: Game): Promise<Puzzle | null> {
  * Find immediate mate in 1 move.
  */
 function findImmediateMate(game: Game): PuzzleMove | null {
-  const pieces = game.getAlivePieces().filter(
-    (p) => p.faction === game.currentFaction,
-  );
+  const pieces = game
+    .getAlivePieces()
+    .filter((p) => p.faction === game.currentFaction);
 
   for (const piece of pieces) {
     const { moves, attacks } = game.getLegalMoves(piece);
@@ -212,7 +215,13 @@ function findImmediateMate(game: Game): PuzzleMove | null {
             isCapture: !!testGame.getPieceAt(target),
             isCheck: true,
             isMate: true,
-            san: formatSAN(piece, target, !!testGame.getPieceAt(target), true, true),
+            san: formatSAN(
+              piece,
+              target,
+              !!testGame.getPieceAt(target),
+              true,
+              true,
+            ),
           };
         }
       }
@@ -264,7 +273,10 @@ async function searchForcedMate(
         from: { q: piece.pos.q, r: piece.pos.r },
         to: { q: target.q, r: target.r },
         isCapture,
-        isCheck: isKingdomCheck(testGame, getNextFaction(testGame, currentFaction)!),
+        isCheck: isKingdomCheck(
+          testGame,
+          getNextFaction(testGame, currentFaction)!,
+        ),
         isMate: testGame.state === GAME_STATE.GAME_OVER,
         san: formatSAN(
           piece,
@@ -386,7 +398,8 @@ export function makePuzzleMove(
     return { correct: false, gameOver: false };
   }
 
-  const expectedMove = puzzleState.currentPuzzle.solution[puzzleState.currentMoveIndex];
+  const expectedMove =
+    puzzleState.currentPuzzle.solution[puzzleState.currentMoveIndex];
   if (!expectedMove) {
     return { correct: false, gameOver: true };
   }
@@ -401,7 +414,9 @@ export function makePuzzleMove(
     puzzleState.currentMoveIndex++;
 
     // Check if puzzle is complete
-    if (puzzleState.currentMoveIndex >= puzzleState.currentPuzzle.solution.length) {
+    if (
+      puzzleState.currentMoveIndex >= puzzleState.currentPuzzle.solution.length
+    ) {
       puzzleState.isComplete = true;
       updatePuzzleStats(true);
       return { correct: true, gameOver: true };
@@ -418,7 +433,9 @@ export function makePuzzleMove(
 export function requestHint(): PuzzleMove | null {
   if (!puzzleState.currentPuzzle || puzzleState.isComplete) return null;
   puzzleState.hintUsed = true;
-  return puzzleState.currentPuzzle.solution[puzzleState.currentMoveIndex] || null;
+  return (
+    puzzleState.currentPuzzle.solution[puzzleState.currentMoveIndex] || null
+  );
 }
 
 export function resetPuzzle(): void {
@@ -497,12 +514,18 @@ function updatePuzzleStats(solved: boolean): void {
   const puzzles = loadPuzzles();
   const idx = puzzles.findIndex((p) => p.id === puzzleState.currentPuzzle!.id);
   if (idx >= 0) {
-    puzzles[idx].stats = puzzles[idx].stats || { attempts: 0, solved: 0, avgTime: 0 };
+    puzzles[idx].stats = puzzles[idx].stats || {
+      attempts: 0,
+      solved: 0,
+      avgTime: 0,
+    };
     puzzles[idx].stats!.attempts++;
     if (solved) puzzles[idx].stats!.solved++;
     const elapsed = (Date.now() - puzzleState.startTime) / 1000;
     const prevAvg = puzzles[idx].stats!.avgTime || 0;
-    puzzles[idx].stats!.avgTime = (prevAvg * (puzzles[idx].stats!.attempts - 1) + elapsed) / puzzles[idx].stats!.attempts;
+    puzzles[idx].stats!.avgTime =
+      (prevAvg * (puzzles[idx].stats!.attempts - 1) + elapsed) /
+      puzzles[idx].stats!.attempts;
     savePuzzles(puzzles);
   }
 }
@@ -516,9 +539,7 @@ function cloneGameForTest(game: Game): Game {
 
   // Copy pieces
   for (const piece of game.pieces) {
-    const newPiece = newGame.pieces.find(
-      (p) => p.id === piece.id,
-    );
+    const newPiece = newGame.pieces.find((p) => p.id === piece.id);
     if (newPiece) {
       newPiece.pos = new Hex(piece.pos.q, piece.pos.r);
       newPiece.alive = piece.alive;
@@ -564,8 +585,11 @@ function formatSAN(
 }
 
 function serializePosition(game: Game): string {
-  const pieces = game.getAlivePieces()
-    .map((p) => `${p.faction[0].toUpperCase()}${p.type[0]}${p.pos.q},${p.pos.r}`)
+  const pieces = game
+    .getAlivePieces()
+    .map(
+      (p) => `${p.faction[0].toUpperCase()}${p.type[0]}${p.pos.q},${p.pos.r}`,
+    )
     .join("|");
   return `${pieces}#${game.currentFactionIdx}`;
 }
@@ -619,9 +643,10 @@ async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
 
   // Pick a medium difficulty puzzle for daily
   const mediumPuzzles = puzzles.filter((p) => p.difficulty === "medium");
-  const daily = mediumPuzzles.length > 0
-    ? mediumPuzzles[Math.floor(Math.random() * mediumPuzzles.length)]
-    : puzzles[0];
+  const daily =
+    mediumPuzzles.length > 0
+      ? mediumPuzzles[Math.floor(Math.random() * mediumPuzzles.length)]
+      : puzzles[0];
 
   try {
     localStorage.setItem(DAILY_PUZZLE_KEY, JSON.stringify(daily));

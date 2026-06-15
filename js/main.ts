@@ -1591,29 +1591,39 @@ function initEventListeners(): void {
     `;
     puzzleOverlay.classList.add("visible");
 
-    document.getElementById("puzzle-close-btn")?.addEventListener("click", () => {
-      puzzleOverlay.classList.remove("visible");
-    });
+    document
+      .getElementById("puzzle-close-btn")
+      ?.addEventListener("click", () => {
+        puzzleOverlay.classList.remove("visible");
+      });
 
-    document.getElementById("puzzle-daily-btn")?.addEventListener("click", async () => {
-      await loadAndShowDailyPuzzle();
-    });
+    document
+      .getElementById("puzzle-daily-btn")
+      ?.addEventListener("click", async () => {
+        await loadAndShowDailyPuzzle();
+      });
 
-    document.getElementById("puzzle-generate-btn")?.addEventListener("click", async () => {
-      await generateAndShowPuzzles();
-    });
+    document
+      .getElementById("puzzle-generate-btn")
+      ?.addEventListener("click", async () => {
+        await generateAndShowPuzzles();
+      });
 
-    document.getElementById("puzzle-continue-btn")?.addEventListener("click", () => {
-      const state = getPuzzleState();
-      if (state.currentPuzzle) {
-        showPuzzleBoard(state.currentPuzzle);
-      }
-    });
+    document
+      .getElementById("puzzle-continue-btn")
+      ?.addEventListener("click", () => {
+        const state = getPuzzleState();
+        if (state.currentPuzzle) {
+          showPuzzleBoard(state.currentPuzzle);
+        }
+      });
 
     // Check for saved progress
     const state = getPuzzleState();
     if (state.currentPuzzle) {
-      (document.getElementById("puzzle-continue-btn") as HTMLButtonElement).style.display = "inline-block";
+      (
+        document.getElementById("puzzle-continue-btn") as HTMLButtonElement
+      ).style.display = "inline-block";
     }
   }
 
@@ -1647,20 +1657,26 @@ function initEventListeners(): void {
           <button class="puzzle-close-btn" id="puzzle-back-btn" title="Zurück">✕</button>
         </div>
         <div class="puzzle-solution-list" style="max-height: 400px;">
-          ${puzzles.map((p, i) => `
+          ${puzzles
+            .map(
+              (p, i) => `
             <div class="puzzle-move" data-index="${i}">
               <span class="puzzle-move-number">${i + 1}.</span>
               <span class="puzzle-move-san">Matt in ${p.mateIn} (${p.difficulty})</span>
               <span class="puzzle-move-status pending">${p.faction}</span>
             </div>
-          `).join("")}
+          `,
+            )
+            .join("")}
         </div>
       </div>
     `;
 
-    document.getElementById("puzzle-back-btn")?.addEventListener("click", () => {
-      showPuzzleMenu();
-    });
+    document
+      .getElementById("puzzle-back-btn")
+      ?.addEventListener("click", () => {
+        showPuzzleMenu();
+      });
 
     puzzleOverlay.querySelectorAll(".puzzle-move[data-index]").forEach((el) => {
       el.addEventListener("click", () => {
@@ -1722,14 +1738,19 @@ function initEventListeners(): void {
 
     // Render the board in the wrapper
     const boardWrapper = document.getElementById("puzzle-board-wrapper")!;
-    const puzzleSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const puzzleSvg = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "svg",
+    );
     puzzleSvg.id = "puzzle-board-svg";
     puzzleSvg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
     boardWrapper.appendChild(puzzleSvg);
 
     puzzleRenderer = new BoardRenderer(puzzleSvg);
     puzzleRenderer.render();
-    puzzleBoardGroup = puzzleRenderer.pieceElements.size ? puzzleSvg.querySelector("#board-group") : null;
+    puzzleBoardGroup = puzzleRenderer.pieceElements.size
+      ? puzzleSvg.querySelector("#board-group")
+      : null;
 
     // Render pieces
     for (const p of puzzleGame.getAlivePieces()) {
@@ -1742,64 +1763,81 @@ function initEventListeners(): void {
     // Start timer
     puzzleTimerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
-      const mins = Math.floor(elapsed / 60).toString().padStart(2, "0");
+      const mins = Math.floor(elapsed / 60)
+        .toString()
+        .padStart(2, "0");
       const secs = (elapsed % 60).toString().padStart(2, "0");
-      (document.getElementById("puzzle-timer") as HTMLElement).textContent = `${mins}:${secs}`;
+      (document.getElementById("puzzle-timer") as HTMLElement).textContent =
+        `${mins}:${secs}`;
     }, 1000);
 
     // Event listeners
-    document.getElementById("puzzle-close-btn")?.addEventListener("click", () => {
-      abandonPuzzle();
-      cleanupPuzzle();
-      showPuzzleMenu();
-    });
+    document
+      .getElementById("puzzle-close-btn")
+      ?.addEventListener("click", () => {
+        abandonPuzzle();
+        cleanupPuzzle();
+        showPuzzleMenu();
+      });
 
-    document.getElementById("puzzle-hint-btn")?.addEventListener("click", () => {
-      const hint = requestHint();
-      if (hint) {
-        showHintToast(`Zug: ${hint.san}`);
-      }
-    });
+    document
+      .getElementById("puzzle-hint-btn")
+      ?.addEventListener("click", () => {
+        const hint = requestHint();
+        if (hint) {
+          showHintToast(`Zug: ${hint.san}`);
+        }
+      });
 
-    document.getElementById("puzzle-giveup-btn")?.addEventListener("click", () => {
-      showPuzzleResult(false, puzzle);
-    });
+    document
+      .getElementById("puzzle-giveup-btn")
+      ?.addEventListener("click", () => {
+        showPuzzleResult(false, puzzle);
+      });
 
-    document.getElementById("puzzle-reset-btn")?.addEventListener("click", () => {
-      resetPuzzle();
-      showPuzzleBoard(puzzle);
-    });
+    document
+      .getElementById("puzzle-reset-btn")
+      ?.addEventListener("click", () => {
+        resetPuzzle();
+        showPuzzleBoard(puzzle);
+      });
 
     // Handle clicks on the puzzle board
-    puzzleSvg.addEventListener("click", (e) => handlePuzzleBoardClick(e, puzzleGame!));
+    puzzleSvg.addEventListener("click", (e) =>
+      handlePuzzleBoardClick(e, puzzleGame!),
+    );
   }
 
   function renderSolutionList(puzzle: Puzzle): void {
     const listEl = document.getElementById("puzzle-solution-list")!;
     const state = getPuzzleState();
 
-    listEl.innerHTML = puzzle.solution.map((move, i) => {
-      let statusClass = "pending";
-      let statusText = "⏳";
-      if (i < state.currentMoveIndex) {
-        statusClass = "correct";
-        statusText = "✅";
-      } else if (i === state.currentMoveIndex) {
-        statusClass = "current";
-        statusText = "▶️";
-      }
-      return `
+    listEl.innerHTML = puzzle.solution
+      .map((move, i) => {
+        let statusClass = "pending";
+        let statusText = "⏳";
+        if (i < state.currentMoveIndex) {
+          statusClass = "correct";
+          statusText = "✅";
+        } else if (i === state.currentMoveIndex) {
+          statusClass = "current";
+          statusText = "▶️";
+        }
+        return `
         <div class="puzzle-move ${statusClass}">
           <span class="puzzle-move-number">${i + 1}.</span>
           <span class="puzzle-move-san">${move.san}</span>
           <span class="puzzle-move-status ${statusClass}">${statusText}</span>
         </div>
       `;
-    }).join("");
+      })
+      .join("");
 
     // Update progress bar
     const progress = (state.currentMoveIndex / puzzle.solution.length) * 100;
-    (document.getElementById("puzzle-progress-bar") as HTMLElement).style.width = `${progress}%`;
+    (
+      document.getElementById("puzzle-progress-bar") as HTMLElement
+    ).style.width = `${progress}%`;
   }
 
   function handlePuzzleBoardClick(event: MouseEvent, pg: Game): void {
@@ -1830,9 +1868,11 @@ function initEventListeners(): void {
       if (!piece) return;
 
       const state = getPuzzleState();
-      if (state.currentMoveIndex >= state.currentPuzzle!.solution.length) return;
+      if (state.currentMoveIndex >= state.currentPuzzle!.solution.length)
+        return;
 
-      const expectedMove = state.currentPuzzle!.solution[state.currentMoveIndex];
+      const expectedMove =
+        state.currentPuzzle!.solution[state.currentMoveIndex];
 
       if (pieceId === expectedMove.pieceId) {
         // Correct piece selected, now wait for target click
@@ -1847,18 +1887,29 @@ function initEventListeners(): void {
       const targetHex = new Hex(q, r);
 
       // Try to make the move
-      const result = makePuzzleMove(pg, getPuzzleState().currentPuzzle!.solution[getPuzzleState().currentMoveIndex].pieceId, targetHex);
+      const result = makePuzzleMove(
+        pg,
+        getPuzzleState().currentPuzzle!.solution[
+          getPuzzleState().currentMoveIndex
+        ].pieceId,
+        targetHex,
+      );
 
       if (result.correct) {
         // Move was correct
         sounds.playMove();
         const move = pg.moveHistory[pg.moveHistory.length - 1];
         addToLog(move);
-        puzzleGame?.getAlivePieces().forEach(p => puzzleRenderer?.renderPiece(p));
+        puzzleGame
+          ?.getAlivePieces()
+          .forEach((p) => puzzleRenderer?.renderPiece(p));
         renderSolutionList(getPuzzleState().currentPuzzle!);
 
         if (result.gameOver) {
-          setTimeout(() => showPuzzleResult(true, getPuzzleState().currentPuzzle!), 500);
+          setTimeout(
+            () => showPuzzleResult(true, getPuzzleState().currentPuzzle!),
+            500,
+          );
         }
       } else {
         // Wrong move
@@ -1893,7 +1944,9 @@ function initEventListeners(): void {
 
     const state = getPuzzleState();
     const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
-    const mins = Math.floor(elapsed / 60).toString().padStart(2, "0");
+    const mins = Math.floor(elapsed / 60)
+      .toString()
+      .padStart(2, "0");
     const secs = (elapsed % 60).toString().padStart(2, "0");
 
     puzzleOverlay.innerHTML = `
@@ -1918,20 +1971,26 @@ function initEventListeners(): void {
       </div>
     `;
 
-    document.getElementById("puzzle-result-close")?.addEventListener("click", () => {
-      cleanupPuzzle();
-      showPuzzleMenu();
-    });
+    document
+      .getElementById("puzzle-result-close")
+      ?.addEventListener("click", () => {
+        cleanupPuzzle();
+        showPuzzleMenu();
+      });
 
-    document.getElementById("puzzle-again-btn")?.addEventListener("click", () => {
-      resetPuzzle();
-      showPuzzleBoard(puzzle);
-    });
+    document
+      .getElementById("puzzle-again-btn")
+      ?.addEventListener("click", () => {
+        resetPuzzle();
+        showPuzzleBoard(puzzle);
+      });
 
-    document.getElementById("puzzle-menu-btn")?.addEventListener("click", () => {
-      cleanupPuzzle();
-      showPuzzleMenu();
-    });
+    document
+      .getElementById("puzzle-menu-btn")
+      ?.addEventListener("click", () => {
+        cleanupPuzzle();
+        showPuzzleMenu();
+      });
   }
 
   function cleanupPuzzle(): void {
@@ -1965,7 +2024,12 @@ function initEventListeners(): void {
           const q = parseInt(coords[0], 10);
           const r = parseInt(coords[1], 10);
 
-          const faction = factionChar === "F" ? "fire" : factionChar === "W" ? "water" : "nature";
+          const faction =
+            factionChar === "F"
+              ? "fire"
+              : factionChar === "W"
+                ? "water"
+                : "nature";
           const piece = game.pieces.find(
             (p) => p.faction === faction && p.pos.q === q && p.pos.r === r,
           );
@@ -2008,8 +2072,12 @@ function initEventListeners(): void {
         <button class="puzzle-btn primary" id="puzzle-error-retry">OK</button>
       </div>
     `;
-    document.getElementById("puzzle-error-close")?.addEventListener("click", () => showPuzzleMenu());
-    document.getElementById("puzzle-error-retry")?.addEventListener("click", () => showPuzzleMenu());
+    document
+      .getElementById("puzzle-error-close")
+      ?.addEventListener("click", () => showPuzzleMenu());
+    document
+      .getElementById("puzzle-error-retry")
+      ?.addEventListener("click", () => showPuzzleMenu());
   }
 
   function showHintToast(message: string): void {
