@@ -66,16 +66,22 @@ Lokal lässt sich TriSchach in Sekunden starten:
    cd trischach
    ```
 
-2. Lokalen Webserver starten:
+2. **(Optional) Dependencies für Tests/CI installieren:**
 
    ```bash
-   # Mit Python
+   npm install --legacy-peer-deps
+   ```
+
+3. Lokalen Webserver starten:
+
+   ```bash
+   # Mit Python (keine Node-Deps nötig)
    python3 -m http.server 8080
-   # Oder mit Node.js (falls installiert)
+   # Oder mit Node.js
    npx serve .
    ```
 
-3. Öffne `http://localhost:8080/` im Browser.
+4. Öffne `http://localhost:8080/` im Browser.
 
 ### PWA Installieren
 
@@ -85,7 +91,7 @@ Lokal lässt sich TriSchach in Sekunden starten:
 
 ## 🛠️ Architektur
 
-Die Codebase ist modular und ohne Build-Step aufgebaut:
+Die Codebase ist modular aufgebaut:
 
 - `index.html`: Struktur, UI-Layout, PWA Meta-Tags, SW-Registrierung
 - `manifest.json`: PWA Manifest (Icons, Shortcuts, Kategorien)
@@ -108,6 +114,8 @@ Die Codebase ist modular und ohne Build-Step aufgebaut:
 - `js/sounds.ts`: Audio Engine (Web Audio API, synthetisch)
 - `js/main.ts`: Einstiegspunkt, UI-Integration, Event-Handling, PWA SW-Registrierung
 
+**Build Pipeline (Production):** Vite bundelt ES Modules → `dist/` + `scripts/copy-assets.mjs` kopiert PWA-Assets. läuft **nicht** für lokale Entwicklung (läuft direkt via `python -m http.server`).
+
 ## 🧪 Testing & Qualität
 
 ```bash
@@ -124,14 +132,15 @@ npx tsc --noEmit
 npm run lint
 ```
 
-- **336 Unit Tests** ✅ (Vitest + Happy-DOM)
-- **13 E2E Tests** ✅ (Playwright Chromium)
+- **350 Unit Tests** ✅ (Vitest + Happy-DOM, 5 skipped)
+- **13 E2E Tests** ✅ (Playwright Firefox)
 - **TypeScript Strict Mode** ✅ (0 Errors)
-- **ESLint** ✅ (0 Errors, nur Pre-existing Warnings)
+- **ESLint** ✅ (0 Errors)
 - **Coverage Gates:** 80% Thresholds, `vitest check: true`
   - Overall: ~74% Statements / ~89% Branches / ~85% Functions
   - ai-core.ts: **89.93%** Coverage
   - CombatUIManager: 92%, TooltipManager: 97%
+  - MagicEffects.ts: 64% (next target)
 
 ### Engine Tournament (Elo-Messung)
 
@@ -151,15 +160,21 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 
 | Job          | Trigger                       | Beschreibung                                               |
 | ------------ | ----------------------------- | ---------------------------------------------------------- |
-| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 20/22), Coverage ≥80% |
+| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 20), Coverage ≥80%    |
 | `codeql`     | Push/PR                       | Security Scanning (JavaScript)                             |
-| `e2e-tests`  | Push/PR                       | Playwright E2E (parallel zu lint-test)                     |
+| `e2e-tests`  | Push/PR                       | Playwright E2E **Firefox** (Ubuntu 26.04 kompatibel)       |
 | `benchmark`  | Push/PR                       | Quick Tournament (4 Games @ Depth 2), PR-Comment           |
 | `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact         |
 | `release`    | Tag `v*`                      | Auto GitHub Release mit Release Notes                      |
 | `deploy`     | Push main                     | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql)  |
 
-**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts → stabile E2E Runs
+**Quality Gates:**
+- Bundle Size Check: main.js ≤ 12KB gzipped (10% Growth-Limit)
+- Coverage enforcement ≥80% auf PRs
+- Lint + Typecheck blocking (fail on errors)
+- E2E / CodeQL non-blocking (continue-on-error)
+
+**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts, Firefox statt Chromium → stabile E2E Runs
 
 ## 📜 Lizenz
 
