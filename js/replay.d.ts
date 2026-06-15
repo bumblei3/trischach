@@ -71,4 +71,5 @@ export class ReplayController {
   goToStart(): void;
   goToEnd(): void;
   exportTSPN(): string;
+  exportTSPNFull(): string;
 }

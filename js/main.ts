@@ -1587,6 +1587,30 @@ function initEventListeners(): void {
     }
   });
 
+  const replayExportFull = document.getElementById(
+    "replay-export-full",
+  ) as HTMLButtonElement;
+  replayExportFull?.addEventListener("click", () => {
+    const controller = window.replayController;
+    if (!controller) return;
+
+    try {
+      // Export the full game from initial position to end
+      const tspn = controller.exportTSPNFull();
+      const blob = new Blob([tspn], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const total = controller.getTotalMoves();
+      a.download = `trischach-full-${total}moves-${new Date().toISOString().slice(0, 10)}.tspn`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Full export failed:", err);
+      alert("Export fehlgeschlagen: " + (err as Error).message);
+    }
+  });
+
   replaySpeed?.addEventListener("input", () => {
     if (replayPlayTimer) {
       replayPlay();

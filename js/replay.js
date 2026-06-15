@@ -524,6 +524,36 @@ export class ReplayController {
     const allHeaders = { ...defaultHeaders, ...headers };
     return serializeGame(tempGame, { ...headers, ...allHeaders });
   }
+
+  /** Export the complete game as TSPN string (all moves from start to finish) */
+  exportTSPNFull(headers = {}) {
+    const tempGame = {
+      pieces: this.initialGame.pieces.map((p) => ({ ...p })),
+      currentFaction: this.initialGame.currentFaction,
+      currentFactionIdx: this.initialGame.currentFactionIdx,
+      state: "game_over",
+      eliminatedFactions: new Set(this.initialGame.eliminatedFactions),
+      rpsEnabled: this.initialGame.rpsEnabled,
+      moveHistory: this.moveHistory, // ALL moves
+    };
+
+    const defaultHeaders = {
+      Event: "TriSchach Game",
+      Site: "Local",
+      Date: new Date().toISOString().split("T")[0],
+      Round: "1",
+      White: "Fire",
+      Black: "Water",
+      Green: "Nature",
+      Result: "*",
+      RPS: tempGame.rpsEnabled ? "on" : "off",
+      Variant: "TriSchach",
+      Version: "1.0",
+    };
+
+    const allHeaders = { ...defaultHeaders, ...headers };
+    return serializeGame(tempGame, { ...headers, ...allHeaders });
+  }
 }
 
 /**
