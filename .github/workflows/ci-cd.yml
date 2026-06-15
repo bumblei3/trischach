@@ -13,6 +13,7 @@ on:
 
 env:
   NODE_VERSION: "24"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   lint-test:
@@ -226,6 +227,17 @@ jobs:
 
       - name: Upload test-results
         if: always()
+        run: |
+          if [ -d "test-results" ] && [ "$(ls -A test-results)" ]; then
+            echo "Test results directory exists and is not empty, uploading..."
+          else
+            echo "Test results directory is empty or doesn't exist, skipping upload"
+            exit 0
+          fi
+        shell: bash
+
+      - name: Upload test-results artifact
+        if: always() && hashFiles('test-results/**') != ''
         uses: actions/upload-artifact@v4
         with:
           name: test-results
