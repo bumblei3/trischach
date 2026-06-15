@@ -9,7 +9,7 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
-import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
+import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult, Piece } from "./game.ts";
 import {
   calculateBestMove,
   evaluateBoard,
@@ -51,6 +51,14 @@ import {
   PuzzleState,
 } from "./puzzle.ts";
 import { Hex } from "./hex.ts";
+
+// ─── Global Type Augmentation ────────────────────────────────────────
+
+declare global {
+  interface Window {
+    replayController?: ReplayController;
+  }
+}
 
 // ─── Settings Persistence (localStorage) ────────────────────────────────
 
@@ -259,7 +267,7 @@ function serializeGameForWorker(game: Game): GameStateForWorker {
 // ─── Global State ───────────────────────────────────────────────────
 
 let autoBattleActive = false;
-let autoBattleTimer: ReturnType<typeof setTimeout> | null = null;
+let autoBattleTimer: any = null;
 let currentBoardRotation = 0;
 
 // Track opening book moves for learning
@@ -519,22 +527,10 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
 
 // ─── Context Menu ────────────────────────────────────────────────────
 
-let contextMenuPiece: {
-  id: string;
-  type: string;
-  faction: string;
-  pos: { q: number; r: number };
-  symbol: string;
-} | null = null;
+let contextMenuPiece: Piece | null = null;
 
 renderer.onPieceLongPress = (
-  piece: {
-    id: string;
-    type: string;
-    faction: string;
-    pos: { q: number; r: number };
-    symbol: string;
-  },
+  piece: Piece,
   position: { clientX: number; clientY: number },
 ) => {
   if (game.state === GAME_STATE.GAME_OVER) return;
@@ -545,13 +541,7 @@ renderer.onPieceLongPress = (
 };
 
 function showContextMenu(
-  piece: {
-    id: string;
-    type: string;
-    faction: string;
-    pos: { q: number; r: number };
-    symbol: string;
-  },
+  piece: Piece,
   position: { clientX: number; clientY: number },
 ): void {
   const existing = document.getElementById("piece-context-menu");
@@ -611,7 +601,7 @@ function showContextMenu(
 
   menu.querySelectorAll(".context-menu-item").forEach((btn) => {
     btn.addEventListener("click", () => {
-      handleContextMenuAction(btn.dataset.action, piece);
+      handleContextMenuAction((btn as HTMLElement).dataset.action, piece);
       hideContextMenu();
     });
   });
@@ -631,7 +621,7 @@ function handleContextMenuAction(
     id: string;
     type: string;
     faction: string;
-    pos: { q: number; r: number };
+    pos: Hex;
     symbol: string;
   },
 ): void {
@@ -643,22 +633,22 @@ function handleContextMenuAction(
       if (selectResult && selectResult.action === "select") {
         renderer.clearHighlights();
         renderer.selectCell(piece.pos);
-        renderer.highlightCells(selectResult.moves, "highlight-move");
+        renderer.highlightCells(selectResult.moves ?? [], "highlight-move");
         if (game.rpsEnabled && selectResult.rpsAttacks) {
           renderer.highlightCells(
-            selectResult.rpsAttacks.advantage,
+            selectResult.rpsAttacks.advantage ?? [],
             "highlight-attack-advantage",
           );
           renderer.highlightCells(
-            selectResult.rpsAttacks.disadvantage,
+            selectResult.rpsAttacks.disadvantage ?? [],
             "highlight-attack-disadvantage",
           );
           renderer.highlightCells(
-            selectResult.rpsAttacks.neutral,
+            selectResult.rpsAttacks.neutral ?? [],
             "highlight-attack",
           );
         } else {
-          renderer.highlightCells(selectResult.attacks, "highlight-attack");
+          renderer.highlightCells(selectResult.attacks ?? [], "highlight-attack");
         }
         updateUI();
       }
@@ -695,7 +685,7 @@ function hideContextMenu(): void {
 // ─── Auto-Battle ────────────────────────────────────────────────────
 
 function triggerAutoMove(): void {
-  clearTimeout(autoBattleTimer);
+  if (autoBattleTimer) clearTimeout(autoBattleTimer);
   autoBattleTimer = setTimeout(async () => {
     if (!autoBattleActive || game.state === "game_over") return;
 
@@ -763,17 +753,19 @@ function triggerAutoMove(): void {
       if (result && result.action === "move") {
         sounds.playMove();
         addToLog(result);
-        renderer.renderPiece(result.piece);
+        const movedPiece = result.piece;
+        if (movedPiece) renderer.renderPiece(movedPiece);
         if (result.promotion) {
           const promoResult = game.completePromotion("queen");
-          if (promoResult) {
-            renderer.removePiece(result.piece.id);
-            renderer.renderPiece(result.piece);
+          if (promoResult && movedPiece) {
+            renderer.removePiece(movedPiece.id);
+            renderer.renderPiece(movedPiece);
             addToLog(promoResult);
           }
           updateUI();
 
           // Start pondering for next AI move
+          // @ts-expect-error - GameState union comparison with string literal
           if (game.state !== "game_over") {
             startPondering(game, game.currentFaction);
           }
@@ -782,6 +774,7 @@ function triggerAutoMove(): void {
           updateUI();
 
           // Start pondering for next AI move
+          // @ts-expect-error - GameState union comparison with string literal
           if (game.state !== "game_over") {
             startPondering(game, game.currentFaction);
           }
@@ -821,11 +814,14 @@ function triggerAutoMove(): void {
 // ─── Combat Overlay ─────────────────────────────────────────────────
 
 function showCombat(result: GameResult): void {
+  const piece = result.piece;
+  const defender = result.defender;
+  if (!piece || !defender) return;
   const combatOverlay = document.getElementById(
     "combat-overlay",
   ) as HTMLElement;
-  const attColor = FACTION_COLORS[result.piece.faction];
-  const defColor = FACTION_COLORS[result.defender.faction];
+  const attColor = FACTION_COLORS[piece.faction];
+  const defColor = FACTION_COLORS[defender.faction];
   const rps = result.rpsResult;
 
   sounds.playCombat();
@@ -834,12 +830,12 @@ function showCombat(result: GameResult): void {
     <div class="combat-box">
       <div class="combat-fighters">
         <div class="fighter" style="color:${attColor.primary}">
-          <span class="fighter-symbol">${result.piece.symbol}</span>
+          <span class="fighter-symbol">${piece.symbol}</span>
           <span class="fighter-name">${attColor.name}</span>
         </div>
         <div class="combat-vs">${rps === "advantage" ? ">" : "<"}</div>
         <div class="fighter" style="color:${defColor.primary}">
-          <span class="fighter-symbol">${result.defender.symbol}</span>
+          <span class="fighter-symbol">${defender.symbol}</span>
           <span class="fighter-name">${defColor.name}</span>
         </div>
       </div>
@@ -924,13 +920,7 @@ function showCombat(result: GameResult): void {
 
 // ─── Promotion Overlay ──────────────────────────────────────────────
 
-function showPromotion(piece: {
-  id: string;
-  type: string;
-  faction: string;
-  pos: { q: number; r: number };
-  symbol: string;
-}): void {
+function showPromotion(piece: Piece): void {
   const color = FACTION_COLORS[piece.faction];
   const names = {
     queen: "Dame",
@@ -957,8 +947,8 @@ function showPromotion(piece: {
         <span class="preview-name" style="font-size: 18px; margin-left: 12px; font-weight: bold; opacity: 0; transition: opacity 0.15s ease;"></span>
       </div>
       <div class="promotion-choices">
-        ${PROMOTION_CHOICES.map(
-          (type) => `
+        ${(PROMOTION_CHOICES as readonly ("queen" | "rook" | "bishop" | "knight")[]).map(
+          (type: "queen" | "rook" | "bishop" | "knight") => `
           <button class="promotion-choice" data-type="${type}" data-key="${keyHints[type]}" style="border-color:${color.primary}" title="${names[type]} (Taste: ${keyHints[type]})">
             <span class="choice-symbol">${symbols[type]}</span>
             <span class="choice-name">${names[type]}</span>
@@ -987,7 +977,7 @@ function showPromotion(piece: {
   if (previewEl && previewSymbol && previewName) {
     promotionOverlay.querySelectorAll(".promotion-choice").forEach((btn) => {
       btn.addEventListener("mouseenter", () => {
-        const type = btn.dataset.type;
+        const type = (btn as HTMLElement).dataset.type as "queen" | "rook" | "bishop" | "knight" | undefined;
         if (!type) return;
         previewSymbol.textContent = symbols[type];
         previewName.textContent = names[type];
@@ -1030,7 +1020,7 @@ function showPromotion(piece: {
 
   promotionOverlay.querySelectorAll(".promotion-choice").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const newType = btn.dataset.type;
+      const newType = (btn as HTMLElement).dataset.type;
       if (!newType) return;
       promotionOverlay.classList.remove("visible");
       const result = game.completePromotion(
@@ -1074,12 +1064,10 @@ function showPromotion(piece: {
 }
 
 function handlePromotionResult(
-  result: {
-    piece: { id: string; symbol: string; faction: string };
-    notation: string;
-  },
-  piece: { id: string },
+  result: GameResult | null,
+  piece: Piece,
 ): void {
+  if (!result) return;
   addToLog(result);
   renderer.removePiece(piece.id);
   renderer.renderPiece(piece);
@@ -1843,7 +1831,7 @@ function initEventListeners(): void {
     const cellEl = target.closest(".cell") as SVGGElement;
 
     if (pieceEl) {
-      const pieceId = pieceEl.dataset.pieceId;
+      const pieceId = pieceEl.getAttribute("data-piece-id");
       if (!pieceId) return;
 
       const piece = pg.getAlivePieces().find((p) => p.id === pieceId);
@@ -1862,7 +1850,7 @@ function initEventListeners(): void {
         showSelectionHighlights(piece);
       }
     } else if (cellEl) {
-      const hexKey = cellEl.dataset.hexKey;
+      const hexKey = cellEl.getAttribute("data-hex-key");
       if (!hexKey) return;
 
       const [q, r] = hexKey.split(",").map(Number);

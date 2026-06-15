@@ -1,5 +1,5 @@
 import { Hex, hexToPixel, hexPolygonPoints, hexCorners } from "./hex.ts";
-import type { Faction, RPSResult, Cell, Zone } from "./types.ts";
+import type { Faction, RPSResult, Cell, Zone, Piece } from "./types.ts";
 
 export const ZONE: Zone = {
   TRIANGLE: "triangle",
@@ -135,13 +135,7 @@ export class BoardRenderer {
   public onCellClick: ((hex: Hex, cell: Cell) => void) | null = null;
   public onPieceLongPress:
     | ((
-        piece: {
-          id: string;
-          type: string;
-          faction: Faction;
-          pos: Hex;
-          symbol: string;
-        },
+        piece: Piece,
         position: { clientX: number; clientY: number },
       ) => void)
     | null = null;
@@ -400,13 +394,7 @@ export class BoardRenderer {
     }
   }
 
-  public renderPiece(piece: {
-    id: string;
-    type: string;
-    faction: Faction;
-    pos: Hex;
-    symbol: string;
-  }): void {
+  public renderPiece(piece: Piece): void {
     this.removePiece(piece.id);
     const px = hexToPixel(piece.pos, this.hexSize);
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");

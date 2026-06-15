@@ -42,7 +42,7 @@ export const FACTION_COLORS: Record<
     glow: string;
     name: string;
   }
-> = {
+> & Record<string, { primary: string; secondary: string; glow: string; name: string }> = {
   fire: {
     primary: "#FF4500",
     secondary: "#FF6B35",

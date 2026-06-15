@@ -28,7 +28,7 @@ export {
 };
 
 // Re-export types
-export type { GameResult } from "./types.ts";
+export type { GameResult, Piece } from "./types.ts";
 
 export const GAME_STATE = {
   SELECT_PIECE: "select_piece",
