@@ -17,3 +17,7 @@ coverage/
 # Accidental artifacts
 trischach
 trischach.pub
+
+# Test artifacts
+playwright-report/
+test-results/
