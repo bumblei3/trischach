@@ -130,6 +130,13 @@
               ♟ Puzzle
             </button>
             <button id="settings-btn" title="Einstellungen">⚙️</button>
+            <button
+              id="install-btn"
+              title="Als App installieren"
+              style="display: none"
+            >
+              📱 Installieren
+            </button>
           </div>
           <div
             id="replay-controls"
@@ -387,30 +394,61 @@
     <script type="module" src="main.js"></script>
     <script>
       // Register Service Worker for PWA offline support
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('sw.js')
-            .then(registration => {
-              console.log('[PWA] Service Worker registered:', registration.scope);
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("sw.js")
+            .then((registration) => {
+              console.log(
+                "[PWA] Service Worker registered:",
+                registration.scope,
+              );
 
               // Check for updates periodically
-              setInterval(() => {
-                registration.update();
-              }, 60 * 60 * 1000); // Every hour
+              setInterval(
+                () => {
+                  registration.update();
+                },
+                60 * 60 * 1000,
+              ); // Every hour
             })
-            .catch(error => {
-              console.warn('[PWA] Service Worker registration failed:', error);
+            .catch((error) => {
+              console.warn("[PWA] Service Worker registration failed:", error);
             });
         });
+      }
 
-        // Handle install prompt
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault();
-          deferredPrompt = e;
-          // Could show custom install button here
-          console.log('[PWA] Install prompt available');
-        });
+      // Handle install prompt
+      let deferredPrompt;
+      const installBtn = document.getElementById("install-btn");
+
+      window.addEventListener("beforeinstallprompt", (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log("[PWA] Install prompt available");
+        if (installBtn) installBtn.style.display = "inline-block";
+      });
+
+      window.addEventListener("appinstalled", () => {
+        console.log("[PWA] App installed");
+        if (installBtn) installBtn.style.display = "none";
+        deferredPrompt = null;
+      });
+
+      // Install button click handler
+      installBtn?.addEventListener("click", async () => {
+        if (!deferredPrompt) {
+          console.log("[PWA] No deferred prompt available");
+          return;
+        }
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log("[PWA] Install prompt outcome:", outcome);
+        if (outcome === "accepted") {
+          deferredPrompt = null;
+          if (installBtn) installBtn.style.display = "none";
+        }
+      });
     </script>
   </body>
 </html>
