@@ -3,15 +3,13 @@
  * Main application logic, UI handling, AI worker management, replay system
  */
 
-// @ts-nocheck - Temporary: Disable type checking during migration from JS
-
 import {
   BoardRenderer,
   FACTION_COLORS,
   FACTION,
   generateBoard,
 } from "./board.ts";
-import { Game, GAME_STATE, PROMOTION_CHOICES } from "./game.ts";
+import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
   calculateBestMove,
   evaluateBoard,
@@ -52,7 +50,7 @@ import {
   PuzzleMove,
   PuzzleState,
 } from "./puzzle.ts";
-import type { Hex } from "./hex.ts";
+import { Hex } from "./hex.ts";
 
 // ─── Settings Persistence (localStorage) ────────────────────────────────
 
@@ -107,7 +105,7 @@ function saveSettings(settings: GameSettings): void {
 
 // ─── DOM Elements ───────────────────────────────────────────────────
 
-const svg = document.getElementById("board-svg") as SVGSVGElement;
+const svg = document.getElementById("board-svg") as unknown as SVGSVGElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const turnEl = document.getElementById("turn-indicator") as HTMLElement;
 const rpsInfoEl = document.getElementById("rps-info") as HTMLElement;
@@ -249,7 +247,11 @@ function serializeGameForWorker(game: Game): GameStateForWorker {
     state: game.state,
     eliminatedFactions: Array.from(game.eliminatedFactions),
     rpsEnabled: game.rpsEnabled,
-    capturedPieces: game.capturedPieces,
+    capturedPieces: {
+      fire: game.capturedPieces[FACTION.FIRE].map((p) => p.id),
+      water: game.capturedPieces[FACTION.WATER].map((p) => p.id),
+      nature: game.capturedPieces[FACTION.NATURE].map((p) => p.id),
+    },
     _halfmoveClock: game._halfmoveClock || 0,
   };
 }
@@ -319,7 +321,7 @@ function applySettings(settings: GameSettings): void {
 function init(): void {
   renderer.render();
   game.init(renderer.cells);
-  game._undoStack = [];
+  game.clearUndoStack();
   autoBattleBookMoves = []; // Clear learning tracking
   buildOpeningBook(Game);
   loadLearnedDataFromStorage(); // Load learned opening book weights
@@ -327,25 +329,16 @@ function init(): void {
   const settings = loadSettings();
   applySettings(settings);
 
-  for (const [key, cell] of renderer.hexElements) {
-    const c = game.boardCells.get(key);
-    if (c) cell.polygon.setAttribute("title", `Coord: ${c.hex.q},${c.hex.r}`);
+  if (game.boardCells) {
+    for (const [key, cell] of renderer.hexElements) {
+      const c = game.boardCells.get(key);
+      if (c) cell.polygon.setAttribute("title", `Coord: ${c.hex.q},${c.hex.r}`);
+    }
   }
 
   for (const p of game.getAlivePieces()) renderer.renderPiece(p);
   updateUI();
 }
-
-// ─── Depth Names ────────────────────────────────────────────────────
-
-const depthNames: Record<number, string> = {
-  1: "Leicht",
-  2: "Mittel",
-  3: "Schwer",
-  4: "Extrem",
-};
-
-// ─── UI Updates ─────────────────────────────────────────────────────
 
 function updateUI(): void {
   const f = game.currentFaction;
@@ -421,7 +414,7 @@ function updateEvalBar(): void {
   const waterEval = evaluateBoard(game, FACTION.WATER);
 
   const minEval = Math.min(fireEval, natureEval, waterEval);
-  const shifted = [
+  const shifted: [number, number, number] = [
     fireEval - minEval,
     natureEval - minEval,
     waterEval - minEval,
@@ -446,10 +439,8 @@ function clearCheckHighlight(): void {
     .forEach((el) => el.classList.remove("highlight-check"));
 }
 
-function addToLog(result: {
-  piece: { faction: string; symbol: string };
-  notation: string;
-}): void {
+function addToLog(result: GameResult): void {
+  if (!result.piece) return;
   const moveLogEl = document.getElementById("move-log") as HTMLElement;
   const entry = document.createElement("div");
   entry.className = `move-entry ${result.piece.faction}`;
@@ -464,7 +455,8 @@ function addToLog(result: {
 // ─── Cell Click Handler ──────────────────────────────────────────────
 
 renderer.onCellClick = (hex: { q: number; r: number }) => {
-  const result = game.handleCellClick(hex);
+  const hexObj = new Hex(hex.q, hex.r);
+  const result = game.handleCellClick(hexObj);
   if (!result) return;
 
   renderer.clearHighlights();
@@ -472,34 +464,34 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
 
   if (result.action === "select") {
     sounds.playSelect();
-    renderer.selectCell(hex);
-    renderer.highlightCells(result.moves, "highlight-move");
+    renderer.selectCell(hexObj);
+    renderer.highlightCells(result.moves ?? [], "highlight-move");
     if (game.rpsEnabled && result.rpsAttacks) {
       renderer.highlightCells(
-        result.rpsAttacks.advantage,
+        result.rpsAttacks.advantage ?? [],
         "highlight-attack-advantage",
       );
       renderer.highlightCells(
-        result.rpsAttacks.disadvantage,
+        result.rpsAttacks.disadvantage ?? [],
         "highlight-attack-disadvantage",
       );
-      renderer.highlightCells(result.rpsAttacks.neutral, "highlight-attack");
+      renderer.highlightCells(result.rpsAttacks.neutral ?? [], "highlight-attack");
     } else {
-      renderer.highlightCells(result.attacks, "highlight-attack");
+      renderer.highlightCells(result.attacks ?? [], "highlight-attack");
     }
   } else if (result.action === "deselect") {
     // nothing
   } else if (result.action === "move") {
     sounds.playMove();
     addToLog(result);
-    renderer.renderPiece(result.piece);
+    if (result.piece) renderer.renderPiece(result.piece);
 
     // Start pondering for AI after human move
     if (game.state !== GAME_STATE.GAME_OVER) {
       startPondering(game, game.currentFaction);
     }
 
-    if (result.promotion) {
+    if (result.promotion && game.pendingPromotion) {
       showPromotion(game.pendingPromotion);
     } else {
       updateUI();
@@ -828,17 +820,7 @@ function triggerAutoMove(): void {
 
 // ─── Combat Overlay ─────────────────────────────────────────────────
 
-function showCombat(result: {
-  piece: { faction: string; symbol: string };
-  defender: { faction: string; symbol: string };
-  rpsResult?: string;
-  elimination?: string;
-  checkmate?: string;
-  stalemate?: string;
-  inCheck?: boolean;
-  gameOver?: boolean;
-  winner_faction?: string | null;
-}): void {
+function showCombat(result: GameResult): void {
   const combatOverlay = document.getElementById(
     "combat-overlay",
   ) as HTMLElement;
@@ -1192,7 +1174,7 @@ function initEventListeners(): void {
     boardGroup?.querySelectorAll(".piece").forEach((el) => el.remove());
     renderer.pieceElements.clear();
     game.init(renderer.cells);
-    game._undoStack = [];
+    game.clearUndoStack();
     autoBattleBookMoves = []; // Clear learning tracking
     const moveLogEl = document.getElementById("move-log") as HTMLElement;
     moveLogEl.innerHTML = "";
@@ -1280,7 +1262,7 @@ function initEventListeners(): void {
       clearTimeout(autoBattleTimer!);
 
       Object.assign(game, replayGame);
-      game._undoStack = [];
+      game.clearUndoStack();
 
       window.replayController = replayController;
 
@@ -1701,7 +1683,7 @@ function initEventListeners(): void {
 
     // Copy state to testGame
     Object.assign(testGame, gameFromFen);
-    testGame._undoStack = []; // No undo in puzzle mode
+    testGame.clearUndoStack(); // No undo in puzzle mode
 
     puzzleGame = testGame;
     puzzleStartTime = Date.now();

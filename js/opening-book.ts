@@ -604,3 +604,34 @@ export function loadLearnedData(data) {
     `Opening book: Loaded ${Object.keys(data.positions).length} learned positions`,
   );
 }
+
+// ─── LOCALSTORAGE INTEGRATION ────────────────────────────────────────
+
+/** Save learned data to localStorage */
+export function saveLearnedDataToStorage(): void {
+  try {
+    const data = {
+      version: 1,
+      updated: new Date().toISOString(),
+      positions: getLearnedData(),
+    };
+    localStorage.setItem("trischach-opening-book-learned", JSON.stringify(data));
+    console.log("Opening book: Saved learned data to localStorage");
+  } catch (e) {
+    console.warn("Failed to save learned data to localStorage:", e);
+  }
+}
+
+/** Load learned data from localStorage */
+export function loadLearnedDataFromStorage(): void {
+  try {
+    const stored = localStorage.getItem("trischach-opening-book-learned");
+    if (!stored) return;
+    const data = JSON.parse(stored);
+    if (data && data.positions) {
+      loadLearnedData(data);
+    }
+  } catch (e) {
+    console.warn("Failed to load learned data from localStorage:", e);
+  }
+}

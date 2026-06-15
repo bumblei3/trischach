@@ -27,6 +27,9 @@ export {
   isStalemateInternal as isStalemate,
 };
 
+// Re-export types
+export type { GameResult } from "./types.ts";
+
 export const GAME_STATE = {
   SELECT_PIECE: "select_piece",
   SELECT_TARGET: "select_target",
@@ -620,6 +623,11 @@ export class Game {
     this.restore(snap);
     if (this.onUpdate) this.onUpdate();
     return snap;
+  }
+
+  /** Clear the undo stack (e.g., for new game or puzzle mode) */
+  clearUndoStack(): void {
+    this._undoStack = [];
   }
 
   /**
