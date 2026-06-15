@@ -638,3 +638,27 @@ export function loadLearnedDataFromStorage(): void {
     console.warn("Failed to load learned data from localStorage:", e);
   }
 }
+
+/** Load learned data from JSON file (via fetch, for browser) */
+export async function loadLearnedDataFromFile(
+  filePath = "opening-book.learned.json",
+): Promise<void> {
+  try {
+    const response = await fetch(filePath);
+    if (!response.ok) {
+      console.log(
+        `Opening book: No learned data file found at ${filePath} (${response.status})`,
+      );
+      return;
+    }
+    const data = await response.json();
+    if (data && data.positions) {
+      loadLearnedData(data);
+      console.log(
+        `Opening book: Loaded ${Object.keys(data.positions).length} learned positions from ${filePath}`,
+      );
+    }
+  } catch (e) {
+    console.warn("Failed to load learned data from file:", e);
+  }
+}

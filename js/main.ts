@@ -32,6 +32,8 @@ import {
   learnFromGame,
   loadLearnedDataFromStorage,
   saveLearnedDataToStorage,
+  loadOpeningBook,
+  loadLearnedDataFromFile,
 } from "./opening-book.ts";
 import { sounds } from "./sounds.ts";
 import {
@@ -337,21 +339,27 @@ function init(): void {
   game.init(renderer.cells);
   game.clearUndoStack();
   autoBattleBookMoves = []; // Clear learning tracking
-  buildOpeningBook(Game);
-  loadLearnedDataFromStorage(); // Load learned opening book weights
-  initAIWorker();
-  const settings = loadSettings();
-  applySettings(settings);
 
-  if (game.boardCells) {
-    for (const [key, cell] of renderer.hexElements) {
-      const c = game.boardCells.get(key);
-      if (c) cell.polygon.setAttribute("title", `Coord: ${c.hex.q},${c.hex.r}`);
+  // Load production opening book + learned data
+  (async () => {
+    await loadOpeningBook(); // Load compiled book from JSON
+    await loadLearnedDataFromFile(); // Load auto-battle learned data from file
+    loadLearnedDataFromStorage(); // Merge localStorage learned data
+    initAIWorker();
+    const settings = loadSettings();
+    applySettings(settings);
+
+    if (game.boardCells) {
+      for (const [key, cell] of renderer.hexElements) {
+        const c = game.boardCells.get(key);
+        if (c)
+          cell.polygon.setAttribute("title", `Coord: ${c.hex.q},${c.hex.r}`);
+      }
     }
-  }
 
-  for (const p of game.getAlivePieces()) renderer.renderPiece(p);
-  updateUI();
+    for (const p of game.getAlivePieces()) renderer.renderPiece(p);
+    updateUI();
+  })();
 }
 
 function updateUI(): void {
