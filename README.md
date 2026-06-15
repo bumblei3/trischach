@@ -137,10 +137,10 @@ npm run lint
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors)
 - **Coverage Gates:** 80% Thresholds, `vitest check: true`
-  - Overall: ~74% Statements / ~89% Branches / ~85% Functions
+  - Overall: ~84% Statements / ~90% Branches / ~89% Functions
   - ai-core.ts: **89.93%** Coverage
   - CombatUIManager: 92%, TooltipManager: 97%
-  - MagicEffects.ts: 64% (next target)
+  - Opening Book Learning: Integrated (auto-battle self-play)
 
 ### Engine Tournament (Elo-Messung)
 
