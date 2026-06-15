@@ -1,3 +1,4 @@
+// source: https://github.com/microsoft/playwright/issues/21340
 import { defineConfig, devices } from "@playwright/test";
 import { existsSync } from "node:fs";
 
@@ -15,17 +16,15 @@ export default defineConfig({
     baseURL: "http://localhost:4173",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    navigationTimeout: 30000,
   },
   projects: [
     {
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        // CI: uses npx playwright install --with-deps (Playwright's own chromium)
-        // Local with system chromium: use /usr/bin/chromium-browser
-        // Local without system chromium: use Playwright's bundled chromium (if installed)
         launchOptions: process.env.CI
-          ? {} // Use Playwright's installed browser on CI
+          ? {}
           : hasSystemChromium
             ? {
                 executablePath: "/usr/bin/chromium-browser",
@@ -35,7 +34,7 @@ export default defineConfig({
                   "--disable-dev-shm-usage",
                 ],
               }
-            : {}, // Use Playwright's bundled browser if available
+            : {},
       },
     },
   ],

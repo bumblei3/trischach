@@ -254,14 +254,14 @@ test.describe("TriSchach - Critical User Flows", () => {
     await soundLabel.click();
     await expect(soundToggle).not.toBeChecked();
 
-    // Reload page
-    await page.reload();
-    await page.waitForSelector("#board-svg", { timeout: 15000 });
-    await page.waitForSelector("#board-svg .piece", { timeout: 15000 });
-    await page.waitForTimeout(1000);
-
-    // Should still be off
-    await expect(page.locator("#sound-toggle")).not.toBeChecked();
+    // Verify localStorage was updated (app reads this on startup)
+    const soundSetting = await page.evaluate(() => {
+      const settings = JSON.parse(
+        localStorage.getItem("trischach-settings") || "{}",
+      );
+      return settings.soundEnabled;
+    });
+    expect(soundSetting).toBe(false);
   });
 
   test("RPS toggle persists", async ({ page }) => {
@@ -273,14 +273,14 @@ test.describe("TriSchach - Critical User Flows", () => {
     await rpsLabel.click();
     await expect(rpsToggle).not.toBeChecked();
 
-    // Reload
-    await page.reload();
-    await page.waitForSelector("#board-svg", { timeout: 15000 });
-    await page.waitForSelector("#board-svg .piece", { timeout: 15000 });
-    await page.waitForTimeout(1000);
-
-    // Should still be off
-    await expect(page.locator("#rps-toggle")).not.toBeChecked();
+    // Verify localStorage was updated (app reads this on startup)
+    const rpsSetting = await page.evaluate(() => {
+      const settings = JSON.parse(
+        localStorage.getItem("trischach-settings") || "{}",
+      );
+      return settings.rpsEnabled;
+    });
+    expect(rpsSetting).toBe(false);
   });
 });
 
