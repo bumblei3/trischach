@@ -158,17 +158,18 @@ elo-Hierarchie (Beispiel): Ausgewogen > Aggressiv > Defensiv > Taktisch > Random
 
 Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 
-| Job          | Trigger                       | Beschreibung                                               |
-| ------------ | ----------------------------- | ---------------------------------------------------------- |
-| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 20), Coverage ≥80%    |
-| `codeql`     | Push/PR                       | Security Scanning (JavaScript)                             |
-| `e2e-tests`  | Push/PR                       | Playwright E2E **Firefox** (Ubuntu 26.04 kompatibel)       |
-| `benchmark`  | Push/PR                       | Quick Tournament (4 Games @ Depth 2), PR-Comment           |
-| `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact         |
-| `release`    | Tag `v*`                      | Auto GitHub Release mit Release Notes                      |
-| `deploy`     | Push main                     | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql)  |
+| Job          | Trigger                       | Beschreibung                                              |
+| ------------ | ----------------------------- | --------------------------------------------------------- |
+| `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 20), Coverage ≥80%   |
+| `codeql`     | Push/PR                       | Security Scanning (JavaScript)                            |
+| `e2e-tests`  | Push/PR                       | Playwright E2E **Firefox** (Ubuntu 26.04 kompatibel)      |
+| `benchmark`  | Push/PR                       | Quick Tournament (4 Games @ Depth 2), PR-Comment          |
+| `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact        |
+| `release`    | Tag `v*`                      | Auto GitHub Release mit Release Notes                     |
+| `deploy`     | Push main                     | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
 
 **Quality Gates:**
+
 - Bundle Size Check: main.js ≤ 12KB gzipped (10% Growth-Limit)
 - Coverage enforcement ≥80% auf PRs
 - Lint + Typecheck blocking (fail on errors)
