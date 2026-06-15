@@ -10,6 +10,7 @@ export interface TSPNMove {
   action: "move" | "combat" | "promotion";
   rpsResult?: string;
   promotionTo?: string;
+  san?: string; // Standard Algebraic Notation for display
 }
 
 export interface TSPNCapturedPiece {

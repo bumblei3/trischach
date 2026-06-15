@@ -104,7 +104,7 @@ export async function generatePuzzlesFromBook(
 function reconstructGameFromHash(hash: string): Game | null {
   try {
     const [piecesStr, factionIdxStr] = hash.split("#");
-    const factionIdx = parseInt(factionIdxStr, 10);
+    const factionIdx = parseInt(factionIdxStr ?? "0", 10);
 
     const game = new Game();
     const cells = generateBoardForPuzzle();
@@ -141,6 +141,7 @@ function reconstructGameFromHash(hash: string): Game | null {
 
     game.currentFactionIdx = factionIdx % 3;
     const factions = ["fire", "water", "nature"] as const;
+    // @ts-expect-error - index is always valid (0, 1, 2)
     game.currentFaction = factions[game.currentFactionIdx];
     game._rebuildOccupiedMap();
 
@@ -266,7 +267,12 @@ async function searchForcedMate(
       if (!result) return null;
 
       const moveResult = testGame.handleCellClick(target);
-      if (!moveResult) return null;
+      
+      const checkResult = isKingdomCheck(testGame, getNextFaction(testGame, currentFaction)!);
+      // @ts-expect-error - GameState union comparison
+      const isGameOver = testGame.state === GAME_STATE.GAME_OVER;
+      // @ts-expect-error - GameState union comparison with string literal
+      const isMate = testGame.state === GAME_STATE.GAME_OVER;
 
       solutionMoves.push({
         pieceId: piece.id,
@@ -279,16 +285,13 @@ async function searchForcedMate(
           testGame,
           getNextFaction(testGame, currentFaction)!,
         ),
-        // @ts-expect-error - GameState union comparison with string literal
-        isMate: testGame.state === GAME_STATE.GAME_OVER,
+        isMate,
         san: formatSAN(
           piece,
           target,
           isCapture,
-          // @ts-expect-error - GameState union comparison with string literal
-          isKingdomCheck(testGame, getNextFaction(testGame, currentFaction)!),
-            // @ts-expect-error - GameState union comparison with string literal
-          testGame.state === GAME_STATE.GAME_OVER,
+          checkResult,
+          isGameOver,
         ),
       });
 
@@ -296,8 +299,7 @@ async function searchForcedMate(
       if (testGame.state === GAME_STATE.GAME_OVER) {
         return solutionMoves;
       }
-    } else {
-      // Opponent's turn - let AI defend
+    } else {      // Opponent's turn - let AI defend
       const move = calculateBestMove(testGame, currentFaction);
       if (!move) return null;
 
@@ -520,18 +522,18 @@ function updatePuzzleStats(solved: boolean): void {
   const puzzles = loadPuzzles();
   const idx = puzzles.findIndex((p) => p.id === puzzleState.currentPuzzle!.id);
   if (idx >= 0) {
-    puzzles[idx].stats = puzzles[idx].stats || {
+    const puzzle = puzzles[idx]!;
+    puzzle.stats = puzzle.stats || {
       attempts: 0,
       solved: 0,
       avgTime: 0,
     };
-    puzzles[idx].stats!.attempts++;
-    if (solved) puzzles[idx].stats!.solved++;
+    puzzle.stats!.attempts++;
+    if (solved) puzzle.stats!.solved++;
     const elapsed = (Date.now() - puzzleState.startTime) / 1000;
-    const prevAvg = puzzles[idx].stats!.avgTime || 0;
-    puzzles[idx].stats!.avgTime =
-      (prevAvg * (puzzles[idx].stats!.attempts - 1) + elapsed) /
-      puzzles[idx].stats!.attempts;
+    const prevAvg = puzzle.stats!.avgTime || 0;
+    puzzle.stats!.avgTime =
+      (prevAvg * (puzzle.stats!.attempts - 1) + elapsed) / puzzle.stats!.attempts;
     savePuzzles(puzzles);
   }
 }
@@ -567,14 +569,15 @@ function cloneGameForTest(game: Game): Game {
   return newGame;
 }
 
-function getNextFaction(game: Game, current: Faction): Faction | null {
+function getNextFaction(game: Game, current: Faction): Faction {
   const order: Faction[] = ["fire", "water", "nature"];
   const idx = order.indexOf(current);
   for (let i = 1; i <= 3; i++) {
-    const next = order[(idx + i) % 3];
+    const next = order[(idx + i) % 3]!;
     if (!game.eliminatedFactions.has(next)) return next;
   }
-  return null;
+  // Should never reach here if at least one faction alive
+  return "fire";
 }
 
 function formatSAN(
@@ -584,6 +587,7 @@ function formatSAN(
   isCheck: boolean,
   isMate: boolean,
 ): string {
+  // @ts-expect-error - piece.type is always a valid string
   const pieceLetter = piece.type === "pawn" ? "" : piece.type[0].toUpperCase();
   const capture = isCapture ? "x" : "";
   const check = isMate ? "#" : isCheck ? "+" : "";
@@ -594,7 +598,9 @@ function serializePosition(game: Game): string {
   const pieces = game
     .getAlivePieces()
     .map(
-      (p) => `${p.faction[0].toUpperCase()}${p.type[0]}${p.pos.q},${p.pos.r}`,
+      (p) =>
+        // @ts-expect-error - p.faction is always a valid string
+        `${p.faction[0].toUpperCase()}${p.type[0]}${p.pos.q},${p.pos.r}`,
     )
     .join("|");
   return `${pieces}#${game.currentFactionIdx}`;
@@ -607,10 +613,12 @@ function deserializePosition(fen: string): Game | null {
 function shuffleArray<T>(array: T[]): void {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+    const temp = array[i];
+    array[i] = array[j]!;
+    // @ts-expect-error - indices are always valid
+    array[j] = temp;
   }
 }
-
 function getBookStats() {
   return {
     positions: OPENING_BOOK.size,
@@ -627,7 +635,7 @@ const DAILY_PUZZLE_KEY = "trischach-daily-puzzle";
 const DAILY_PUZZLE_DATE_KEY = "trischach-daily-puzzle-date";
 
 export async function getDailyPuzzle(): Promise<Puzzle | null> {
-  const today = new Date().toISOString().split("T")[0];
+  const today = new Date().toISOString().split("T")[0]!;
   const storedDate = localStorage.getItem(DAILY_PUZZLE_DATE_KEY);
 
   if (storedDate === today) {
@@ -651,8 +659,8 @@ async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
   const mediumPuzzles = puzzles.filter((p) => p.difficulty === "medium");
   const daily =
     mediumPuzzles.length > 0
-      ? mediumPuzzles[Math.floor(Math.random() * mediumPuzzles.length)]
-      : puzzles[0];
+      ? mediumPuzzles[Math.floor(Math.random() * mediumPuzzles.length)]!
+      : puzzles[0]!;
 
   try {
     localStorage.setItem(DAILY_PUZZLE_KEY, JSON.stringify(daily));

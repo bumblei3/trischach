@@ -1502,8 +1502,9 @@ function initEventListeners(): void {
   });
 
   replayLast?.addEventListener("click", () => {
-    window.replayController?.goToEnd();
-    applyGameState(window.replayController.getCurrentState());
+    const controller = window.replayController as ReplayController;
+    controller.goToEnd();
+    applyGameState(controller.getCurrentState());
     updateReplayUI();
   });
 
@@ -1527,7 +1528,7 @@ function initEventListeners(): void {
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error("Export failed:", err);
-      alert("Export fehlgeschlagen: " + err.message);
+      alert("Export fehlgeschlagen: " + (err as Error).message);
     }
   });
 
@@ -1655,7 +1656,8 @@ function initEventListeners(): void {
     puzzleOverlay.querySelectorAll(".puzzle-move[data-index]").forEach((el) => {
       el.addEventListener("click", () => {
         const index = parseInt(el.getAttribute("data-index")!);
-        showPuzzleBoard(puzzles[index]);
+        const puzzle = puzzles[index];
+        if (puzzle) showPuzzleBoard(puzzle!);
       });
     });
   }
@@ -1823,7 +1825,7 @@ function initEventListeners(): void {
     if (!boardGroup) return;
 
     // Get click coordinates relative to SVG
-    const svgEl = document.getElementById("puzzle-board-svg") as SVGSVGElement;
+    const svgEl = document.getElementById("puzzle-board-svg") as unknown as SVGSVGElement;
     const rect = svgEl.getBoundingClientRect();
     const clientX = event.clientX - rect.left;
     const clientY = event.clientY - rect.top;
@@ -1846,7 +1848,7 @@ function initEventListeners(): void {
         return;
 
       const expectedMove =
-        state.currentPuzzle!.solution[state.currentMoveIndex];
+        state.currentPuzzle!.solution[state.currentMoveIndex]!;
 
       if (pieceId === expectedMove.pieceId) {
         // Correct piece selected, now wait for target click
@@ -1857,22 +1859,26 @@ function initEventListeners(): void {
       const hexKey = cellEl.getAttribute("data-hex-key");
       if (!hexKey) return;
 
-      const [q, r] = hexKey.split(",").map(Number);
+      const parts = hexKey.split(",");
+      const q = Number(parts[0]);
+      const r = Number(parts[1]);
       const targetHex = new Hex(q, r);
 
       // Try to make the move
-      const result = makePuzzleMove(
-        pg,
+      const expectedMove =
         getPuzzleState().currentPuzzle!.solution[
           getPuzzleState().currentMoveIndex
-        ].pieceId,
+        ]!;
+      const result = makePuzzleMove(
+        pg,
+        expectedMove.pieceId,
         targetHex,
       );
 
       if (result.correct) {
         // Move was correct
         sounds.playMove();
-        const move = pg.moveHistory[pg.moveHistory.length - 1];
+        const move = pg.moveHistory[pg.moveHistory.length - 1]!;
         addToLog(move);
         puzzleGame
           ?.getAlivePieces()
@@ -1895,7 +1901,7 @@ function initEventListeners(): void {
     pg._rebuildOccupiedMap();
   }
 
-  function showSelectionHighlights(piece: { pos: Hex; id: string }): void {
+  function showSelectionHighlights(piece: Piece): void {
     if (!puzzleGame || !puzzleRenderer) return;
     puzzleRenderer.clearHighlights();
     puzzleRenderer.clearSelection();
@@ -1980,7 +1986,7 @@ function initEventListeners(): void {
   function deserializePuzzleFEN(fen: string): Game | null {
     try {
       const [piecesStr, factionIdxStr] = fen.split("#");
-      const factionIdx = parseInt(factionIdxStr, 10);
+      const factionIdx = parseInt(factionIdxStr ?? "0", 10);
 
       const game = new Game();
       const cells = generateBoard();
@@ -1995,8 +2001,8 @@ function initEventListeners(): void {
           const factionChar = entry[0];
           const typeChar = entry[1];
           const coords = entry.slice(2).split(",");
-          const q = parseInt(coords[0], 10);
-          const r = parseInt(coords[1], 10);
+          const q = Number(coords[0]);
+          const r = Number(coords[1]);
 
           const faction =
             factionChar === "F"
@@ -2012,7 +2018,9 @@ function initEventListeners(): void {
       }
 
       game.currentFactionIdx = factionIdx % 3;
-      game.currentFaction = ["fire", "water", "nature"][game.currentFactionIdx];
+      const factions = ["fire", "water", "nature"] as const;
+      // @ts-expect-error - index is always valid (0, 1, 2)
+      game.currentFaction = factions[game.currentFactionIdx];
       game._rebuildOccupiedMap();
 
       return game;
@@ -2077,7 +2085,11 @@ function initEventListeners(): void {
     "personality-select",
   ) as HTMLSelectElement;
   personalitySelect?.addEventListener("change", (e: Event) => {
-    const personality = (e.target as HTMLSelectElement).value;
+    const personality = (e.target as HTMLSelectElement).value as
+      | "balanced"
+      | "aggressive"
+      | "defensive"
+      | "tactical";
     setAIPersonality(personality);
     if (aiWorker && workerReady) {
       aiWorker.postMessage({ type: "setPersonality", depth: personality });

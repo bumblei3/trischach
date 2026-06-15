@@ -1,0 +1,33 @@
+      // @ts-expect-error - GameState union comparison
+      const checkResult = isKingdomCheck(testGame, getNextFaction(testGame, currentFaction)!);
+      // @ts-expect-error - GameState union comparison
+      const isGameOver = testGame.state === GAME_STATE.GAME_OVER;
+      // @ts-expect-error - GameState union comparison with string literal
+      const isMate = testGame.state === GAME_STATE.GAME_OVER;
+
+      solutionMoves.push({
+        pieceId: piece.id,
+        pieceType: piece.type,
+        faction: piece.faction,
+        from: { q: piece.pos.q, r: piece.pos.r },
+        to: { q: target.q, r: target.r },
+        isCapture,
+        isCheck: isKingdomCheck(
+          testGame,
+          getNextFaction(testGame, currentFaction)!,
+        ),
+        isMate,
+        san: formatSAN(
+          piece,
+          target,
+          isCapture,
+          checkResult,
+          isGameOver,
+        ),
+      });
+
+      // @ts-expect-error - GameState union comparison with string literal
+      if (testGame.state === GAME_STATE.GAME_OVER) {
+        return solutionMoves;
+      }
+    } else {
