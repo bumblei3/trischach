@@ -134,10 +134,7 @@ export class BoardRenderer {
   public readonly pieceElements: Map<string, PieceElement>;
   public onCellClick: ((hex: Hex, cell: Cell) => void) | null = null;
   public onPieceLongPress:
-    | ((
-        piece: Piece,
-        position: { clientX: number; clientY: number },
-      ) => void)
+    | ((piece: Piece, position: { clientX: number; clientY: number }) => void)
     | null = null;
   private _ox = 0;
   private _oy = 0;

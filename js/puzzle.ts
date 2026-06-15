@@ -128,8 +128,8 @@ function reconstructGameFromHash(hash: string): Game | null {
           factionChar === "F"
             ? "fire"
             : factionChar === "W"
-            ? "water"
-            : "nature";
+              ? "water"
+              : "nature";
         const piece = game.pieces.find(
           (p) => p.faction === faction && p.pos.q === q && p.pos.r === r,
         );
@@ -267,8 +267,11 @@ async function searchForcedMate(
       if (!result) return null;
 
       const moveResult = testGame.handleCellClick(target);
-      
-      const checkResult = isKingdomCheck(testGame, getNextFaction(testGame, currentFaction)!);
+
+      const checkResult = isKingdomCheck(
+        testGame,
+        getNextFaction(testGame, currentFaction)!,
+      );
       // @ts-expect-error - GameState union comparison
       const isGameOver = testGame.state === GAME_STATE.GAME_OVER;
       // @ts-expect-error - GameState union comparison with string literal
@@ -286,20 +289,15 @@ async function searchForcedMate(
           getNextFaction(testGame, currentFaction)!,
         ),
         isMate,
-        san: formatSAN(
-          piece,
-          target,
-          isCapture,
-          checkResult,
-          isGameOver,
-        ),
+        san: formatSAN(piece, target, isCapture, checkResult, isGameOver),
       });
 
       // @ts-expect-error - GameState union comparison with string literal
       if (testGame.state === GAME_STATE.GAME_OVER) {
         return solutionMoves;
       }
-    } else {      // Opponent's turn - let AI defend
+    } else {
+      // Opponent's turn - let AI defend
       const move = calculateBestMove(testGame, currentFaction);
       if (!move) return null;
 
@@ -533,7 +531,8 @@ function updatePuzzleStats(solved: boolean): void {
     const elapsed = (Date.now() - puzzleState.startTime) / 1000;
     const prevAvg = puzzle.stats!.avgTime || 0;
     puzzle.stats!.avgTime =
-      (prevAvg * (puzzle.stats!.attempts - 1) + elapsed) / puzzle.stats!.attempts;
+      (prevAvg * (puzzle.stats!.attempts - 1) + elapsed) /
+      puzzle.stats!.attempts;
     savePuzzles(puzzles);
   }
 }

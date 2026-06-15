@@ -9,7 +9,13 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
-import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult, Piece } from "./game.ts";
+import {
+  Game,
+  GAME_STATE,
+  PROMOTION_CHOICES,
+  GameResult,
+  Piece,
+} from "./game.ts";
 import {
   calculateBestMove,
   evaluateBoard,
@@ -483,7 +489,10 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
         result.rpsAttacks.disadvantage ?? [],
         "highlight-attack-disadvantage",
       );
-      renderer.highlightCells(result.rpsAttacks.neutral ?? [], "highlight-attack");
+      renderer.highlightCells(
+        result.rpsAttacks.neutral ?? [],
+        "highlight-attack",
+      );
     } else {
       renderer.highlightCells(result.attacks ?? [], "highlight-attack");
     }
@@ -648,7 +657,10 @@ function handleContextMenuAction(
             "highlight-attack",
           );
         } else {
-          renderer.highlightCells(selectResult.attacks ?? [], "highlight-attack");
+          renderer.highlightCells(
+            selectResult.attacks ?? [],
+            "highlight-attack",
+          );
         }
         updateUI();
       }
@@ -947,15 +959,24 @@ function showPromotion(piece: Piece): void {
         <span class="preview-name" style="font-size: 18px; margin-left: 12px; font-weight: bold; opacity: 0; transition: opacity 0.15s ease;"></span>
       </div>
       <div class="promotion-choices">
-        ${(PROMOTION_CHOICES as readonly ("queen" | "rook" | "bishop" | "knight")[]).map(
-          (type: "queen" | "rook" | "bishop" | "knight") => `
+        ${(
+          PROMOTION_CHOICES as readonly (
+            | "queen"
+            | "rook"
+            | "bishop"
+            | "knight"
+          )[]
+        )
+          .map(
+            (type: "queen" | "rook" | "bishop" | "knight") => `
           <button class="promotion-choice" data-type="${type}" data-key="${keyHints[type]}" style="border-color:${color.primary}" title="${names[type]} (Taste: ${keyHints[type]})">
             <span class="choice-symbol">${symbols[type]}</span>
             <span class="choice-name">${names[type]}</span>
             <span class="choice-key">${keyHints[type]}</span>
           </button>
         `,
-        ).join("")}
+          )
+          .join("")}
       </div>
       <div class="promotion-options">
         <label class="auto-queen-label">
@@ -977,7 +998,12 @@ function showPromotion(piece: Piece): void {
   if (previewEl && previewSymbol && previewName) {
     promotionOverlay.querySelectorAll(".promotion-choice").forEach((btn) => {
       btn.addEventListener("mouseenter", () => {
-        const type = (btn as HTMLElement).dataset.type as "queen" | "rook" | "bishop" | "knight" | undefined;
+        const type = (btn as HTMLElement).dataset.type as
+          | "queen"
+          | "rook"
+          | "bishop"
+          | "knight"
+          | undefined;
         if (!type) return;
         previewSymbol.textContent = symbols[type];
         previewName.textContent = names[type];
@@ -1063,10 +1089,7 @@ function showPromotion(piece: Piece): void {
   promotionOverlay.addEventListener("transitionend", cleanup);
 }
 
-function handlePromotionResult(
-  result: GameResult | null,
-  piece: Piece,
-): void {
+function handlePromotionResult(result: GameResult | null, piece: Piece): void {
   if (!result) return;
   addToLog(result);
   renderer.removePiece(piece.id);
@@ -1133,7 +1156,11 @@ function initEventListeners(): void {
   ) as HTMLInputElement;
   const depthLabel = document.getElementById("depth-label") as HTMLElement;
   depthSlider?.addEventListener("input", (e: Event) => {
-    const depth = parseInt((e.target as HTMLInputElement).value) as 1 | 2 | 3 | 4;
+    const depth = parseInt((e.target as HTMLInputElement).value) as
+      | 1
+      | 2
+      | 3
+      | 4;
     setAIDepth(depth);
     depthLabel.textContent = "KI: " + depthNames[depth];
     saveSettings({ ...loadSettings(), aiDepth: depth });
@@ -1825,7 +1852,9 @@ function initEventListeners(): void {
     if (!boardGroup) return;
 
     // Get click coordinates relative to SVG
-    const svgEl = document.getElementById("puzzle-board-svg") as unknown as SVGSVGElement;
+    const svgEl = document.getElementById(
+      "puzzle-board-svg",
+    ) as unknown as SVGSVGElement;
     const rect = svgEl.getBoundingClientRect();
     const clientX = event.clientX - rect.left;
     const clientY = event.clientY - rect.top;
@@ -1869,11 +1898,7 @@ function initEventListeners(): void {
         getPuzzleState().currentPuzzle!.solution[
           getPuzzleState().currentMoveIndex
         ]!;
-      const result = makePuzzleMove(
-        pg,
-        expectedMove.pieceId,
-        targetHex,
-      );
+      const result = makePuzzleMove(pg, expectedMove.pieceId, targetHex);
 
       if (result.correct) {
         // Move was correct

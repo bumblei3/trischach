@@ -13,5 +13,9 @@ export function isPondering(): boolean;
 
 // Re-export types from ai-core
 export type { AIAction, SearchResult, TranspositionEntry } from "./ai-core.ts";
-export type { AIPersonality, PersonalityWeights, PersonalityConfig } from "./types.ts";
+export type {
+  AIPersonality,
+  PersonalityWeights,
+  PersonalityConfig,
+} from "./types.ts";
 export { AI_PERSONALITIES } from "./types.ts";

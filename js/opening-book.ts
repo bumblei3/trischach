@@ -615,7 +615,10 @@ export function saveLearnedDataToStorage(): void {
       updated: new Date().toISOString(),
       positions: getLearnedData(),
     };
-    localStorage.setItem("trischach-opening-book-learned", JSON.stringify(data));
+    localStorage.setItem(
+      "trischach-opening-book-learned",
+      JSON.stringify(data),
+    );
     console.log("Opening book: Saved learned data to localStorage");
   } catch (e) {
     console.warn("Failed to save learned data to localStorage:", e);

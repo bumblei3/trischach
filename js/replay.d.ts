@@ -56,7 +56,7 @@ export function parseTSPN(text: string): ParsedTSPN;
 export function reconstructGameFromTSPN(
   parsed: ParsedTSPN,
   GameClass: any,
-  cells: Map<string, any>
+  cells: Map<string, any>,
 ): { game: any; controller: ReplayController };
 
 export class ReplayController {
