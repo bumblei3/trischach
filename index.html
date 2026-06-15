@@ -129,6 +129,7 @@
             <button id="puzzle-btn" title="Puzzle Modus (Matt in N)">
               ♟ Puzzle
             </button>
+            <button id="settings-btn" title="Einstellungen">⚙️</button>
           </div>
           <div
             id="replay-controls"
@@ -192,6 +193,134 @@
       <div id="combat-overlay"></div>
       <div id="promotion-overlay"></div>
       <div id="puzzle-overlay"></div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-overlay">
+      <div class="settings-box">
+        <header class="settings-header">
+          <h2>⚙️ Einstellungen</h2>
+          <button id="settings-close" class="settings-close-btn">
+            &times;
+          </button>
+        </header>
+        <div class="settings-tabs">
+          <button class="settings-tab active" data-tab="general">
+            Allgemein
+          </button>
+          <button class="settings-tab" data-tab="learning">
+            Auto-Battle Learning
+          </button>
+        </div>
+        <div class="settings-content">
+          <!-- General Tab -->
+          <div class="settings-panel active" id="panel-general">
+            <div class="setting-row">
+              <label for="auto-queen">Automatische Damen-Umwandlung</label>
+              <input type="checkbox" id="auto-queen" />
+            </div>
+          </div>
+          <!-- Learning Tab -->
+          <div class="settings-panel" id="panel-learning">
+            <div class="setting-group">
+              <h3>Auto-Battle Learning Konfiguration</h3>
+              <p class="setting-desc">
+                Führt viele KI-Selbstspiele durch, um das Eröffnungsbuch durch
+                Erfahrung zu verbessern. Die gelernten Gewichte werden in
+                <code>opening-book.learned.json</code> gespeichert und beim
+                nächsten Spielstart automatisch geladen.
+              </p>
+            </div>
+            <div class="setting-row">
+              <label for="ab-games">Anzahl Spiele</label>
+              <div class="slider-with-value">
+                <input
+                  type="range"
+                  id="ab-games"
+                  min="10"
+                  max="500"
+                  step="10"
+                  value="100"
+                />
+                <span id="ab-games-value">100</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label for="ab-depth">KI-Tiefe</label>
+              <div class="slider-with-value">
+                <input
+                  type="range"
+                  id="ab-depth"
+                  min="1"
+                  max="5"
+                  step="1"
+                  value="4"
+                />
+                <span id="ab-depth-value">4</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label for="ab-max-moves">Max. Züge pro Spiel</label>
+              <div class="slider-with-value">
+                <input
+                  type="range"
+                  id="ab-max-moves"
+                  min="100"
+                  max="500"
+                  step="50"
+                  value="300"
+                />
+                <span id="ab-max-moves-value">300</span>
+              </div>
+            </div>
+            <div class="setting-group">
+              <label>Persönlichkeiten (Mehrfachauswahl)</label>
+              <div class="personality-checkboxes">
+                <label class="checkbox-label"
+                  ><input type="checkbox" value="balanced" checked /> ⚖️
+                  Ausgewogen</label
+                >
+                <label class="checkbox-label"
+                  ><input type="checkbox" value="aggressive" checked /> ⚔️
+                  Aggressiv</label
+                >
+                <label class="checkbox-label"
+                  ><input type="checkbox" value="defensive" checked /> 🛡️
+                  Defensiv</label
+                >
+                <label class="checkbox-label"
+                  ><input type="checkbox" value="tactical" checked /> 🎯
+                  Taktisch</label
+                >
+              </div>
+            </div>
+            <div class="setting-row">
+              <button id="run-auto-battle-learning" class="btn-primary">
+                🚀 Auto-Battle Learning starten
+              </button>
+            </div>
+            <div class="setting-row">
+              <div
+                id="ab-progress"
+                class="progress-container"
+                style="display: none"
+              >
+                <div class="progress-bar">
+                  <div id="ab-progress-fill" class="progress-fill"></div>
+                </div>
+                <span id="ab-progress-text">Vorbereitung...</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div
+                id="ab-result"
+                class="result-text"
+                style="display: none"
+              ></div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script type="module" src="main.js"></script>

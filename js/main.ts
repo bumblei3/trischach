@@ -80,6 +80,11 @@ interface GameSettings {
   autoBattle: boolean;
   aiPersonality: "balanced" | "aggressive" | "defensive" | "tactical";
   autoQueen?: boolean;
+  // Auto-Battle Learning settings
+  abGames?: number;
+  abDepth?: number;
+  abMaxMoves?: number;
+  abPersonalities?: string[];
 }
 
 const DEFAULT_SETTINGS: GameSettings = {
@@ -90,6 +95,10 @@ const DEFAULT_SETTINGS: GameSettings = {
   autoBattle: false,
   aiPersonality: "balanced",
   autoQueen: false,
+  abGames: 100,
+  abDepth: 4,
+  abMaxMoves: 300,
+  abPersonalities: ["balanced", "aggressive", "defensive", "tactical"],
 };
 
 const depthNames: Record<number, string> = {
@@ -144,6 +153,17 @@ const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
 const loadBtn = document.getElementById("load-btn") as HTMLButtonElement;
 const copyBtn = document.getElementById("copy-btn") as HTMLButtonElement;
 const puzzleBtn = document.getElementById("puzzle-btn") as HTMLButtonElement;
+const settingsBtn = document.getElementById(
+  "settings-btn",
+) as HTMLButtonElement;
+const settingsOverlay = document.getElementById(
+  "settings-overlay",
+) as HTMLElement;
+const settingsCloseBtn = document.getElementById(
+  "settings-close",
+) as HTMLButtonElement;
+const settingsTabs = document.querySelectorAll(".settings-tab");
+const settingsPanels = document.querySelectorAll(".settings-panel");
 
 const fileInput = document.createElement("input");
 fileInput.type = "file";
@@ -2128,6 +2148,337 @@ function initEventListeners(): void {
       aiWorker.postMessage({ type: "setPersonality", depth: personality });
     }
     saveSettings({ ...loadSettings(), aiPersonality: personality });
+  });
+
+  // Settings Modal
+  settingsBtn?.addEventListener("click", () => {
+    settingsOverlay?.classList.add("visible");
+    // Load current settings into UI
+    const settings = loadSettings();
+    const autoQueenCheckbox = document.getElementById(
+      "auto-queen",
+    ) as HTMLInputElement;
+    if (autoQueenCheckbox)
+      autoQueenCheckbox.checked = settings.autoQueen ?? false;
+    const abGames = document.getElementById("ab-games") as HTMLInputElement;
+    const abGamesValue = document.getElementById(
+      "ab-games-value",
+    ) as HTMLElement;
+    if (abGames) {
+      abGames.value = String(settings.abGames ?? 100);
+      if (abGamesValue)
+        abGamesValue.textContent = String(settings.abGames ?? 100);
+    }
+    const abDepth = document.getElementById("ab-depth") as HTMLInputElement;
+    const abDepthValue = document.getElementById(
+      "ab-depth-value",
+    ) as HTMLElement;
+    if (abDepth) {
+      abDepth.value = String(settings.abDepth ?? 4);
+      if (abDepthValue)
+        abDepthValue.textContent = String(settings.abDepth ?? 4);
+    }
+    const abMaxMoves = document.getElementById(
+      "ab-max-moves",
+    ) as HTMLInputElement;
+    const abMaxMovesValue = document.getElementById(
+      "ab-max-moves-value",
+    ) as HTMLElement;
+    if (abMaxMoves) {
+      abMaxMoves.value = String(settings.abMaxMoves ?? 300);
+      if (abMaxMovesValue)
+        abMaxMovesValue.textContent = String(settings.abMaxMoves ?? 300);
+    }
+    // Personality checkboxes
+    const personalities = settings.abPersonalities ?? [
+      "balanced",
+      "aggressive",
+      "defensive",
+      "tactical",
+    ];
+    document
+      .querySelectorAll(".personality-checkboxes input[type=checkbox]")
+      .forEach((cb) => {
+        const checkbox = cb as HTMLInputElement;
+        checkbox.checked = personalities.includes(checkbox.value);
+      });
+  });
+
+  settingsCloseBtn?.addEventListener("click", () => {
+    settingsOverlay?.classList.remove("visible");
+  });
+
+  settingsOverlay?.addEventListener("click", (e: Event) => {
+    if (e.target === settingsOverlay) {
+      settingsOverlay.classList.remove("visible");
+    }
+  });
+
+  // Tab switching
+  settingsTabs.forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const targetTab = tab.getAttribute("data-tab");
+      if (!targetTab) return;
+      settingsTabs.forEach((t) => t.classList.remove("active"));
+      settingsPanels.forEach((p) => p.classList.remove("active"));
+      tab.classList.add("active");
+      const targetPanel = document.getElementById(`panel-${targetTab}`);
+      targetPanel?.classList.add("active");
+    });
+  });
+
+  // Auto-Queen checkbox
+  const autoQueenCheckbox = document.getElementById(
+    "auto-queen",
+  ) as HTMLInputElement;
+  autoQueenCheckbox?.addEventListener("change", (e: Event) => {
+    saveSettings({
+      ...loadSettings(),
+      autoQueen: (e.target as HTMLInputElement).checked,
+    });
+  });
+
+  // Slider value displays
+  const abGames = document.getElementById("ab-games") as HTMLInputElement;
+  const abGamesValue = document.getElementById("ab-games-value") as HTMLElement;
+  abGames?.addEventListener("input", (e: Event) => {
+    const val = (e.target as HTMLInputElement).value;
+    if (abGamesValue) abGamesValue.textContent = val;
+    saveSettings({ ...loadSettings(), abGames: parseInt(val) });
+  });
+
+  const abDepth = document.getElementById("ab-depth") as HTMLInputElement;
+  const abDepthValue = document.getElementById("ab-depth-value") as HTMLElement;
+  abDepth?.addEventListener("input", (e: Event) => {
+    const val = (e.target as HTMLInputElement).value;
+    if (abDepthValue) abDepthValue.textContent = val;
+    saveSettings({ ...loadSettings(), abDepth: parseInt(val) });
+  });
+
+  const abMaxMoves = document.getElementById(
+    "ab-max-moves",
+  ) as HTMLInputElement;
+  const abMaxMovesValue = document.getElementById(
+    "ab-max-moves-value",
+  ) as HTMLElement;
+  abMaxMoves?.addEventListener("input", (e: Event) => {
+    const val = (e.target as HTMLInputElement).value;
+    if (abMaxMovesValue) abMaxMovesValue.textContent = val;
+    saveSettings({ ...loadSettings(), abMaxMoves: parseInt(val) });
+  });
+
+  // Personality checkboxes
+  document
+    .querySelectorAll(".personality-checkboxes input[type=checkbox]")
+    .forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const selected = Array.from(
+          document.querySelectorAll(
+            ".personality-checkboxes input[type=checkbox]:checked",
+          ),
+        ).map((c) => (c as HTMLInputElement).value);
+        saveSettings({ ...loadSettings(), abPersonalities: selected });
+      });
+    });
+
+  // Run Auto-Battle Learning button
+  const runAbBtn = document.getElementById(
+    "run-auto-battle-learning",
+  ) as HTMLButtonElement;
+  const abProgress = document.getElementById("ab-progress") as HTMLElement;
+  const abProgressFill = document.getElementById(
+    "ab-progress-fill",
+  ) as HTMLElement;
+  const abProgressText = document.getElementById(
+    "ab-progress-text",
+  ) as HTMLElement;
+  const abResult = document.getElementById("ab-result") as HTMLElement;
+
+  runAbBtn?.addEventListener("click", async () => {
+    const settings = loadSettings();
+    const games = settings.abGames ?? 100;
+    const depth = settings.abDepth ?? 4;
+    const maxMoves = settings.abMaxMoves ?? 300;
+    const personalities = settings.abPersonalities ?? [
+      "balanced",
+      "aggressive",
+      "defensive",
+      "tactical",
+    ];
+
+    if (personalities.length === 0) {
+      showHintToast("⚠️ Bitte mindestens eine Persönlichkeit wählen!");
+      return;
+    }
+
+    // Show progress
+    if (runAbBtn) runAbBtn.disabled = true;
+    if (abProgress) abProgress.style.display = "block";
+    if (abProgressFill) abProgressFill.style.width = "0%";
+    if (abProgressText) abProgressText.textContent = "Initialisiere...";
+    if (abResult) {
+      abResult.style.display = "none";
+      abResult.textContent = "";
+    }
+
+    try {
+      // Import the learning functions dynamically
+      const { calculateBestMove, setAIDepth, setAIPersonality } =
+        await import("./ai-core.ts");
+      const { Game } = await import("./game.ts");
+      const { generateBoard } = await import("./board.ts");
+      const { learnFromGame, getLearnedData, saveLearnedData } =
+        await import("./opening-book.ts");
+
+      setAIDepth(depth);
+
+      const stats = { fire: 0, water: 0, nature: 0, draws: 0 };
+      let totalGames = 0;
+
+      // Helper to play one game
+      function playGame(gameIdx: number): Promise<void> {
+        return new Promise((resolve) => {
+          const game = new Game();
+          const cells = generateBoard();
+          game.init(cells);
+          game.rpsEnabled = true;
+
+          const personality = (personalities[gameIdx % personalities.length] ??
+            "balanced") as "balanced" | "aggressive" | "defensive" | "tactical";
+          setAIPersonality(personality);
+
+          const gameHistory: Array<{
+            hash: string;
+            faction: string;
+            move: { pieceId: string; targetQ: number; targetR: number };
+          }> = [];
+          let moveCount = 0;
+
+          function makeMove() {
+            if (game.state === "game_over" || moveCount >= maxMoves) {
+              // Learn from this game
+              let winnerFaction: "fire" | "water" | "nature" | null = null;
+              if (game.state === "game_over") {
+                // Check who won by looking at remaining alive pieces
+                const alive = game.pieces.filter((p: any) => p.alive);
+                if (alive.length === 1) {
+                  const winner = alive[0];
+                  if (winner) {
+                    winnerFaction = winner.faction as
+                      | "fire"
+                      | "water"
+                      | "nature";
+                    stats[winnerFaction]++;
+                  } else {
+                    stats.draws++;
+                  }
+                } else {
+                  stats.draws++;
+                }
+              } else {
+                stats.draws++;
+              }
+
+              if (gameHistory.length > 0) {
+                learnFromGame(gameHistory, winnerFaction);
+              }
+
+              totalGames++;
+              const pct = Math.round((totalGames / games) * 100);
+              if (abProgressFill) abProgressFill.style.width = `${pct}%`;
+              if (abProgressText)
+                abProgressText.textContent = `Spiel ${totalGames} / ${games} (${pct}%)`;
+
+              resolve();
+              return;
+            }
+
+            const action = calculateBestMove(game, game.currentFaction);
+            if (!action) {
+              resolve();
+              return;
+            }
+
+            if (moveCount < 30) {
+              const hash = boardHash(game);
+              gameHistory.push({
+                hash,
+                faction: game.currentFaction,
+                move: {
+                  pieceId: action.piece.id,
+                  targetQ: action.target.q,
+                  targetR: action.target.r,
+                },
+              });
+            }
+
+            const selResult = game.handleCellClick(action.piece.pos);
+            if (selResult?.action === "select") {
+              const result = game.handleCellClick(action.target);
+              if (result?.promotion && game.pendingPromotion) {
+                game.completePromotion("queen");
+              }
+            }
+
+            moveCount++;
+            // Use setTimeout to yield to UI
+            setTimeout(makeMove, 0);
+          }
+
+          makeMove();
+        });
+      }
+
+      // Board hash function (inline to avoid circular import)
+      function boardHash(g: any): string {
+        const pieces = g.pieces
+          .filter((p: any) => p.alive)
+          .map((p: any) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+          .sort()
+          .join("|");
+        return `${pieces}#${g.currentFactionIdx}`;
+      }
+
+      // Run games sequentially with small batches for UI responsiveness
+      for (let i = 0; i < games; i++) {
+        await playGame(i);
+      }
+
+      // Save learned data
+      const learnedData = getLearnedData();
+      const saveData = {
+        version: 1,
+        updated: new Date().toISOString(),
+        positions: learnedData,
+      };
+      localStorage.setItem(
+        "trischach-opening-book-learned",
+        JSON.stringify(saveData),
+      );
+
+      // Also try to update the compiled book (optional, requires reload)
+      // For now, just show success
+      if (abProgress) abProgress.style.display = "none";
+      if (abResult) {
+        abResult.style.display = "block";
+        abResult.textContent =
+          `✅ Fertig! ${games} Spiele gespielt.\n` +
+          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\n` +
+          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\n` +
+          `💾 In localStorage gespeichert. Beim nächsten Spielstart aktiv.`;
+      }
+      showHintToast(`✅ Auto-Battle Learning abgeschlossen (${games} Spiele)`);
+    } catch (err) {
+      console.error("Auto-Battle Learning failed:", err);
+      if (abProgress) abProgress.style.display = "none";
+      if (abResult) {
+        abResult.style.display = "block";
+        abResult.textContent = `❌ Fehler: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      showHintToast("❌ Auto-Battle Learning fehlgeschlagen");
+    } finally {
+      if (runAbBtn) runAbBtn.disabled = false;
+    }
   });
 }
 
