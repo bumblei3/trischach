@@ -2504,6 +2504,142 @@ function initEventListeners(): void {
       if (runAbBtn) runAbBtn.disabled = false;
     }
   });
+
+  // Opening Book Tab Logic
+  const obRefresh = document.getElementById("ob-refresh") as HTMLButtonElement;
+  const obExportLearned = document.getElementById(
+    "ob-export-learned",
+  ) as HTMLButtonElement;
+  const obResetLearned = document.getElementById(
+    "ob-reset-learned",
+  ) as HTMLButtonElement;
+  const obPositions = document.getElementById("ob-positions") as HTMLElement;
+  const obVariations = document.getElementById("ob-variations") as HTMLElement;
+  const obMaxDepth = document.getElementById("ob-max-depth") as HTMLElement;
+  const obLearned = document.getElementById("ob-learned") as HTMLElement;
+  const obCompiled = document.getElementById("ob-compiled") as HTMLElement;
+  const obUpdated = document.getElementById("ob-updated") as HTMLElement;
+  // Load opening book stats
+  async function loadOpeningBookStats() {
+    try {
+      // Load compiled book info
+      const module = await import("../opening-book.compiled.json");
+      const data = module.default;
+
+      if (data && data.metadata && data.book) {
+        if (obPositions)
+          obPositions.textContent = String(
+            data.metadata.stats?.totalPositions ||
+              Object.keys(data.book).length,
+          );
+        if (obVariations)
+          obVariations.textContent = String(
+            data.metadata.stats?.totalVariations || "\u2013",
+          );
+        if (obMaxDepth)
+          obMaxDepth.textContent = String(
+            data.metadata.stats?.maxDepth || "\u2013",
+          );
+        if (obCompiled)
+          obCompiled.textContent = data.metadata.compiled
+            ? new Date(data.metadata.compiled).toLocaleString("de-DE")
+            : "\u2013";
+      }
+
+      // Load learned data from localStorage
+      const learnedStored = localStorage.getItem(
+        "trischach-opening-book-learned",
+      );
+      if (learnedStored) {
+        try {
+          const learnedData = JSON.parse(learnedStored);
+          if (learnedData && learnedData.positions) {
+            if (obLearned)
+              obLearned.textContent = String(
+                Object.keys(learnedData.positions).length,
+              );
+            if (obUpdated)
+              obUpdated.textContent = learnedData.updated
+                ? new Date(learnedData.updated).toLocaleString("de-DE")
+                : "\u2013";
+          }
+        } catch {
+          if (obLearned) obLearned.textContent = "0";
+        }
+      } else {
+        if (obLearned) obLearned.textContent = "0";
+        if (obUpdated) obUpdated.textContent = "\u2013";
+      }
+    } catch (err) {
+      console.error("Failed to load opening book stats:", err);
+      if (obPositions) obPositions.textContent = "Fehler";
+      if (obVariations) obVariations.textContent = "Fehler";
+      if (obMaxDepth) obMaxDepth.textContent = "Fehler";
+      if (obLearned) obLearned.textContent = "Fehler";
+      if (obCompiled) obCompiled.textContent = "Fehler";
+      if (obUpdated) obUpdated.textContent = "Fehler";
+    }
+  }
+
+  // Refresh button
+  obRefresh?.addEventListener("click", async () => {
+    showHintToast("🔄 Lade Opening Book Statistiken...");
+    await loadOpeningBookStats();
+    showHintToast("✅ Statistiken aktualisiert");
+  });
+
+  // Export learned data
+  obExportLearned?.addEventListener("click", () => {
+    const learnedStored = localStorage.getItem(
+      "trischach-opening-book-learned",
+    );
+    if (!learnedStored) {
+      showHintToast("⚠️ Keine gelernten Daten vorhanden");
+      return;
+    }
+    try {
+      const blob = new Blob([learnedStored], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `trischach-learned-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showHintToast("📥 Gelernte Daten exportiert");
+    } catch (err) {
+      console.error("Export failed:", err);
+      showHintToast("❌ Export fehlgeschlagen");
+    }
+  });
+
+  // Reset learned data
+  obResetLearned?.addEventListener("click", () => {
+    if (
+      !confirm(
+        "⚠️ Alle gelernten Opening Book Daten wirklich löschen?\nDies kann nicht rückgängig gemacht werden.",
+      )
+    ) {
+      return;
+    }
+    localStorage.removeItem("trischach-opening-book-learned");
+    if (obLearned) obLearned.textContent = "0";
+    if (obUpdated) obUpdated.textContent = "–";
+    showHintToast("🗑️ Learning zurückgesetzt");
+  });
+
+  // Initial load when Opening Book tab is opened
+  // We'll use a mutation observer or just load on tab click
+  const obTab = document.querySelector(
+    '.settings-tab[data-tab="opening-book"]',
+  ) as HTMLButtonElement;
+  obTab?.addEventListener("click", () => {
+    loadOpeningBookStats();
+  });
+
+  // We can also just load once when initEventListeners runs
+  loadOpeningBookStats();
 }
 
 // ─── Start ──────────────────────────────────────────────────────────

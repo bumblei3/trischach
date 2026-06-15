@@ -217,6 +217,9 @@
           <button class="settings-tab" data-tab="learning">
             Auto-Battle Learning
           </button>
+          <button class="settings-tab" data-tab="opening-book">
+            Opening Book
+          </button>
         </div>
         <div class="settings-content">
           <!-- General Tab -->
@@ -323,6 +326,58 @@
                 class="result-text"
                 style="display: none"
               ></div>
+            </div>
+          </div>
+          <!-- Opening Book Tab -->
+          <div class="settings-panel" id="panel-opening-book">
+            <div class="setting-group">
+              <h3>Opening Book Statistiken</h3>
+              <p class="setting-desc">
+                Zeigt Informationen zum geladenen Eröffnungsbuch und den
+                gelernten Gewichten aus Auto-Battle Self-Play.
+              </p>
+            </div>
+            <div class="setting-row">
+              <div class="stats-grid" id="ob-stats">
+                <div class="stat-card">
+                  <span class="stat-value" id="ob-positions">–</span>
+                  <span class="stat-label">Positionen</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="ob-variations">–</span>
+                  <span class="stat-label">Variationen</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="ob-max-depth">–</span>
+                  <span class="stat-label">Max. Tiefe (Ply)</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="ob-learned">–</span>
+                  <span class="stat-label">Gelernte Positionen</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="ob-compiled">–</span>
+                  <span class="stat-label">Letztes Kompiliert</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-value" id="ob-updated">–</span>
+                  <span class="stat-label">Letztes Update</span>
+                </div>
+              </div>
+            </div>
+            <div class="setting-group">
+              <h3>Aktionen</h3>
+              <div class="buttons-row">
+                <button id="ob-refresh" class="btn-secondary">
+                  🔄 Aktualisieren
+                </button>
+                <button id="ob-export-learned" class="btn-secondary">
+                  📥 Gelernte Daten exportieren
+                </button>
+                <button id="ob-reset-learned" class="btn-danger">
+                  🗑️ Learning zurücksetzen
+                </button>
+              </div>
             </div>
           </div>
         </div>
