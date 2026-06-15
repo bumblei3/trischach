@@ -12,14 +12,14 @@ on:
   workflow_dispatch:
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   lint-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20]
+        node-version: [24]
     steps:
       - uses: actions/checkout@v4
 
@@ -156,10 +156,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -265,7 +265,7 @@ jobs:
             const workerGzip = process.env.BUNDLE_WORKER_GZIP || 'N/A';
             const bundleMsg = `📦 **Bundle sizes (gzipped)**: main=${mainGzip}B, ai-core=${coreGzip}B, ai-worker=${workerGzip}B`;
 
-            const body = `## 📊 CI Summary\n\n${coverageMsg}\n${e2eMsg}\n${bundleMsg}\n\n*Node: 20*`;
+            const body = `## 📊 CI Summary\n\n${coverageMsg}\n${e2eMsg}\n${bundleMsg}\n\n*Node: 24*`;
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -281,10 +281,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -347,10 +347,10 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Setup Node 20
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -388,10 +388,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
+      - name: Setup Node 24
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
