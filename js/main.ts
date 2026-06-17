@@ -2333,6 +2333,9 @@ function initEventListeners(): void {
   const runAbBtn = document.getElementById(
     "run-auto-battle-learning",
   ) as HTMLButtonElement;
+  const resumeAbBtn = document.getElementById(
+    "resume-auto-battle-learning",
+  ) as HTMLButtonElement;
   const abProgress = document.getElementById("ab-progress") as HTMLElement;
   const abProgressFill = document.getElementById(
     "ab-progress-fill",
@@ -2342,21 +2345,82 @@ function initEventListeners(): void {
   ) as HTMLElement;
   const abResult = document.getElementById("ab-result") as HTMLElement;
 
+  // Auto-Battle Learning Resume State
+  const LEARN_STATE_KEY = "trischach-auto-battle-learn-state";
+  interface LearnState {
+    games: number;
+    depth: number;
+    maxMoves: number;
+    personalities: string[];
+    completedGames: number;
+    stats: { fire: number; water: number; nature: number; draws: number };
+    currentGameIdx: number;
+    personalitiesOrder: string[];
+    isRunning: boolean;
+  }
+
+  function saveLearnState(state: LearnState): void {
+    try {
+      localStorage.setItem(LEARN_STATE_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.warn("Failed to save learn state:", e);
+    }
+  }
+
+  function loadLearnState(): LearnState | null {
+    try {
+      const stored = localStorage.getItem(LEARN_STATE_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {
+      console.warn("Failed to load learn state:", e);
+    }
+    return null;
+  }
+
+  function clearLearnState(): void {
+    try {
+      localStorage.removeItem(LEARN_STATE_KEY);
+    } catch (e) {
+      console.warn("Failed to clear learn state:", e);
+    }
+  }
+
+  // Check for existing learn state on startup
+  const savedState = loadLearnState();
+  if (
+    savedState &&
+    savedState.isRunning &&
+    savedState.completedGames < savedState.games
+  ) {
+    if (resumeAbBtn) resumeAbBtn.style.display = "inline-block";
+    if (runAbBtn) runAbBtn.style.display = "none";
+  }
+
   runAbBtn?.addEventListener("click", async () => {
     const settings = loadSettings();
     const games = settings.abGames ?? 100;
     const depth = settings.abDepth ?? 4;
     const maxMoves = settings.abMaxMoves ?? 300;
-    const personalities = settings.abPersonalities ?? [
+    const personalities = (settings.abPersonalities ?? [
       "balanced",
       "aggressive",
       "defensive",
       "tactical",
-    ];
+    ]) as string[];
 
     if (personalities.length === 0) {
       showHintToast("⚠️ Bitte mindestens eine Persönlichkeit wählen!");
       return;
+    }
+
+    // Clear any existing state at start
+    clearLearnState();
+
+    // Create consistent personality order for this run
+    const personalitiesOrder = [] as string[];
+    for (let i = 0; i < games; i++) {
+      const personality = personalities[i % personalities.length]!;
+      personalitiesOrder.push(personality);
     }
 
     // Show progress
@@ -2370,12 +2434,11 @@ function initEventListeners(): void {
     }
 
     try {
-      // Import the learning functions dynamically
       const { calculateBestMove, setAIDepth, setAIPersonality } =
         await import("./ai-core.ts");
       const { Game } = await import("./game.ts");
       const { generateBoard } = await import("./board.ts");
-      const { learnFromGame, getLearnedData, saveLearnedData } =
+      const { learnFromGame, getLearnedData } =
         await import("./opening-book.ts");
 
       setAIDepth(depth);
@@ -2391,8 +2454,13 @@ function initEventListeners(): void {
           game.init(cells);
           game.rpsEnabled = true;
 
-          const personality = (personalities[gameIdx % personalities.length] ??
-            "balanced") as "balanced" | "aggressive" | "defensive" | "tactical";
+          const personality = (personalitiesOrder[
+            gameIdx % personalitiesOrder.length
+          ] ?? "balanced") as
+            | "balanced"
+            | "aggressive"
+            | "defensive"
+            | "tactical";
           setAIPersonality(personality);
 
           const gameHistory: Array<{
@@ -2407,7 +2475,6 @@ function initEventListeners(): void {
               // Learn from this game
               let winnerFaction: "fire" | "water" | "nature" | null = null;
               if (game.state === "game_over") {
-                // Check who won by looking at remaining alive pieces
                 const alive = game.pieces.filter((p: any) => p.alive);
                 if (alive.length === 1) {
                   const winner = alive[0];
@@ -2436,6 +2503,20 @@ function initEventListeners(): void {
               if (abProgressFill) abProgressFill.style.width = `${pct}%`;
               if (abProgressText)
                 abProgressText.textContent = `Spiel ${totalGames} / ${games} (${pct}%)`;
+
+              // Save state after each game for resume capability
+              const state: LearnState = {
+                games,
+                depth,
+                maxMoves,
+                personalities,
+                completedGames: totalGames,
+                stats,
+                currentGameIdx: gameIdx,
+                personalitiesOrder,
+                isRunning: true,
+              };
+              saveLearnState(state);
 
               resolve();
               return;
@@ -2469,7 +2550,6 @@ function initEventListeners(): void {
             }
 
             moveCount++;
-            // Use setTimeout to yield to UI
             setTimeout(makeMove, 0);
           }
 
@@ -2477,7 +2557,6 @@ function initEventListeners(): void {
         });
       }
 
-      // Board hash function (inline to avoid circular import)
       function boardHash(g: any): string {
         const pieces = g.pieces
           .filter((p: any) => p.alive)
@@ -2504,15 +2583,17 @@ function initEventListeners(): void {
         JSON.stringify(saveData),
       );
 
+      clearLearnState();
+
       // Also try to update the compiled book (optional, requires reload)
       // For now, just show success
       if (abProgress) abProgress.style.display = "none";
       if (abResult) {
         abResult.style.display = "block";
         abResult.textContent =
-          `✅ Fertig! ${games} Spiele gespielt.\n` +
-          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\n` +
-          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\n` +
+          `✅ Fertig! ${games} Spiele gespielt.\\n` +
+          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\\n` +
+          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\\n` +
           `💾 In localStorage gespeichert. Beim nächsten Spielstart aktiv.`;
       }
       showHintToast(`✅ Auto-Battle Learning abgeschlossen (${games} Spiele)`);
@@ -2524,8 +2605,226 @@ function initEventListeners(): void {
         abResult.textContent = `❌ Fehler: ${err instanceof Error ? err.message : String(err)}`;
       }
       showHintToast("❌ Auto-Battle Learning fehlgeschlagen");
+      clearLearnState();
     } finally {
       if (runAbBtn) runAbBtn.disabled = false;
+    }
+  });
+
+  // Resume Auto-Battle Learning button
+  resumeAbBtn?.addEventListener("click", async () => {
+    const savedState = loadLearnState();
+    if (
+      !savedState ||
+      !savedState.isRunning ||
+      savedState.completedGames >= savedState.games
+    ) {
+      showHintToast("⚠️ Kein State zum Fortsetzen gefunden");
+      return;
+    }
+
+    const settings = loadSettings();
+    const games = savedState.games;
+    const depth = savedState.depth;
+    const maxMoves = savedState.maxMoves;
+    const personalities = savedState.personalities;
+    const personalitiesOrder = savedState.personalitiesOrder;
+    const stats = savedState.stats;
+    let totalGames = savedState.completedGames;
+
+    if (personalities.length === 0) {
+      showHintToast("⚠️ Keine Persönlichkeiten konfiguriert!");
+      return;
+    }
+
+    // Show progress
+    if (resumeAbBtn) resumeAbBtn.disabled = true;
+    if (runAbBtn) runAbBtn.style.display = "none";
+    if (resumeAbBtn) resumeAbBtn.style.display = "none";
+    if (abProgress) abProgress.style.display = "block";
+    if (abProgressFill)
+      abProgressFill.style.width = `${Math.round((totalGames / games) * 100)}%`;
+    if (abProgressText)
+      abProgressText.textContent = `Spiel ${totalGames} / ${games} (${Math.round((totalGames / games) * 100)}%)`;
+    if (abResult) {
+      abResult.style.display = "none";
+      abResult.textContent = "";
+    }
+
+    try {
+      const { calculateBestMove, setAIDepth, setAIPersonality } =
+        await import("./ai-core.ts");
+      const { Game } = await import("./game.ts");
+      const { generateBoard } = await import("./board.ts");
+      const { learnFromGame, getLearnedData } =
+        await import("./opening-book.ts");
+
+      setAIDepth(depth);
+
+      // Helper to play one game
+      function playGame(gameIdx: number): Promise<void> {
+        return new Promise((resolve) => {
+          const game = new Game();
+          const cells = generateBoard();
+          game.init(cells);
+          game.rpsEnabled = true;
+
+          const personality = (personalitiesOrder[
+            gameIdx % personalitiesOrder.length
+          ] ?? "balanced") as
+            | "balanced"
+            | "aggressive"
+            | "defensive"
+            | "tactical";
+          setAIPersonality(personality);
+
+          const gameHistory: Array<{
+            hash: string;
+            faction: string;
+            move: { pieceId: string; targetQ: number; targetR: number };
+          }> = [];
+          let moveCount = 0;
+
+          function makeMove() {
+            if (game.state === "game_over" || moveCount >= maxMoves) {
+              // Learn from this game
+              let winnerFaction: "fire" | "water" | "nature" | null = null;
+              if (game.state === "game_over") {
+                const alive = game.pieces.filter((p: any) => p.alive);
+                if (alive.length === 1) {
+                  const winner = alive[0];
+                  if (winner) {
+                    winnerFaction = winner.faction as
+                      | "fire"
+                      | "water"
+                      | "nature";
+                    stats[winnerFaction]++;
+                  } else {
+                    stats.draws++;
+                  }
+                } else {
+                  stats.draws++;
+                }
+              } else {
+                stats.draws++;
+              }
+
+              if (gameHistory.length > 0) {
+                learnFromGame(gameHistory, winnerFaction);
+              }
+
+              totalGames++;
+              const pct = Math.round((totalGames / games) * 100);
+              if (abProgressFill) abProgressFill.style.width = `${pct}%`;
+              if (abProgressText)
+                abProgressText.textContent = `Spiel ${totalGames} / ${games} (${pct}%)`;
+
+              // Save state after each game
+              const state: LearnState = {
+                games,
+                depth,
+                maxMoves,
+                personalities,
+                completedGames: totalGames,
+                stats,
+                currentGameIdx: gameIdx,
+                personalitiesOrder,
+                isRunning: true,
+              };
+              saveLearnState(state);
+
+              resolve();
+              return;
+            }
+
+            const action = calculateBestMove(game, game.currentFaction);
+            if (!action) {
+              resolve();
+              return;
+            }
+
+            if (moveCount < 30) {
+              const hash = boardHash(game);
+              gameHistory.push({
+                hash,
+                faction: game.currentFaction,
+                move: {
+                  pieceId: action.piece.id,
+                  targetQ: action.target.q,
+                  targetR: action.target.r,
+                },
+              });
+            }
+
+            const selResult = game.handleCellClick(action.piece.pos);
+            if (selResult?.action === "select") {
+              const result = game.handleCellClick(action.target);
+              if (result?.promotion && game.pendingPromotion) {
+                game.completePromotion("queen");
+              }
+            }
+
+            moveCount++;
+            setTimeout(makeMove, 0);
+          }
+
+          makeMove();
+        });
+      }
+
+      function boardHash(g: any): string {
+        const pieces = g.pieces
+          .filter((p: any) => p.alive)
+          .map((p: any) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+          .sort()
+          .join("|");
+        return `${pieces}#${g.currentFactionIdx}`;
+      }
+
+      // Run remaining games
+      for (let i = totalGames; i < games; i++) {
+        await playGame(i);
+      }
+
+      // Save learned data
+      const learnedData = getLearnedData();
+      const saveData = {
+        version: 1,
+        updated: new Date().toISOString(),
+        positions: learnedData,
+      };
+      localStorage.setItem(
+        "trischach-opening-book-learned",
+        JSON.stringify(saveData),
+      );
+
+      clearLearnState();
+
+      if (abProgress) abProgress.style.display = "none";
+      if (abResult) {
+        abResult.style.display = "block";
+        abResult.textContent =
+          `✅ Fortgesetzt & abgeschlossen! ${games} Spiele insgesamt.\\n` +
+          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\\n` +
+          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\\n` +
+          `💾 In localStorage gespeichert. Beim nächsten Spielstart aktiv.`;
+      }
+      showHintToast(
+        `✅ Auto-Battle Learning fortgesetzt & abgeschlossen (${games} Spiele)`,
+      );
+
+      if (resumeAbBtn) resumeAbBtn.style.display = "none";
+      if (runAbBtn) runAbBtn.style.display = "inline-block";
+    } catch (err) {
+      console.error("Auto-Battle Learning resume failed:", err);
+      if (abProgress) abProgress.style.display = "none";
+      if (abResult) {
+        abResult.style.display = "block";
+        abResult.textContent = `❌ Fehler: ${err instanceof Error ? err.message : String(err)}`;
+      }
+      showHintToast("❌ Auto-Battle Learning Fortsetzen fehlgeschlagen");
+    } finally {
+      if (resumeAbBtn) resumeAbBtn.disabled = false;
     }
   });
 
