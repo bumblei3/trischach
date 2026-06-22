@@ -149,7 +149,7 @@
     "rimraf": "^3.0.2",
     "rollup": "^4.62.0",
     "run-parallel": "^1.2.0",
-    "semver": "^7.7.4",
+    "semver": "^7.8.5",
     "shebang-command": "^2.0.0",
     "shebang-regex": "^3.0.0",
     "siginfo": "^2.0.0",
