@@ -9,7 +9,7 @@
  */
 
 import { getValidMoves, PIECE_STRENGTH } from "./pieces.js";
-import { getRPSResult, FACTION } from "./board.js";
+import { getRPSResult, FACTION, generateBoard } from "./board.js";
 import { Hex } from "./hex.js";
 import { isKingdomCheck } from "./game-check.js";
 import { pickBookMove, buildOpeningBook, inBook } from "./opening-book.js";
@@ -1892,7 +1892,19 @@ export function deserializeGame(state) {
     moveHistory: [],
     _positionHistory: new Map(),
     _halfmoveClock: state._halfmoveClock || 0,
+    // Rebuild the static board geometry. The serialized state omits
+    // boardCells (it's constant), but move generation needs it to know
+    // which target hexes are on the board.
+    boardCells: generateBoard(),
   };
+
+  // Provide Game methods that the AI/search code calls directly
+  // (the main-thread Game instance has these; the deserialized
+  //  worker-side object must mirror them or getAlivePieces() etc. throw).
+  game.getAlivePieces = () =>
+    game.pieces.filter((p) => p.alive);
+  game.getPieces = () => game.pieces;
+
   rebuildOccupiedMap(game);
   return game;
 }
