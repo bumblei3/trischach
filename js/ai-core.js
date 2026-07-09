@@ -1901,8 +1901,7 @@ export function deserializeGame(state) {
   // Provide Game methods that the AI/search code calls directly
   // (the main-thread Game instance has these; the deserialized
   //  worker-side object must mirror them or getAlivePieces() etc. throw).
-  game.getAlivePieces = () =>
-    game.pieces.filter((p) => p.alive);
+  game.getAlivePieces = () => game.pieces.filter((p) => p.alive);
   game.getPieces = () => game.pieces;
 
   rebuildOccupiedMap(game);
