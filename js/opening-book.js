@@ -99,7 +99,11 @@ export async function loadOpeningBook() {
  * Call this once at startup after Game class is loaded.
  */
 export function buildOpeningBook(GameClass) {
-  OPENING_BOOK.clear();
+  // NOTE: Do NOT clear() OPENING_BOOK here. In production the compiled
+  // book is loaded first via loadOpeningBook() into this same map; calling
+  // clear() would discard that data and replace it with these hardcoded
+  // (and partly illegal) dev lines. We only *augment* with whatever valid
+  // moves these lines produce.
 
   // These are the hardcoded opening lines - kept for testing
   const openingLines = [
@@ -294,9 +298,7 @@ export function buildOpeningBook(GameClass) {
       const parsed = parseMove(game, moveStr);
 
       if (!parsed) {
-        console.warn(
-          `Opening book (${line.name}): Invalid move ${moveStr} at ply ${i}`,
-        );
+        // Unparseable move string - skip this line silently.
         break;
       }
 
@@ -322,12 +324,12 @@ export function buildOpeningBook(GameClass) {
         variations.push({ move: entry, weight: currentWeight });
       }
 
-      // Actually make the move on the game
+      // Actually make the move on the game. Illegal moves in the hardcoded
+      // dev lines are skipped silently (the compiled book from JSON is the
+      // source of truth in production); we must not mutate game state for a
+      // move we can't legally play, so just advance to the next line.
       const selectResult = game.handleCellClick(parsed.piece.pos);
       if (!selectResult || selectResult.action !== "select") {
-        console.warn(
-          `Opening book (${line.name}): Failed to select piece ${parsed.piece.id} at ply ${i}`,
-        );
         break;
       }
       const result = game.handleCellClick(parsed.target);
@@ -336,10 +338,7 @@ export function buildOpeningBook(GameClass) {
       } else if (result && result.promotion) {
         game.completePromotion("queen");
       } else {
-        // Move failed (illegal) - stop this line
-        console.warn(
-          `Opening book (${line.name}): Move ${moveStr} failed at ply ${i}`,
-        );
+        // Move failed (illegal) - stop this line silently.
         break;
       }
 
