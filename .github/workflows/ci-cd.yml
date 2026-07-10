@@ -16,24 +16,57 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  lint-test:
+  typecheck:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    strategy:
-      matrix:
-        node-version: [24]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
-
-      - name: Setup Node ${{ matrix.node-version }}
+      - name: Setup Node 24
         uses: actions/setup-node@v5
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: "24"
           cache: "npm"
-
       - name: Install dependencies
         run: npm ci
+      - name: Run TypeScript type check
+        run: npm run typecheck
 
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Cache ESLint
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/eslint
+          key: eslint-${{ runner.os }}-${{ hashFiles('.eslintrc.*', 'package-lock.json') }}
+          restore-keys: |
+            eslint-${{ runner.os }}-
+      - name: Run linter
+        run: npm run lint
+      - name: Check formatting
+        run: npx prettier --check .
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
       - name: Cache vitest
         uses: actions/cache@v5
         with:
@@ -43,25 +76,6 @@ jobs:
           key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
           restore-keys: |
             vitest-${{ runner.os }}-
-
-      - name: Cache ESLint
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/eslint
-          key: eslint-${{ runner.os }}-${{ hashFiles('.eslintrc.*', 'package-lock.json') }}
-          restore-keys: |
-            eslint-${{ runner.os }}-
-
-      - name: Run TypeScript type check
-        run: npm run typecheck
-        continue-on-error: false
-
-      - name: Run linter
-        run: npm run lint
-
-      - name: Check formatting
-        run: npx prettier --check .
-
       - name: Run unit tests
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -71,15 +85,13 @@ jobs:
           fi
         env:
           CI: true
-
       - name: Upload coverage (PR only)
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v6
         with:
-          name: coverage-${{ matrix.node-version }}
+          name: coverage
           path: coverage/
           retention-days: 7
-
       - name: Enforce coverage thresholds (PR only)
         if: github.event_name == 'pull_request'
         run: |
@@ -90,13 +102,27 @@ jobs:
             exit 1
           fi
           echo "Coverage ${COVERAGE}% meets 80% threshold"
-
-      - name: Performance benchmark
+      - name: Dependency audit
+        run: npm audit --audit-level=high || true
         continue-on-error: true
-        timeout-minutes: 3
+
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Performance benchmark
         run: |
           echo "=== Performance Benchmark ==="
-          node --experimental-strip-types --input-type=module -e "
+          timeout 150 node --experimental-strip-types --input-type=module -e "
             import { Game } from './js/game.ts';
             import { generateBoard } from './js/board.ts';
             import { calculateBestMove, setAIDepth } from './js/ai.ts';
@@ -108,28 +134,17 @@ jobs:
             for (const p of game.pieces) if (p.faction === 'nature') p.alive = false;
 
             const iterations = 10;
-            let totalNodes = 0;
             let totalTime = 0;
-            let totalDepth = 0;
 
             for (let i = 0; i < iterations; i++) {
               const start = performance.now();
               const action = calculateBestMove(game, game.currentFaction);
               const elapsed = performance.now() - start;
               totalTime += elapsed;
-              totalDepth += 4; // fixed depth
+              console.log('iter ' + i + ' time ' + elapsed.toFixed(1) + 'ms move? ' + !!action);
             }
-
-            const avgTime = (totalTime / iterations).toFixed(2);
-            const nodesPerSec = Math.round((totalNodes / totalTime) * 1000) || 'N/A';
-            console.log(\`Avg time per move: \${avgTime}ms\`);
-            console.log(\`Depth: 4\`);
-            console.log(\`Iterations: \${iterations}\`);
+            console.log('TOTAL ' + totalTime.toFixed(1) + 'ms');
           "
-
-      - name: Dependency audit
-        run: npm audit --audit-level=high || true
-        continue-on-error: true
 
   # Security scanning with CodeQL
   codeql:
@@ -402,7 +417,7 @@ jobs:
             tournament-results.json
 
   deploy:
-    needs: [lint-test, e2e-tests, codeql]
+    needs: [typecheck, lint, unit-tests, e2e-tests, codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
