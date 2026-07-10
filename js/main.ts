@@ -224,7 +224,7 @@ function initAIWorker(): void {
         pendingWorkerCallback = null;
       } else if (type === "progress") {
         console.log(`AI depth ${depth}: score ${score}, nodes ${nodes}`);
-      } else if (type === "bookReady") {
+      } else if (type === "bookReady" || type === "ready") {
         workerReady = true;
       } else if (type === "ponderReady") {
         // Worker pondering ready
@@ -749,6 +749,7 @@ function triggerAutoMove(): void {
       return;
     }
 
+    // Check if current position is in opening book before making move
     // Check if current position is in opening book before making move
     const { inBook, pickBookMove } = await import("./opening-book.ts");
     const wasInBook = inBook(game);

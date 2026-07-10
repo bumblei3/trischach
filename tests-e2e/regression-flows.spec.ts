@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./base";
 
 // Regression coverage for flows that were previously broken in production.
 // NOTE: Only tests behavior present in the built .js source (main.js). The

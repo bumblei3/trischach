@@ -116,6 +116,14 @@ let _ponderWorkerState = null; // Will hold the ponder state object from ai-core
 
 const ctx: Worker = self as unknown as Worker;
 
+// Signal readiness as soon as the worker module has finished loading.
+// Relying solely on a `bookReady` reply to an `initBook` message is racy:
+// main.ts posts `initBook` immediately after constructing the Worker, but the
+// module may still be loading at that point, so the message is dropped and
+// `workerReady` never flips to true — which silently forces every AI move
+// onto the (blocking) main thread and freezes the UI during Auto-Battle.
+ctx.postMessage({ type: "ready" });
+
 ctx.onmessage = function (e: MessageEvent) {
   const { type, gameState, faction, depth } = e.data as any;
 

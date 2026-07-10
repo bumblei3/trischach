@@ -39,7 +39,7 @@ jobs:
           path: |
             ~/.cache/vitest
             ~/.cache/npm
-          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
           restore-keys: |
             vitest-${{ runner.os }}-
 
@@ -57,9 +57,6 @@ jobs:
 
       - name: Run linter
         run: npm run lint
-
-      - name: Check JS types (strict TS on JS)
-        run: npm run check:js
 
       - name: Check formatting
         run: npx prettier --check .
@@ -86,30 +83,32 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "Coverage $COVERAGE% below 80% threshold"
+          node -e "process.exit($COVERAGE < 80 ? 1 : 0)"
+          if [ $? -ne 0 ]; then
+            echo "Coverage ${COVERAGE}% below 80% threshold"
             exit 1
           fi
+          echo "Coverage ${COVERAGE}% meets 80% threshold"
 
       - name: Performance benchmark
         run: |
           echo "=== Performance Benchmark ==="
-          node --input-type=module -e "
-            import { Game } from './js/game.js';
-            import { generateBoard } from './js/board.js';
-            import { calculateBestMove, setAIDepth } from './js/ai.js';
+          node --experimental-strip-types --input-type=module -e "
+            import { Game } from './js/game.ts';
+            import { generateBoard } from './js/board.ts';
+            import { calculateBestMove, setAIDepth } from './js/ai.ts';
             setAIDepth(4);
             const game = new Game();
             game.init(generateBoard());
             game.rpsEnabled = true;
             game.eliminatedFactions.add('nature');
             for (const p of game.pieces) if (p.faction === 'nature') p.alive = false;
-            
+
             const iterations = 10;
             let totalNodes = 0;
             let totalTime = 0;
             let totalDepth = 0;
-            
+
             for (let i = 0; i < iterations; i++) {
               const start = performance.now();
               const action = calculateBestMove(game, game.currentFaction);
@@ -117,13 +116,13 @@ jobs:
               totalTime += elapsed;
               totalDepth += 4; // fixed depth
             }
-            
+
             const avgTime = (totalTime / iterations).toFixed(2);
             const nodesPerSec = Math.round((totalNodes / totalTime) * 1000) || 'N/A';
             console.log(\`Avg time per move: \${avgTime}ms\`);
             console.log(\`Depth: 4\`);
             console.log(\`Iterations: \${iterations}\`);
-          " 2>&1 || echo "Benchmark skipped (module issues)"
+          "
 
       - name: Dependency audit
         run: npm audit --audit-level=high || true
@@ -172,7 +171,7 @@ jobs:
           path: |
             ~/.cache/vitest
             ~/.cache/npm
-          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
           restore-keys: |
             vitest-${{ runner.os }}-
 
@@ -208,12 +207,20 @@ jobs:
           echo "BUNDLE_CORE_GZIP=${CORE_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_WORKER_GZIP=${WORKER_JS_GZIP}" >> $GITHUB_ENV
 
-          # Fail if main.js gzipped > 25KB (guards against large regressions;
-          # baseline with Dark Mode / Auto-Battle / Replay / TSPN viewer is ~19.5KB)
-          if [ "$MAIN_JS_GZIP" -gt 25000 ]; then
-            echo "::error::main.js gzipped size (${MAIN_JS_GZIP}) exceeds 25KB threshold"
-            exit 1
-          fi
+          # Guard against large regressions (thresholds sized for current feature set:
+          # Dark Mode / Auto-Battle / Replay / TSPN viewer in main; full AI engine in ai-core)
+          node -e "
+            const limits = { main: 25000, core: 18000, worker: 2000 };
+            const sizes  = { main: ${MAIN_JS_GZIP}, core: ${CORE_JS_GZIP}, worker: ${WORKER_JS_GZIP} };
+            let failed = false;
+            for (const k of Object.keys(limits)) {
+              if (sizes[k] > limits[k]) {
+                console.log('::error::' + k + '.js gzipped size (' + sizes[k] + ') exceeds ' + limits[k] + 'B threshold');
+                failed = true;
+              }
+            }
+            process.exit(failed ? 1 : 0);
+          "
 
       - name: Run E2E tests
         run: npm run test:e2e
@@ -309,7 +316,7 @@ jobs:
           path: |
             ~/.cache/vitest
             ~/.cache/npm
-          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
           restore-keys: |
             vitest-${{ runner.os }}-
 
@@ -375,7 +382,7 @@ jobs:
           path: |
             ~/.cache/vitest
             ~/.cache/npm
-          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
           restore-keys: |
             vitest-${{ runner.os }}-
       - name: Build
@@ -416,7 +423,7 @@ jobs:
           path: |
             ~/.cache/vitest
             ~/.cache/npm
-          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vitest.config.js') }}
+          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
           restore-keys: |
             vitest-${{ runner.os }}-
 

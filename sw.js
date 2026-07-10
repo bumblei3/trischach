@@ -2,9 +2,9 @@
 /* eslint-env serviceworker */
 // Provides offline support and caching for PWA
 
-const CACHE_NAME = "trischach-v1";
-const STATIC_CACHE = "trischach-static-v1";
-const DYNAMIC_CACHE = "trischach-dynamic-v1";
+const CACHE_NAME = "trischach-v2";
+const STATIC_CACHE = "trischach-static-v2";
+const DYNAMIC_CACHE = "trischach-dynamic-v2";
 
 const STATIC_ASSETS = [
   "/",
@@ -104,10 +104,33 @@ self.addEventListener("fetch", (event) => {
       url.pathname === asset || url.pathname.endsWith(asset.replace("/", "")),
   );
 
+  // The AI worker (and its `./ai-core.js` module import) must be served from
+  // the network, never from the SW cache. When the browser loads a module
+  // Worker, the request arrives with `destination === "script"` (not
+  // "worker") and `ai-worker.js` is also listed in STATIC_ASSETS, so it would
+  // otherwise be served cache-first. A cache-served module Worker fails to
+  // initialise reliably (the main thread then blocks on every AI move because
+  // `workerReady` never flips), which freezes Auto-Battle. Pass it through.
+  const isWorkerModule =
+    url.pathname === "/ai-worker.js" || url.pathname === "/ai-core.js";
+  if (isWorkerModule || request.destination === "worker") {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // Service Workers and dynamically imported ES modules (incl. the AI
+  // worker and its `./ai-core.js` import) cannot be served reliably from
+  // the SW cache — the module fetch in the SW scope fails with
+  // net::ERR_FAILED, which blocks the worker from loading entirely.
+  // Pass these through to the network directly (no caching).
+  if (request.destination === "script" && !isStaticAsset) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
   if (
     isStaticAsset ||
     request.destination === "style" ||
-    request.destination === "script" ||
     request.destination === "font"
   ) {
     // Cache first for static assets

@@ -2085,7 +2085,13 @@ export function calculateBestMove(
   faction: Faction,
 ): AIAction | null {
   if (!_bookBuilt) {
-    buildOpeningBook(game.constructor as new () => IGame);
+    // The Game class is only available on the main thread. In the worker the
+    // game arrives as a serialized plain object (no .init method), so skip
+    // building the hardcoded opening lines there — the compiled book is still
+    // used via pickBookMove().
+    if (typeof (game.constructor as any)?.init === "function") {
+      buildOpeningBook(game.constructor as new () => IGame);
+    }
     _bookBuilt = true;
   }
 
