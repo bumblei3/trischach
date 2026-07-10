@@ -103,11 +103,44 @@ describe("Sound System", () => {
     vi.useRealTimers();
   });
 
-  test("playPromotion creates sound nodes", () => {
+  test("playCheck creates sound nodes", () => {
+    sounds.playCheck();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
+  });
+
+  test("playStalemate creates sound nodes", () => {
     vi.useFakeTimers();
-    sounds.playPromotion();
+    sounds.playStalemate();
     vi.runAllTimers();
     expect(globalThis.AudioContext).toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  test("playTick creates sound nodes", () => {
+    sounds.playTick();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
+  });
+
+  test("playAIThinking creates sound nodes", () => {
+    sounds.playAIThinking();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
+  });
+
+  test("playError creates sound nodes", () => {
+    vi.useFakeTimers();
+    sounds.playError();
+    vi.runAllTimers();
+    expect(globalThis.AudioContext).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  test("disabled sound manager does not create an AudioContext", () => {
+    sounds.toggle(false);
+    expect(sounds.enabled).toBe(false);
+    globalThis.AudioContext.mockClear();
+    sounds.playMove();
+    sounds.playSelect();
+    expect(globalThis.AudioContext).not.toHaveBeenCalled();
+    sounds.toggle(true); // restore for other tests
   });
 });

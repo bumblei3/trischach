@@ -18,10 +18,7 @@ import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 import { boardHash, parseMove } from "../js/opening-book.ts";
 import { deserializeGame } from "../js/ai.ts";
-import {
-  isCheckmateInternal,
-  isStalemateInternal,
-} from "../js/game-check.ts";
+import { isCheckmateInternal, isStalemateInternal } from "../js/game-check.ts";
 
 function makeGame() {
   const game = new Game();

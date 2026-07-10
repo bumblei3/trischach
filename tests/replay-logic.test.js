@@ -8,7 +8,7 @@
  *
  * Deterministic and fast (no AI, no DOM).
  */
-import { expect, test, describe, beforeEach } from "vitest";
+import { expect, test, describe, beforeEach, vi } from "vitest";
 import { Game } from "../js/game.ts";
 import { generateBoard } from "../js/board.ts";
 import {
@@ -18,6 +18,10 @@ import {
   getResultString,
   cloneGameState,
   ReplayController,
+  downloadGame,
+  copyGameToClipboard,
+  loadGameFromString,
+  loadGameFromFile,
 } from "../js/replay.ts";
 
 // A real Game instance so ReplayController.precomputeStates() can call
@@ -49,8 +53,20 @@ function makeMoves() {
 function makeGameLike(overrides = {}) {
   return {
     pieces: [
-      { id: "p1", type: "pawn", faction: "fire", pos: { q: 0, r: 0 }, alive: true },
-      { id: "p2", type: "king", faction: "water", pos: { q: 3, r: 3 }, alive: true },
+      {
+        id: "p1",
+        type: "pawn",
+        faction: "fire",
+        pos: { q: 0, r: 0 },
+        alive: true,
+      },
+      {
+        id: "p2",
+        type: "king",
+        faction: "water",
+        pos: { q: 3, r: 3 },
+        alive: true,
+      },
     ],
     currentFaction: "fire",
     currentFactionIdx: 0,
@@ -115,10 +131,7 @@ describe("getResultString", () => {
   test("maps the winning faction once the game is over", () => {
     const game = makeGameLike({
       state: "game_over",
-      moveHistory: [
-        ...makeMoves(),
-        { winner_faction: "fire" },
-      ],
+      moveHistory: [...makeMoves(), { winner_faction: "fire" }],
     });
     expect(getResultString(game)).toBe("1-0-0");
   });
@@ -184,5 +197,98 @@ describe("ReplayController navigation bounds", () => {
     const state = controller.goToEnd();
     expect(state).not.toBeNull();
     expect(controller.getCurrentMoveNumber()).toBe(0);
+  });
+});
+
+describe("ReplayController TSPN export", () => {
+  let controller;
+  beforeEach(() => {
+    // Empty history avoids precomputeStates replay; exportTSPN serializes
+    // the initial game state, which is what we want to assert here.
+    controller = new ReplayController(makeEmptyGame(), []);
+  });
+
+  test("exportTSPN emits a parseable TSPN for the initial position", () => {
+    const tspn = controller.exportTSPN();
+    expect(typeof tspn).toBe("string");
+    const parsed = parseTSPN(tspn);
+    expect(parsed.headers.Variant).toBe("TriSchach");
+  });
+
+  test("exportTSPNFull marks the game over and is parseable", () => {
+    const tspn = controller.exportTSPNFull();
+    const parsed = parseTSPN(tspn);
+    expect(parsed.headers.Variant).toBe("TriSchach");
+    expect(parsed.headers.Result).toBeDefined();
+  });
+});
+
+describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFromFile", () => {
+  let clickSpy;
+  let writeTextSpy;
+
+  beforeEach(() => {
+    clickSpy = vi.fn();
+    const mockAnchor = {
+      click: clickSpy,
+      set href(_v) {},
+      set download(_v) {},
+    };
+    vi.spyOn(document, "createElement").mockReturnValue(mockAnchor);
+    globalThis.URL = {
+      createObjectURL: vi.fn(() => "blob:mock"),
+      revokeObjectURL: vi.fn(),
+    };
+    writeTextSpy = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextSpy },
+      configurable: true,
+    });
+  });
+
+  test("downloadGame serializes and triggers a download anchor", () => {
+    const game = makeEmptyGame();
+    game.moveHistory = makeMoves();
+    downloadGame(game, "test.tspn");
+    expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
+  });
+
+  test("copyGameToClipboard writes the serialized TSPN", async () => {
+    const game = makeEmptyGame();
+    game.moveHistory = makeMoves();
+    await copyGameToClipboard(game);
+    expect(writeTextSpy).toHaveBeenCalledOnce();
+    const written = writeTextSpy.mock.calls[0][0];
+    expect(written).toContain('[Variant "TriSchach"]');
+  });
+
+  test("loadGameFromString round-trips a serialized game", () => {
+    const game = makeEmptyGame();
+    game.moveHistory = makeMoves();
+    const tspn = serializeGame(game);
+    const parsed = loadGameFromString(tspn);
+    expect(parsed.moves.length).toBe(2);
+  });
+
+  test("loadGameFromFile resolves parsed TSPN via FileReader", async () => {
+    const game = makeEmptyGame();
+    game.moveHistory = makeMoves();
+    const tspn = serializeGame(game);
+
+    const fakeReader = {
+      readAsText: vi.fn(function (_file) {
+        // Simulate async load
+        queueMicrotask(() => this.onload({ target: { result: tspn } }));
+      }),
+    };
+    vi.stubGlobal("FileReader", function () {
+      return fakeReader;
+    });
+
+    const parsed = await loadGameFromFile({});
+    expect(parsed.moves.length).toBe(2);
+    vi.unstubAllGlobals();
   });
 });
