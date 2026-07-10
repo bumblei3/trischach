@@ -510,7 +510,8 @@ function clearCheckHighlight(): void {
 
 function addToLog(result: GameResult): void {
   if (!result.piece) return;
-  const moveLogEl = document.getElementById("move-log") as HTMLElement;
+  const moveLogEl = document.getElementById("move-log") as HTMLElement | null;
+  if (!moveLogEl) return; // DOM may be gone if called from a deferred timer
   const entry = document.createElement("div");
   entry.className = `move-entry ${result.piece.faction}`;
   const pieceSpan = document.createElement("span");

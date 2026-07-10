@@ -579,7 +579,7 @@ function getNextFaction(game: Game, current: Faction): Faction {
   return "fire";
 }
 
-function formatSAN(
+export function formatSAN(
   piece: Piece,
   target: Hex,
   isCapture: boolean,
