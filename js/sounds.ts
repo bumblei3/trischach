@@ -33,6 +33,9 @@ export class SoundManager {
 
     const ctx = this.ctx;
     if (!ctx) return;
+    // Guard against environments (or test mocks) where the AudioContext
+    // exists but lacks the Web Audio API surface (e.g. headless CI).
+    if (typeof ctx.createOscillator !== "function") return;
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
