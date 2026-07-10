@@ -1595,7 +1595,7 @@ export function minimax(
 ): SearchResult {
   nodesSearched++;
   const effectiveDeadline = deadline !== null ? deadline : searchDeadline;
-  if (nodesSearched % 1000 === 0 && Date.now() > effectiveDeadline) {
+  if (nodesSearched % 256 === 0 && Date.now() > effectiveDeadline) {
     return {
       score: evaluateBoard(game, maximizingFaction),
       action: null,
@@ -1880,6 +1880,12 @@ export function quiesce(
 ): SearchResult {
   const standPat = evaluateBoard(game, maximizingFaction);
   if (qDepth >= 4) return { score: standPat };
+
+  // Honor the search deadline so a tactical explosion (many RPS captures)
+  // cannot exceed the time budget on slow runtimes (Node 24 vs 22).
+  if (Date.now() > searchDeadline) {
+    return { score: standPat, timeout: true };
+  }
 
   if (currentFaction === maximizingFaction) {
     if (standPat >= beta) return { score: beta };

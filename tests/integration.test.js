@@ -57,7 +57,7 @@ describe("AI Simulation (Integration)", () => {
       if (!action) break;
 
       const selResult = game.handleCellClick(action.piece.pos);
-      if (selResult.action === "deselect") break;
+      if (!selResult || selResult.action === "deselect") break;
 
       const result = game.handleCellClick(action.target);
 
