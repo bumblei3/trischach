@@ -117,6 +117,12 @@ export function calculateTimeBudget(game: IGame): number {
 export let MAX_DEPTH = 3;
 export let TIME_LIMIT_MS = 5000;
 
+// Absolute hard ceiling on a single calculateBestMove call. Independent of the
+// per-node deadline sampling, this guarantees the search thread/fork returns
+// even on slow runtimes (e.g. CI on a shared runner) where one deep iteration
+// can exceed the soft budget and would otherwise block the process.
+export const MAX_SEARCH_MS = 4000;
+
 export function setAIDepth(depth: number): void {
   MAX_DEPTH = Math.max(1, Math.min(12, depth));
 }
@@ -1572,6 +1578,7 @@ export const PROBCUT_MARGIN = 150; // Centipawns above beta to trigger
 export const PROBCUT_REDUCTION = 3; // Depth reduction for probcut search
 
 let searchDeadline = 0;
+let searchStart = 0;
 export let nodesSearched = 0;
 
 /**
@@ -1595,7 +1602,13 @@ export function minimax(
 ): SearchResult {
   nodesSearched++;
   const effectiveDeadline = deadline !== null ? deadline : searchDeadline;
-  if (nodesSearched % 256 === 0 && Date.now() > effectiveDeadline) {
+  // Sample the soft deadline every 256 nodes, AND enforce an absolute hard
+  // ceiling so a single deep iteration on a slow runtime cannot exceed
+  // MAX_SEARCH_MS and block the process (which hangs CI on shared runners).
+  if (
+    (nodesSearched % 256 === 0 && Date.now() > effectiveDeadline) ||
+    Date.now() - searchStart > MAX_SEARCH_MS
+  ) {
     return {
       score: evaluateBoard(game, maximizingFaction),
       action: null,
@@ -1882,8 +1895,9 @@ export function quiesce(
   if (qDepth >= 4) return { score: standPat };
 
   // Honor the search deadline so a tactical explosion (many RPS captures)
-  // cannot exceed the time budget on slow runtimes (Node 24 vs 22).
-  if (Date.now() > searchDeadline) {
+  // cannot exceed the time budget on slow runtimes (Node 24 vs 22). Also
+  // enforce the absolute hard ceiling to guarantee the process returns.
+  if (Date.now() > searchDeadline || Date.now() - searchStart > MAX_SEARCH_MS) {
     return { score: standPat, timeout: true };
   }
 
@@ -1943,7 +1957,8 @@ export function iterativeDeepening(
   faction: Faction,
 ): AIAction | null {
   const timeBudget = calculateTimeBudget(game);
-  searchDeadline = Date.now() + timeBudget;
+  searchStart = Date.now();
+  searchDeadline = searchStart + Math.min(timeBudget, MAX_SEARCH_MS);
   nodesSearched = 0;
   // Keep TT across moves - only age out old entries via ttNewSearch()
   Object.keys(killerMoves).forEach((k) => delete killerMoves[k]);
@@ -2222,6 +2237,11 @@ export function startPondering(game: IGame, opponentFaction: Faction): void {
  */
 async function runPonderSearch(): Promise<void> {
   const { game, opponentFaction, maximizingFaction, timeBudget } = ponderState;
+
+  // Sync the shared (module-level) deadline/start so minimax/quiesce hard-cap
+  // checks apply to the pondering search too.
+  searchStart = Date.now();
+  searchDeadline = searchStart + Math.min(timeBudget, MAX_SEARCH_MS);
 
   // These should be non-null when pondering is active
   if (!game || !opponentFaction || !maximizingFaction || ponderState.aborted)
