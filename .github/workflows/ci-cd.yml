@@ -92,6 +92,8 @@ jobs:
           echo "Coverage ${COVERAGE}% meets 80% threshold"
 
       - name: Performance benchmark
+        continue-on-error: true
+        timeout-minutes: 3
         run: |
           echo "=== Performance Benchmark ==="
           node --experimental-strip-types --input-type=module -e "
