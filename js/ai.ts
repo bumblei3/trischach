@@ -85,7 +85,6 @@ export function deserializeGame(state: any) {
     state: state.state,
     eliminatedFactions: new Set(state.eliminatedFactions),
     rpsEnabled: state.rpsEnabled,
-    boardCells: new Map(),
     _occupiedMap: new Map(),
     capturedPieces: state.capturedPieces,
     moveHistory: [] as any[],
