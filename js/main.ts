@@ -496,10 +496,13 @@ function addToLog(result: GameResult): void {
   const moveLogEl = document.getElementById("move-log") as HTMLElement;
   const entry = document.createElement("div");
   entry.className = `move-entry ${result.piece.faction}`;
-  entry.innerHTML = `
-    <span class="move-piece">${result.piece.symbol}</span>
-    <span class="move-coords">${result.notation}</span>
-  `;
+  const pieceSpan = document.createElement("span");
+  pieceSpan.className = "move-piece";
+  pieceSpan.textContent = result.piece.symbol;
+  const coordsSpan = document.createElement("span");
+  coordsSpan.className = "move-coords";
+  coordsSpan.textContent = result.notation ?? "";
+  entry.append(pieceSpan, coordsSpan);
   moveLogEl.appendChild(entry);
   moveLogEl.scrollTop = moveLogEl.scrollHeight;
 }
@@ -604,36 +607,52 @@ function showContextMenu(
   menu.style.left = `${position.clientX}px`;
   menu.style.top = `${position.clientY}px`;
 
-  let itemsHtml = "";
-  itemsHtml += `<div class="context-menu-header">${piece.symbol} ${piece.type} (${piece.faction})</div>`;
-  itemsHtml += '<div class="context-menu-divider"></div>';
+  const header = document.createElement("div");
+  header.className = "context-menu-header";
+  header.textContent = `${piece.symbol} ${piece.type} (${piece.faction})`;
+  menu.appendChild(header);
+
+  const divider = document.createElement("div");
+  divider.className = "context-menu-divider";
+  menu.appendChild(divider);
+
+  const addItem = (action: string, icon: string, label: string): void => {
+    const btn = document.createElement("button");
+    btn.className = "context-menu-item";
+    btn.dataset.action = action;
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "context-menu-icon";
+    iconSpan.textContent = icon;
+    const labelSpan = document.createElement("span");
+    labelSpan.textContent = label;
+    btn.append(iconSpan, labelSpan);
+    menu.appendChild(btn);
+  };
 
   if (hasMoves) {
-    itemsHtml += `<button class="context-menu-item" data-action="show-moves">
-      <span class="context-menu-icon">🎯</span> Mögliche Züge anzeigen
-    </button>`;
+    addItem("show-moves", "🎯", "Mögliche Züge anzeigen");
   }
 
-  itemsHtml += `<button class="context-menu-item" data-action="undo">
-    <span class="context-menu-icon">↩️</span> Zug zurücknehmen
-  </button>`;
+  addItem("undo", "↩️", "Zug zurücknehmen");
+  addItem("save", "💾", "Spiel speichern");
+  addItem("copy", "📋", "TSPN kopieren");
 
-  itemsHtml += `<button class="context-menu-item" data-action="save">
-    <span class="context-menu-icon">💾</span> Spiel speichern
-  </button>`;
+  const divider2 = document.createElement("div");
+  divider2.className = "context-menu-divider";
+  menu.appendChild(divider2);
 
-  itemsHtml += `<button class="context-menu-item" data-action="copy">
-    <span class="context-menu-icon">📋</span> TSPN kopieren
-  </button>`;
+  const dangerBtn = document.createElement("button");
+  dangerBtn.className = "context-menu-item context-menu-danger";
+  dangerBtn.dataset.action = "deselect";
+  const dangerIcon = document.createElement("span");
+  dangerIcon.className = "context-menu-icon";
+  dangerIcon.textContent = "✕";
+  const dangerLabel = document.createElement("span");
+  dangerLabel.textContent = "Abbrechen";
+  dangerBtn.append(dangerIcon, dangerLabel);
+  menu.appendChild(dangerBtn);
 
-  itemsHtml += '<div class="context-menu-divider"></div>';
-  itemsHtml += `<button class="context-menu-item context-menu-danger" data-action="deselect">
-    <span class="context-menu-icon">✕</span> Abbrechen
-  </button>`;
-
-  menu.innerHTML = itemsHtml;
   document.body.appendChild(menu);
-
   requestAnimationFrame(() => {
     const rect = menu.getBoundingClientRect();
     const viewportWidth = window.innerWidth;

@@ -18,10 +18,17 @@ const bodyMatch = htmlContent.match(
   new RegExp("<body[^>]*>([\\s\\S]*)<\\/body>", "i"),
 );
 let bodyHTML = bodyMatch ? bodyMatch[1] : htmlContent;
-// Remove ALL script tags (including module scripts with src)
-bodyHTML = bodyHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
-// Also remove self-closing script tags
-bodyHTML = bodyHTML.replace(/<script\b[^>]*\/>/gi, "");
+// Remove ALL script tags (including module scripts with src) via DOM parsing
+// instead of regex to avoid incomplete-sanitization warnings.
+try {
+  const doc = new DOMParser().parseFromString(bodyHTML, "text/html");
+  doc.querySelectorAll("script").forEach((s) => s.remove());
+  bodyHTML = doc.body.innerHTML;
+} catch {
+  // Fallback for environments without DOMParser: strip scripts with a guarded
+  // single-purpose regex.
+  bodyHTML = bodyHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+}
 
 // Mock fetch globally BEFORE any module loads (happy-dom SyncFetch uses this)
 const fetchMock = vi.hoisted(() => {
