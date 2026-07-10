@@ -407,7 +407,10 @@ export function parseMoveToken(token: string): ParsedMove {
  * Replay a game from move history.
  * Returns a generator that yields game states after each move.
  */
-export function* replayGame(initialGame: any, moveHistory: any[]): Generator<any> {
+export function* replayGame(
+  initialGame: any,
+  moveHistory: any[],
+): Generator<any> {
   const game = cloneGameForReplay(initialGame);
   yield { game: cloneGameState(game), move: null, index: -1 };
 
@@ -628,7 +631,11 @@ export function cloneGameState(game: any): any {
  * Reconstruct a game from TSPN headers and moves.
  * Creates a fresh Game instance and replays all moves.
  */
-export function reconstructGameFromTSPN(parsedTSPN: any, GameClass: any, boardCells: any): { game: any; controller: ReplayController } {
+export function reconstructGameFromTSPN(
+  parsedTSPN: any,
+  GameClass: any,
+  boardCells: any,
+): { game: any; controller: ReplayController } {
   const game = new GameClass();
   game.init(boardCells);
 

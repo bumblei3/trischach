@@ -13,8 +13,7 @@ export class SoundManager {
 
   private _init(): void {
     if (!this.ctx) {
-      const Ctor =
-        window.AudioContext || (window as any).webkitAudioContext;
+      const Ctor = window.AudioContext || (window as any).webkitAudioContext;
       this.ctx = new Ctor();
     }
     if (this.ctx.state === "suspended") {
@@ -48,10 +47,7 @@ export class SoundManager {
     }
 
     gain.gain.setValueAtTime(volume, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.01,
-      ctx.currentTime + duration,
-    );
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
 
     osc.connect(gain);
     gain.connect(ctx.destination);

@@ -8,7 +8,10 @@ export default defineConfig({
     environment: "happy-dom",
     setupFiles: ["./tests/setup.ts"],
     exclude: ["node_modules", "tests-e2e"],
-    testTimeout: 60000,
+    // The "Game reaches a final state after many moves" integration test plays
+    // a full AI-vs-AI game to completion. Under vitest 3 / happy-dom 20 this
+    // takes ~120s, so the previous 60s budget was no longer enough.
+    testTimeout: 180000,
     // Run tests sequentially in CI to avoid memory issues
     pool: isCI ? "forks" : "threads",
     poolOptions: {
