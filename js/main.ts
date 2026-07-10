@@ -940,9 +940,9 @@ function showCombat(result: GameResult): void {
   setTimeout(() => {
     const combatOverlay = document.getElementById(
       "combat-overlay",
-    ) as HTMLElement;
+    ) as HTMLElement | null;
     const boardGroup = document.getElementById("board-group");
-    combatOverlay.classList.remove("visible");
+    if (combatOverlay) combatOverlay.classList.remove("visible");
     if (boardGroup) {
       boardGroup.querySelectorAll(".piece").forEach((el) => el.remove());
     }
