@@ -1,0 +1,189 @@
+/**
+ * game-check.test.js - Tests for TriSchach check/checkmate/stalemate logic
+ * (js/game-check.ts). These are the rule functions that decide when a game
+ * ends; they had no direct unit coverage before.
+ */
+import { expect, test, describe, beforeEach } from "vitest";
+import { Game } from "../js/game.ts";
+import {
+  isKingdomCheck,
+  isCheckmateInternal,
+  isStalemateInternal,
+  getLegalMoves,
+} from "../js/game-check.ts";
+import { FACTION, generateBoard } from "../js/board.ts";
+import { Piece, PIECE_TYPE } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
+
+describe("game-check: check detection", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = false;
+  });
+
+  function setPieces(pieces) {
+    game.pieces = pieces;
+    game._rebuildOccupiedMap();
+  }
+
+  test("isKingdomCheck true when an enemy attacks the king's hex", () => {
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.QUEEN, FACTION.WATER, new Hex(2, 0)),
+    ]);
+    expect(isKingdomCheck(game, FACTION.FIRE)).toBe(true);
+    expect(isKingdomCheck(game, FACTION.WATER)).toBe(false);
+  });
+
+  test("isKingdomCheck false when the king is shielded by a friendly piece", () => {
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    expect(isKingdomCheck(game, FACTION.FIRE)).toBe(false);
+  });
+
+  test("isKingdomCheck false when the attacking faction's piece cannot reach the king", () => {
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(4, 4)),
+    ]);
+    expect(isKingdomCheck(game, FACTION.FIRE)).toBe(false);
+  });
+
+  test("isKingdomCheck false when the king faction has been eliminated", () => {
+    setPieces([new Piece(PIECE_TYPE.QUEEN, FACTION.WATER, new Hex(2, 0))]);
+    // no fire king on the board -> not in check
+    expect(isKingdomCheck(game, FACTION.FIRE)).toBe(false);
+  });
+});
+
+describe("game-check: checkmate & stalemate", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = false;
+  });
+
+  function setPieces(pieces) {
+    game.pieces = pieces;
+    game._rebuildOccupiedMap();
+  }
+
+  test("isCheckmateInternal true when king is in check with no legal move", () => {
+    // Fire king cornered at (0,0): 5 friendly pawns block 5 neighbours,
+    // a water rook on the same file (0,3) attacks the 6th neighbour and the
+    // king. No escape square -> checkmate.
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, -1)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(-1, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(-1, 1)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    expect(isKingdomCheck(game, FACTION.FIRE)).toBe(true);
+    expect(isCheckmateInternal(game, FACTION.FIRE)).toBe(true);
+  });
+
+  test("isCheckmateInternal false when the king can move out of check", () => {
+    // Fire king in check from one rook but has an escape square
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    expect(isCheckmateInternal(game, FACTION.FIRE)).toBe(false);
+  });
+
+  test("isCheckmateInternal false when the king is not in check", () => {
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(5, 5)),
+    ]);
+    expect(isCheckmateInternal(game, FACTION.FIRE)).toBe(false);
+  });
+
+  test("isStalemateInternal true when no check but no legal moves", () => {
+    // Fire king boxed in by 6 enemy knights on every neighbour. Knights do
+    // not attack the king hex from those squares, so it is not check — but
+    // the king has no escape, hence stalemate.
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(1, 0)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(1, -1)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(0, -1)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(-1, 0)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(-1, 1)),
+      new Piece(PIECE_TYPE.KNIGHT, FACTION.WATER, new Hex(0, 1)),
+    ]);
+    expect(isKingdomCheck(game, FACTION.FIRE)).toBe(false);
+    expect(isStalemateInternal(game, FACTION.FIRE)).toBe(true);
+  });
+
+  test("isStalemateInternal false when in check (that is checkmate, not stalemate)", () => {
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 2)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.NATURE, new Hex(2, 0)),
+    ]);
+    expect(isStalemateInternal(game, FACTION.FIRE)).toBe(false);
+  });
+});
+
+describe("game-check: legal move filtering", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = false;
+  });
+
+  function setPieces(pieces) {
+    game.pieces = pieces;
+    game._rebuildOccupiedMap();
+  }
+
+  test("getLegalMoves excludes moves that leave own king in check", () => {
+    // Fire king at (0,0); a fire rook at (0,1) is pinned on the file by a
+    // water rook at (0,3). The rook may slide to (0,2) (still shielding the
+    // king) but not past the attacker or away from the king.
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.FIRE, new Hex(0, 1)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    const rook = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.ROOK,
+    );
+    const { moves } = getLegalMoves(game, rook);
+    // exactly one legal slide, and it stays between king and attacker
+    expect(moves.length).toBe(1);
+    expect(moves[0].q).toBe(0);
+    expect(moves[0].r).toBe(2);
+    // a move that would expose the king (past the attacker) is illegal
+    const exposesKing = moves.some((m) => m.q === 0 && m.r > 2);
+    expect(exposesKing).toBe(false);
+  });
+
+  test("getLegalMoves returns empty when no piece can move without self-check", () => {
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    const pawn = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+    );
+    // pawn at (0,1) pinned by rook on file -> no legal moves for the pawn
+    const { moves, attacks } = getLegalMoves(game, pawn);
+    expect(moves.length + attacks.length).toBe(0);
+  });
+});
