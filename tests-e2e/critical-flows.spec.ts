@@ -148,6 +148,10 @@ test.describe("TriSchach - Critical User Flows", () => {
   });
 
   test("AI Depth slider changes depth", async ({ page }) => {
+    // Opens the Settings modal (General tab holds the KI-Tiefe slider)
+    await page.click("#settings-btn");
+    await expect(page.locator("#settings-overlay")).toHaveClass(/visible/);
+
     const depthSlider = page.locator("#depth-slider");
     const depthLabel = page.locator("#depth-label");
 
@@ -165,6 +169,9 @@ test.describe("TriSchach - Critical User Flows", () => {
   });
 
   test("AI Personality selector works", async ({ page }) => {
+    await page.click("#settings-btn");
+    await expect(page.locator("#settings-overlay")).toHaveClass(/visible/);
+
     const personalitySelect = page.locator("#personality-select");
 
     // Check default
@@ -246,6 +253,10 @@ test.describe("TriSchach - Critical User Flows", () => {
   });
 
   test("Sound toggle persists", async ({ page }) => {
+    // Open settings (Sound toggle now lives in the Settings modal)
+    await page.click("#settings-btn");
+    await expect(page.locator("#settings-overlay")).toHaveClass(/visible/);
+
     const soundToggle = page.locator("#sound-toggle");
     const soundLabel = page.locator("label.switch:has(#sound-toggle)");
     await expect(soundToggle).toBeChecked();
@@ -265,6 +276,10 @@ test.describe("TriSchach - Critical User Flows", () => {
   });
 
   test("RPS toggle persists", async ({ page }) => {
+    // Open settings (RPS toggle now lives in the Settings modal)
+    await page.click("#settings-btn");
+    await expect(page.locator("#settings-overlay")).toHaveClass(/visible/);
+
     const rpsToggle = page.locator("#rps-toggle");
     const rpsLabel = page.locator("label.switch:has(#rps-toggle)");
     await expect(rpsToggle).toBeChecked();

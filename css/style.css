@@ -23,6 +23,7 @@
   --nature2: #32cd32;
   --glass: rgba(255, 255, 255, 0.04);
   --glass-border: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(10, 10, 18, 0.72);
   --radius: 12px;
   --header-bg: var(--surface);
   --status-info-bg: #1e3a5f;
@@ -56,6 +57,7 @@
   --glass: rgba(0, 0, 0, 0.04);
   --glass-border: rgba(0, 0, 0, 0.08);
   --header-bg: var(--surface);
+  --bg-glass: rgba(248, 249, 250, 0.78);
   --status-info-bg: #dbeafe;
   --status-info-color: #1e40af;
   --status-error-bg: #fee2e2;
@@ -98,13 +100,21 @@ body {
 #app {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 0 1rem 1rem;
 }
 
-/* Header */
+/* Header — sticky glass bar */
 header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   text-align: center;
-  padding: 1.5rem 0 1rem;
+  padding: 0.9rem 0 0.7rem;
+  margin: 0 -1rem 1rem;
+  background: var(--bg-glass, rgba(10, 10, 18, 0.72));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 header h1 {
   font-size: 2.4rem;
@@ -228,15 +238,28 @@ header h1 {
 #turn-bar {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 0.7rem 1.5rem;
+  border-radius: 999px;
+  padding: 0.55rem 1.4rem;
   margin-bottom: 0.8rem;
-  font-size: 1rem;
+  font-size: 0.95rem;
   text-align: center;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+}
+#turn-bar > span:first-child {
+  color: var(--text-dim);
 }
 #turn-indicator {
+  font-weight: 700;
+}
+#status {
   font-weight: 600;
+  color: var(--text);
 }
 
 #board-svg {
@@ -258,13 +281,14 @@ header h1 {
 }
 
 .controls button {
-  padding: 0.6rem 1.6rem;
+  padding: 0.6rem 1.1rem;
+  min-height: 44px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -278,6 +302,134 @@ header h1 {
   background: rgba(34, 204, 68, 0.15);
   border-color: var(--nature);
   color: var(--nature);
+}
+
+/* === Button Hierarchy (Redesign) === */
+/* Group related controls and give them a clear visual priority.
+   Primary = main action (Auto-Battle), Secondary = standard actions,
+   Ghost = icon-only toggles. IDs are preserved for E2E stability. */
+.btn-group {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-group + .btn-group {
+  margin-left: 0.2rem;
+}
+
+.btn-group-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-dim);
+  padding: 0 0.3rem 0 0.5rem;
+  user-select: none;
+  align-self: center;
+  white-space: nowrap;
+}
+
+.controls button.btn-primary {
+  background: linear-gradient(135deg, var(--nature), var(--water));
+  border-color: transparent;
+  color: #fff;
+  font-weight: 700;
+}
+.controls button.btn-primary:hover {
+  background: linear-gradient(135deg, var(--nature2), var(--water2));
+  border-color: transparent;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(34, 204, 68, 0.35);
+}
+.controls button.btn-primary.active {
+  background: linear-gradient(135deg, var(--nature), var(--water));
+  border-color: transparent;
+  color: #fff;
+}
+
+.controls button.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.75rem;
+  font-size: 1.1rem;
+  line-height: 1;
+  min-width: 44px;
+  min-height: 44px;
+}
+.controls button.btn-ghost:hover {
+  background: var(--glass);
+  border-color: var(--text-dim);
+}
+
+/* On small screens, let the label span the full width */
+@media (max-width: 800px) {
+  .btn-group-label {
+    width: 100%;
+    padding: 0.2rem 0.4rem;
+    text-align: center;
+  }
+  .controls {
+    gap: 0.5rem;
+  }
+}
+
+/* === Settings: range + select styling === */
+#panel-general .setting-select {
+  min-width: 160px;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+#panel-general .setting-select:hover {
+  border-color: var(--water);
+}
+#panel-general .setting-select:focus-visible {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
+}
+/* Range uses the existing .slider-with-value wrapper; tint the track/thumb */
+#panel-general #depth-slider {
+  accent-color: var(--water);
+}
+#panel-general #depth-label {
+  color: var(--water);
+  font-weight: 600;
+  min-width: 64px;
+  text-align: right;
+}
+
+/* === Accessibility: visible focus + reduced motion === */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.btn-group:focus-within {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 /* RPS Toggle Switch */

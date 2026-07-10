@@ -78,70 +78,62 @@
           </div>
           <svg id="board-svg" xmlns="http://www.w3.org/2000/svg"></svg>
           <div class="controls">
-            <div class="rps-toggle-container">
-              <span class="toggle-label">RPS</span>
-              <label class="switch">
-                <input type="checkbox" id="rps-toggle" checked />
-                <span class="slider round"></span>
-              </label>
+            <div class="btn-group" role="group" aria-label="Spiel">
+              <span class="btn-group-label">Spiel</span>
+              <button id="rotate-btn" title="Brett drehen (120°)">
+                🔃 Drehen
+              </button>
+              <button id="restart-btn" title="Neues Spiel starten">
+                🔄 Neu
+              </button>
+              <button id="undo-btn" title="Letzten Zug zurücknehmen">
+                ↩ Undo
+              </button>
+              <button id="auto-battle-btn" class="btn-primary" title="KI spielt automatisch">
+                🤖 Auto Battle
+              </button>
             </div>
-            <div class="rps-toggle-container">
-              <span class="toggle-label">Sound</span>
-              <label class="switch">
-                <input type="checkbox" id="sound-toggle" checked />
-                <span class="slider round"></span>
-              </label>
+            <div class="btn-group" role="group" aria-label="Datei">
+              <span class="btn-group-label">Datei</span>
+              <button id="save-btn" title="Spiel als .tspn speichern">
+                💾 Speichern
+              </button>
+              <button id="load-btn" title="Spiel aus .tspn laden">
+                📂 Laden
+              </button>
+              <button id="copy-btn" title="Spiel in Zwischenablage kopieren">
+                📋 Kopieren
+              </button>
             </div>
-            <div class="rps-toggle-container">
-              <span class="toggle-label" id="depth-label">KI: Mittel</span>
-              <input
-                type="range"
-                id="depth-slider"
-                min="1"
-                max="4"
-                value="3"
-                style="width: 80px"
-              />
-            </div>
-            <div class="rps-toggle-container">
-              <span class="toggle-label">KI-Modus</span>
-              <select
-                id="personality-select"
-                style="width: 110px; padding: 4px"
+            <div class="btn-group" role="group" aria-label="Modi">
+              <span class="btn-group-label">Modi</span>
+              <button id="puzzle-btn" title="Puzzle Modus (Matt in N)">
+                ♟ Puzzle
+              </button>
+              <button
+                id="settings-btn"
+                class="btn-ghost"
+                title="Einstellungen"
               >
-                <option value="balanced">⚖️ Ausgewogen</option>
-                <option value="aggressive">⚔️ Aggressiv</option>
-                <option value="defensive">🛡️ Defensiv</option>
-                <option value="tactical">🎯 Taktisch</option>
-              </select>
+                ⚙️
+              </button>
+              <button
+                id="darkmode-btn"
+                class="btn-ghost toggle-btn"
+                title="Dark Mode umschalten (D)"
+                aria-label="Dark Mode umschalten"
+              >
+                🌙
+              </button>
+              <button
+                id="install-btn"
+                class="btn-ghost"
+                title="Als App installieren"
+                style="display: none"
+              >
+                📱
+              </button>
             </div>
-            <button id="rotate-btn">🔃 Board drehen</button>
-            <button id="restart-btn">🔄 Neues Spiel</button>
-            <button id="auto-battle-btn">🤖 Auto Battle</button>
-            <button id="undo-btn">↩ Undo</button>
-            <button id="save-btn" title="Spiel als .tspn speichern">
-              💾 Speichern
-            </button>
-            <button id="load-btn" title="Spiel aus .tspn laden">
-              📂 Laden
-            </button>
-            <button id="copy-btn" title="Spiel in Zwischenablage kopieren">
-              📋 Kopieren
-            </button>
-            <button id="puzzle-btn" title="Puzzle Modus (Matt in N)">
-              ♟ Puzzle
-            </button>
-            <button id="settings-btn" title="Einstellungen">⚙️</button>
-            <button
-              id="install-btn"
-              title="Als App installieren"
-              style="display: none"
-            >
-              📱 Installieren
-            </button>
-            <button id="darkmode-btn" title="Dark Mode (D)" class="toggle-btn">
-              🌙
-            </button>
           </div>
           <div
             id="replay-controls"
@@ -236,6 +228,51 @@
         <div class="settings-content">
           <!-- General Tab -->
           <div class="settings-panel active" id="panel-general">
+            <div class="setting-group">
+              <h3>Spiel</h3>
+            </div>
+            <div class="setting-row">
+              <label for="rps-toggle">Schere-Stein-Papier (RPS)</label>
+              <label class="switch">
+                <input type="checkbox" id="rps-toggle" checked />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <label for="sound-toggle">Sound</label>
+              <label class="switch">
+                <input type="checkbox" id="sound-toggle" checked />
+                <span class="slider round"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <label for="depth-slider">KI-Tiefe</label>
+              <div class="slider-with-value">
+                <input
+                  type="range"
+                  id="depth-slider"
+                  min="1"
+                  max="4"
+                  value="3"
+                />
+                <span id="depth-label">KI: Schwer</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <label for="personality-select">KI-Modus</label>
+              <select
+                id="personality-select"
+                class="setting-select"
+              >
+                <option value="balanced">⚖️ Ausgewogen</option>
+                <option value="aggressive">⚔️ Aggressiv</option>
+                <option value="defensive">🛡️ Defensiv</option>
+                <option value="tactical">🎯 Taktisch</option>
+              </select>
+            </div>
+            <div class="setting-group">
+              <h3>Umwandlung</h3>
+            </div>
             <div class="setting-row">
               <label for="auto-queen">Automatische Damen-Umwandlung</label>
               <input type="checkbox" id="auto-queen" />
