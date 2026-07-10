@@ -18,6 +18,7 @@ env:
 jobs:
   lint-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       matrix:
         node-version: [24]
@@ -132,6 +133,7 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     continue-on-error: true
     permissions:
       actions: read
@@ -153,6 +155,7 @@ jobs:
 
   e2e-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -297,6 +300,7 @@ jobs:
   # Tournament benchmark (manual/scheduled only)
   tournament:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v5
@@ -362,6 +366,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -397,6 +402,7 @@ jobs:
   deploy:
     needs: [lint-test, e2e-tests, codeql]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
