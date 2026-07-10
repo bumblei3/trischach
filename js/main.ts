@@ -541,10 +541,13 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
     addToLog(result);
     if (result.piece) renderer.renderPiece(result.piece);
 
-    // Start pondering for AI after human move
-    if (game.state !== GAME_STATE.GAME_OVER) {
-      startPondering(game, game.currentFaction);
-    }
+    // NOTE: main-thread pondering is intentionally skipped. startPondering()
+    // runs a synchronous minimax (up to depth 12) in the calling thread, which
+    // freezes the UI after every human move. True pondering belongs in the AI
+    // Web Worker; the Auto-Battle path already uses calculateBestMoveWorker().
+    // If worker-backed pondering is added later, gate it on `aiWorker &&
+    // workerReady` so it never runs on the main thread.
+    // if (game.state !== GAME_STATE.GAME_OVER) { startPondering(game, game.currentFaction); }
 
     if (result.promotion && game.pendingPromotion) {
       showPromotion(game.pendingPromotion);
@@ -555,10 +558,8 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
     addToLog(result);
     showCombat(result);
 
-    // Start pondering for AI after combat
-    if (game.state !== GAME_STATE.GAME_OVER) {
-      startPondering(game, game.currentFaction);
-    }
+    // See note above: main-thread pondering skipped to avoid UI freeze.
+    // if (game.state !== GAME_STATE.GAME_OVER) { startPondering(game, game.currentFaction); }
   }
 
   if (
@@ -815,20 +816,14 @@ function triggerAutoMove(): void {
           }
           updateUI();
 
-          // Start pondering for next AI move
-          // @ts-expect-error - GameState union comparison with string literal
-          if (game.state !== "game_over") {
-            startPondering(game, game.currentFaction);
-          }
+          // Main-thread pondering omitted (would freeze UI); see note in
+          // handleCellClick. Auto-Battle uses the AI Web Worker via
+          // calculateBestMoveWorker() for move computation.
           triggerAutoMove();
         } else {
           updateUI();
 
-          // Start pondering for next AI move
-          // @ts-expect-error - GameState union comparison with string literal
-          if (game.state !== "game_over") {
-            startPondering(game, game.currentFaction);
-          }
+          // Main-thread pondering omitted (see note above).
           triggerAutoMove();
         }
       } else if (result && result.action === "combat") {
@@ -1149,11 +1144,10 @@ function initEventListeners(): void {
     if (autoBattleActive) {
       autoBattleBtn.textContent = "⏹ Auto Battle Stoppen";
       autoBattleBtn.classList.add("active");
-      // Start pondering for first auto-move
-      // @ts-expect-error - GameState union comparison with string literal
-      if (game.state !== "game_over") {
-        startPondering(game, game.currentFaction);
-      }
+      // NOTE: main-thread pondering (startPondering) intentionally omitted here
+      // too — it runs a synchronous minimax (depth up to 12) in the calling
+      // thread and would freeze the UI before the first auto-move is computed.
+      // Auto-Battle uses calculateBestMoveWorker() (the AI Web Worker) instead.
       triggerAutoMove();
     } else {
       autoBattleBtn.textContent = "🤖 Auto Battle";
