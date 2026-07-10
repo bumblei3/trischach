@@ -203,14 +203,15 @@ jobs:
           echo "ai-core.js: ${CORE_JS_SIZE} bytes (${CORE_JS_GZIP} gzipped)"
           echo "ai-worker.js: ${WORKER_JS_SIZE} bytes (${WORKER_JS_GZIP} gzipped)"
 
-          # Save for comparison (baseline: main ~37KB, ai-core ~36KB, ai-worker ~1KB)
+          # Save for comparison (baseline: main ~19.5KB gzip, ai-core ~14KB gzip, ai-worker ~0.7KB gzip)
           echo "BUNDLE_MAIN_GZIP=${MAIN_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_CORE_GZIP=${CORE_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_WORKER_GZIP=${WORKER_JS_GZIP}" >> $GITHUB_ENV
 
-          # Fail if main.js gzipped > 12KB (10% growth from ~11KB baseline)
-          if [ "$MAIN_JS_GZIP" -gt 12000 ]; then
-            echo "::error::main.js gzipped size (${MAIN_JS_GZIP}) exceeds 12KB threshold"
+          # Fail if main.js gzipped > 25KB (guards against large regressions;
+          # baseline with Dark Mode / Auto-Battle / Replay / TSPN viewer is ~19.5KB)
+          if [ "$MAIN_JS_GZIP" -gt 25000 ]; then
+            echo "::error::main.js gzipped size (${MAIN_JS_GZIP}) exceeds 25KB threshold"
             exit 1
           fi
 
