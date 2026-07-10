@@ -28,7 +28,12 @@ import {
   deserializeGame,
   TURN_ORDER,
   AI_PERSONALITIES,
+  setAIDepth,
 } from "../js/ai-worker.ts";
+
+// Keep the synchronous search shallow so tests stay fast and never block the
+// event loop. Tests verify AI logic, not search depth/strength.
+setAIDepth(2);
 
 // Mock opening-book to avoid needing full Game instance
 vi.mock("../js/opening-book.ts", () => ({

@@ -13,6 +13,10 @@ import {
   isPondering,
   PonderState,
 } from "../js/ai.ts";
+
+// Keep the synchronous search shallow so tests stay fast and never block the
+// event loop (tests verify AI logic, not search depth/strength).
+setAIDepth(2);
 import {
   serializeGame,
   parseTSPN,

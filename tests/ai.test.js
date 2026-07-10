@@ -1,9 +1,13 @@
 import { expect, test, describe, beforeEach } from "vitest";
-import { calculateBestMove } from "../js/ai.ts";
+import { calculateBestMove, setAIDepth } from "../js/ai.ts";
 import { Game } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
+
+// Keep the synchronous (main-thread) search shallow so these tests stay fast
+// and never block the event loop. Tests verify AI *logic*, not search strength.
+setAIDepth(2);
 
 describe("AI Decision Making (Minimax)", () => {
   let game;

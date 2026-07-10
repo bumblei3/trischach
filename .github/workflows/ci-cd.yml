@@ -79,9 +79,9 @@ jobs:
       - name: Run unit tests
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            npx vitest run --reporter=verbose --coverage
+            npm test -- --coverage
           else
-            npx vitest run --reporter=verbose
+            npm test
           fi
         env:
           CI: true
