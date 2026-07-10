@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-07-10
+## [1.1.1] - 2026-07-10
+
+### Fixed
+
+- CI `unit-tests` job hung in GitHub Actions (single-fork vitest pool on a
+  shared runner): the AI search only checked its time deadline every 1000
+  nodes inside `minimax` and `quiesce` had no deadline guard at all, so a
+  tactical explosion could block the fork past the 180s test timeout.
+  - `quiesce()` now honors the search deadline.
+  - Added a hard `MAX_SEARCH_MS` (4s) ceiling in `minimax`/`quiesce`/
+    `iterativeDeepening` (and the pondering path) that guarantees
+    `calculateBestMove` returns regardless of runtime speed.
+- CI `lint` job failed: the tournament-cleanup edit left the README CI-jobs
+  table prettier-noncompliant (`npx prettier --check .` now passes).
+- CI `unit-tests` reported 352 passed but exited 1: a `setTimeout` callback in
+  `main.ts` dereferenced `#combat-overlay` without a null check and threw
+  after the integration tests finished under happy-dom. Now null-guarded.
+- Removed the orphaned `tournament` CI job and `tournament.js` script (dead
+  after the TypeScript port — they imported `./js/game.js` which no longer
+  exists and failed every manual/scheduled run).
+
+[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/bumblei3/trischach/compare/v1.1.0...v1.1.1
+[1.1.0]: https://github.com/bumblei3/trischach/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/bumblei3/trischach/releases/tag/v1.0.0
 
 ### Added
 
