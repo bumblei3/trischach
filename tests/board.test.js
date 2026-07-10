@@ -36,7 +36,12 @@ describe("Board Generator & Logic", () => {
 describe("generateBoard — zone & faction distribution", () => {
   test("exact zone counts: 21 triangle + 15 each base", () => {
     const cells = generateBoard();
-    const zones = { triangle: 0, start_fire: 0, start_water: 0, start_nature: 0 };
+    const zones = {
+      triangle: 0,
+      start_fire: 0,
+      start_water: 0,
+      start_nature: 0,
+    };
     for (const cell of cells.values()) {
       zones[cell.zone]++;
     }
@@ -310,7 +315,12 @@ describe("BoardRenderer (DOM)", () => {
     );
     const r2 = new BoardRenderer(detached);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    r2.renderPiece({ id: "orphan", faction: FACTION.FIRE, pos: new Hex(0, 0), symbol: "P" });
+    r2.renderPiece({
+      id: "orphan",
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 0),
+      symbol: "P",
+    });
     expect(warnSpy).toHaveBeenCalledWith(
       "board-group not found, piece not rendered",
     );

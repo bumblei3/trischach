@@ -467,7 +467,9 @@ function updateUI(): void {
     const capEl = document.getElementById(`captures-${fac}`);
     if (capEl) {
       capEl.innerHTML = game.capturedPieces[fac]
-        .map((p) => `<span class="captured-piece">${escapeHtml(p.symbol)}</span>`)
+        .map(
+          (p) => `<span class="captured-piece">${escapeHtml(p.symbol)}</span>`,
+        )
         .join("");
     }
   }
