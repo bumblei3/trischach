@@ -1,13 +1,16 @@
 import { expect, test, describe } from "vitest";
 import { Game } from "../js/game.ts";
 import { generateBoard } from "../js/board.ts";
-import { calculateBestMove, setAIDepth } from "../js/ai.ts";
+import { calculateBestMove, setAIDepth, setAITimeLimit } from "../js/ai.ts";
 import { PIECE_TYPE } from "../js/pieces.ts";
 
-// Keep the AI search shallow so the synchronous (main-thread) calculateBestMove
-// used here stays fast. These tests verify game/AI *logic* (moves execute
-// without crashing, the game reaches a final state), not search strength.
+// Keep the AI search shallow AND time-bounded so the synchronous (main-thread)
+// calculateBestMove used here stays fast. These tests verify game/AI *logic*
+// (moves execute without crashing, the game reaches a final state), not
+// search strength. Node 24 runs the search much slower than Node 22, so a
+// short time limit is required to keep the suite under the CI timeout.
 setAIDepth(2);
+setAITimeLimit(200);
 
 describe("AI Simulation (Integration)", () => {
   test("AI can play a sequence of moves without crashing", () => {

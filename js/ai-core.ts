@@ -108,17 +108,21 @@ export function calculateTimeBudget(game: IGame): number {
     budget -= 500;
   }
 
-  budget = Math.max(1000, Math.min(8000, budget));
+  budget = Math.max(100, Math.min(TIME_LIMIT_MS, budget));
   return budget;
 }
 
 // ─── Configuration ──────────────────────────────────────────────
 
 export let MAX_DEPTH = 3;
-export const TIME_LIMIT_MS = 5000;
+export let TIME_LIMIT_MS = 5000;
 
 export function setAIDepth(depth: number): void {
   MAX_DEPTH = Math.max(1, Math.min(12, depth));
+}
+
+export function setAITimeLimit(ms: number): void {
+  TIME_LIMIT_MS = Math.max(100, Math.min(8000, ms));
 }
 
 export function getAIDepth(): number {

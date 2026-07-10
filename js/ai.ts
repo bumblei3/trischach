@@ -47,6 +47,7 @@ import {
   greedyBestMove,
   calculateBestMove,
   setAIDepth,
+  setAITimeLimit,
   setAIPersonality,
   getAIPersonalities,
   // Pondering
@@ -140,6 +141,7 @@ export {
   greedyBestMove,
   calculateBestMove,
   setAIDepth,
+  setAITimeLimit,
   // Pondering
   startPondering,
   stopPondering,
