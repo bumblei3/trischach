@@ -129,7 +129,11 @@ export async function loadOpeningBook(): Promise<boolean> {
  * Call this once at startup after Game class is loaded.
  */
 export function buildOpeningBook(GameClass: new () => IGame): void {
-  OPENING_BOOK.clear();
+  // NOTE: Do NOT clear() OPENING_BOOK here. In production the compiled
+  // book is loaded first via loadOpeningBook() into this same map; calling
+  // clear() would discard that data and replace it with these hardcoded
+  // (and partly illegal) dev lines. We only *augment* with whatever valid
+  // moves these lines produce.
 
   // These are the hardcoded opening lines - kept for testing
   const openingLines = [

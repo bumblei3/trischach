@@ -1,5 +1,5 @@
 import { getValidMoves, PIECE_STRENGTH, PIECE_TYPE } from "./pieces.ts";
-import { getRPSResult, FACTION } from "./board.ts";
+import { getRPSResult, FACTION, generateBoard } from "./board.ts";
 import { Hex } from "./hex.ts";
 import { isKingdomCheck } from "./game-check.ts";
 import {
@@ -91,7 +91,18 @@ export function deserializeGame(state: any) {
     moveHistory: [] as any[],
     _positionHistory: new Map(),
     _halfmoveClock: state._halfmoveClock || 0,
+    // Rebuild the static board geometry. The serialized state omits
+    // boardCells (it's constant), but move generation needs it to know
+    // which target hexes are on the board.
+    boardCells: generateBoard(),
   };
+
+  // Provide Game methods that the AI/search code calls directly
+  // (the main-thread Game instance has these; the deserialized
+  //  worker-side object must mirror them or getAlivePieces() etc. throw).
+  (game as any).getAlivePieces = () => game.pieces.filter((p: any) => p.alive);
+  (game as any).getPieces = () => game.pieces;
+
   rebuildOccupiedMap(game as any);
   return game;
 }
