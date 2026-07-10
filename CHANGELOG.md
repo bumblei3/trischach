@@ -28,10 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   after the TypeScript port — they imported `./js/game.js` which no longer
   exists and failed every manual/scheduled run).
 
-[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.1.1...HEAD
-[1.1.1]: https://github.com/bumblei3/trischach/compare/v1.1.0...v1.1.1
-[1.1.0]: https://github.com/bumblei3/trischach/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/bumblei3/trischach/releases/tag/v1.0.0
+## [1.1.0] - 2026-07-10
 
 ### Added
 
@@ -62,13 +59,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ported origin/main Auto-Battle and opening-book fixes into the `.ts` sources.
 
-## [1.0.0] - 2026-06-13
+## [1.0.0] - 2026-06-17
 
 ### Added
 
 - Initial stable release: TriSchach (3-faction RPS chess variant) with
   Auto-Battle, opening book, puzzles, replay and PWA/offline support.
 
-[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/bumblei3/trischach/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/bumblei3/trischach/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/bumblei3/trischach/releases/tag/v1.0.0
