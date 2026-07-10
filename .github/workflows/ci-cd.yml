@@ -193,22 +193,22 @@ jobs:
         run: |
           MAIN_JS_SIZE=$(stat -c%s dist/main.js)
           MAIN_JS_GZIP=$(gzip -c dist/main.js | wc -c)
-          CORE_JS_SIZE=$(stat -c%s dist/ai-core.js)
-          CORE_JS_GZIP=$(gzip -c dist/ai-core.js | wc -c)
+          CORE_JS_SIZE=$(stat -c%s dist/ai.js)
+          CORE_JS_GZIP=$(gzip -c dist/ai.js | wc -c)
           WORKER_JS_SIZE=$(stat -c%s dist/ai-worker.js)
           WORKER_JS_GZIP=$(gzip -c dist/ai-worker.js | wc -c)
 
           echo "main.js: ${MAIN_JS_SIZE} bytes (${MAIN_JS_GZIP} gzipped)"
-          echo "ai-core.js: ${CORE_JS_SIZE} bytes (${CORE_JS_GZIP} gzipped)"
+          echo "ai.js: ${CORE_JS_SIZE} bytes (${CORE_JS_GZIP} gzipped)"
           echo "ai-worker.js: ${WORKER_JS_SIZE} bytes (${WORKER_JS_GZIP} gzipped)"
 
-          # Save for comparison (baseline: main ~19.5KB gzip, ai-core ~14KB gzip, ai-worker ~0.7KB gzip)
+          # Save for comparison (baseline: main ~19.5KB gzip, ai ~7.8KB gzip, ai-worker ~0.6KB gzip)
           echo "BUNDLE_MAIN_GZIP=${MAIN_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_CORE_GZIP=${CORE_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_WORKER_GZIP=${WORKER_JS_GZIP}" >> $GITHUB_ENV
 
           # Guard against large regressions (thresholds sized for current feature set:
-          # Dark Mode / Auto-Battle / Replay / TSPN viewer in main; full AI engine in ai-core)
+          # Dark Mode / Auto-Battle / Replay / TSPN viewer in main; full AI engine in ai.js)
           node -e "
             const limits = { main: 25000, core: 18000, worker: 2000 };
             const sizes  = { main: ${MAIN_JS_GZIP}, core: ${CORE_JS_GZIP}, worker: ${WORKER_JS_GZIP} };
@@ -283,7 +283,7 @@ jobs:
             const mainGzip = process.env.BUNDLE_MAIN_GZIP || 'N/A';
             const coreGzip = process.env.BUNDLE_CORE_GZIP || 'N/A';
             const workerGzip = process.env.BUNDLE_WORKER_GZIP || 'N/A';
-            const bundleMsg = `📦 **Bundle sizes (gzipped)**: main=${mainGzip}B, ai-core=${coreGzip}B, ai-worker=${workerGzip}B`;
+            const bundleMsg = `📦 **Bundle sizes (gzipped)**: main=${mainGzip}B, ai=${coreGzip}B, ai-worker=${workerGzip}B`;
 
             const body = `## 📊 CI Summary\n\n${coverageMsg}\n${e2eMsg}\n${bundleMsg}\n\n*Node: 24*`;
 

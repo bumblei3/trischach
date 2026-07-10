@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-07-10
 
 ### Added
+
 - E2E regression spec covering auto-battle, puzzle, replay and new-game flows.
 
 ### Changed
+
 - Ported TriSchach to TypeScript as the sole build entry point (replacing the
   legacy JS sources).
 - Bumped CI/dev dependencies (Vite 5→8, Vitest 1→3, happy-dom 14→20,
@@ -21,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   takes ~105s under Vitest 3 / happy-dom 20.
 
 ### Fixed
+
 - Auto-Battle UI freeze caused by a worker/service-worker race condition
   (`ai-worker.ts` now posts a `ready` signal immediately on load; `sw.js`
   bypasses cache for worker modules and dynamically imported scripts).
@@ -32,11 +35,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `deserializeGame`.
 
 ### Refactor
+
 - Ported origin/main Auto-Battle and opening-book fixes into the `.ts` sources.
 
 ## [1.0.0] - 2026-06-13
 
 ### Added
+
 - Initial stable release: TriSchach (3-faction RPS chess variant) with
   Auto-Battle, opening book, puzzles, replay and PWA/offline support.
 
