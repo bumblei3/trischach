@@ -1,8 +1,8 @@
 import { expect, test, describe, beforeEach } from "vitest";
-import { Game, GAME_STATE } from "../js/game.js";
-import { FACTION, generateBoard } from "../js/board.js";
-import { Piece, PIECE_TYPE } from "../js/pieces.js";
-import { Hex } from "../js/hex.js";
+import { Game, GAME_STATE } from "../js/game.ts";
+import { FACTION, generateBoard } from "../js/board.ts";
+import { Piece, PIECE_TYPE } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
 
 describe("Game logic", () => {
   let game;

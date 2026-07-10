@@ -1,11 +1,11 @@
-import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from "./hex.js";
+import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from "./hex.ts";
 import type {
   Faction,
   PieceType,
   ValidMoves,
   PAWN_FORWARD_MAP,
   PAWN_ATTACK_MAP,
-} from "./types.js";
+} from "./types.ts";
 
 export const PIECE_TYPE = {
   KING: "king",

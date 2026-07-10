@@ -1,8 +1,8 @@
 import { expect, test, describe, beforeEach } from "vitest";
 
 // Test the AI modules directly (not through main.js UI)
-import { Game, GAME_STATE } from "../js/game.js";
-import { generateBoard, FACTION } from "../js/board.js";
+import { Game, GAME_STATE } from "../js/game.ts";
+import { generateBoard, FACTION } from "../js/board.ts";
 import {
   calculateBestMove,
   evaluateBoard,
@@ -12,15 +12,15 @@ import {
   getPonderMove,
   isPondering,
   PonderState,
-} from "../js/ai.js";
+} from "../js/ai.ts";
 import {
   serializeGame,
   parseTSPN,
   downloadGame,
   copyGameToClipboard,
-} from "../js/replay.js";
-import { PIECE_TYPE, Piece } from "../js/pieces.js";
-import { Hex } from "../js/hex.js";
+} from "../js/replay.ts";
+import { PIECE_TYPE, Piece } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
 
 describe("AI Core: Dynamic Piece Values (RPS-aware)", () => {
   let game;

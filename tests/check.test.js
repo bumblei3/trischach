@@ -1,9 +1,9 @@
 import { expect, test, describe, beforeEach } from "vitest";
-import { Game } from "../js/game.js";
-import { legalMoveCheck } from "../js/game-check.js";
-import { FACTION, generateBoard } from "../js/board.js";
-import { Piece, PIECE_TYPE } from "../js/pieces.js";
-import { Hex } from "../js/hex.js";
+import { Game } from "../js/game.ts";
+import { legalMoveCheck } from "../js/game-check.ts";
+import { FACTION, generateBoard } from "../js/board.ts";
+import { Piece, PIECE_TYPE } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
 
 describe("Check Detection", () => {
   let game;

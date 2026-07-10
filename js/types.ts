@@ -281,6 +281,7 @@ export interface AISnapshot {
   attackerDied: boolean;
   eliminatedFaction?: Faction;
   promotion?: PieceType;
+  promoted?: boolean;
   prevFactionIdx: number;
   prevZobristHash?: bigint;
 }

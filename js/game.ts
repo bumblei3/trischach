@@ -491,7 +491,7 @@ export class Game {
     // Check for pawn promotion (for AI evaluation)
     // Only if the pawn is still alive (didn't die from disadvantage)
     if (piece.alive && piece.type === PIECE_TYPE.PAWN && target.r <= 0) {
-      undo.promotion = piece.type;
+      undo.promoted = true;
     }
 
     this._rebuildOccupiedMap();

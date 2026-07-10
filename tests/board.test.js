@@ -4,8 +4,8 @@ import {
   getRPSResult,
   BoardRenderer,
   FACTION,
-} from "../js/board.js";
-import { Hex } from "../js/hex.js";
+} from "../js/board.ts";
+import { Hex } from "../js/hex.ts";
 
 describe("Board Generator & Logic", () => {
   test("generateBoard creates exactly 66 cells", () => {

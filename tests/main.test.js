@@ -92,7 +92,7 @@ describe("Main UI & Events", () => {
   });
 
   test("UI initializes correctly on load", async () => {
-    await import("../js/main.js");
+    await import("../js/main.ts");
 
     const svg = document.getElementById("board-svg");
     expect(svg.querySelectorAll(".hex-polygon").length).toBeGreaterThan(0);
@@ -102,7 +102,7 @@ describe("Main UI & Events", () => {
   });
 
   test("Board rotate button applies rotation", async () => {
-    await import("../js/main.js");
+    await import("../js/main.ts");
     const rotateBtn = document.getElementById("rotate-btn");
     const svg = document.getElementById("board-svg");
 
@@ -114,7 +114,7 @@ describe("Main UI & Events", () => {
 
   test("Auto Battle toggle button", async () => {
     vi.useFakeTimers();
-    await import("../js/main.js");
+    await import("../js/main.ts");
     const autoBattleBtn = document.getElementById("auto-battle-btn");
 
     autoBattleBtn.click();
@@ -128,7 +128,7 @@ describe("Main UI & Events", () => {
   });
 
   test("Restart button resets the game", async () => {
-    await import("../js/main.js");
+    await import("../js/main.ts");
     const restartBtn = document.getElementById("restart-btn");
     const moveLogEl = document.getElementById("move-log");
 
@@ -141,7 +141,7 @@ describe("Main UI & Events", () => {
   });
 
   test("Toggles for RPS and Sound", async () => {
-    await import("../js/main.js");
+    await import("../js/main.ts");
     const rpsToggle = document.getElementById("rps-toggle");
     const soundToggle = document.getElementById("sound-toggle");
     const rpsInfoEl = document.getElementById("rps-info");
@@ -156,7 +156,7 @@ describe("Main UI & Events", () => {
 
   test("Simulate gameplay clicks (move and combat)", async () => {
     vi.useFakeTimers();
-    await import("../js/main.js");
+    await import("../js/main.ts");
     const pieces = document.querySelectorAll(".piece");
     expect(pieces.length).toBeGreaterThan(0);
 
@@ -183,7 +183,7 @@ describe("Main UI & Events", () => {
 
   test("Auto Battle can be stopped during combat animation", async () => {
     vi.useFakeTimers();
-    await import("../js/main.js");
+    await import("../js/main.ts");
 
     // Force auto battle on
     const autoBattleBtn = document.getElementById("auto-battle-btn");
@@ -200,9 +200,9 @@ describe("Main UI & Events", () => {
 
   test("UI responds to game over state", async () => {
     vi.useFakeTimers();
-    const { game, renderer } = await import("../js/main.js");
+    const { game, renderer } = await import("../js/main.ts");
     const statusEl = document.getElementById("status");
-    const { FACTION } = await import("../js/board.js");
+    const { FACTION } = await import("../js/board.ts");
 
     // Simulate game over state
     game.state = "game_over";
@@ -210,8 +210,8 @@ describe("Main UI & Events", () => {
     // Trigger game over UI via a mock combat result
     // We can directly call the exported renderer/game or just mock the state
     // To trigger showCombat with result.gameOver:
-    const { Hex } = await import("../js/hex.js");
-    const { PIECE_TYPE, Piece } = await import("../js/pieces.js");
+    const { Hex } = await import("../js/hex.ts");
+    const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
 
     game.pieces = []; // Clear board
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
@@ -248,10 +248,10 @@ describe("Main UI & Events", () => {
 
   test("Auto Battle triggers a normal move", async () => {
     vi.useFakeTimers();
-    const { game } = await import("../js/main.js");
-    const { PIECE_TYPE, Piece } = await import("../js/pieces.js");
-    const { FACTION } = await import("../js/board.js");
-    const { Hex } = await import("../js/hex.js");
+    const { game } = await import("../js/main.ts");
+    const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
+    const { FACTION } = await import("../js/board.ts");
+    const { Hex } = await import("../js/hex.ts");
 
     // Give AI a piece that can move but NOT attack
     game.pieces = [new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5))];
@@ -270,10 +270,10 @@ describe("Main UI & Events", () => {
 
   test("Auto Battle continues after non-game-over combat", async () => {
     vi.useFakeTimers();
-    const { game, renderer } = await import("../js/main.js");
-    const { PIECE_TYPE, Piece } = await import("../js/pieces.js");
-    const { FACTION } = await import("../js/board.js");
-    const { Hex } = await import("../js/hex.js");
+    const { game, renderer } = await import("../js/main.ts");
+    const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
+    const { FACTION } = await import("../js/board.ts");
+    const { Hex } = await import("../js/hex.ts");
 
     // Set up a combat that does NOT end the game
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
@@ -301,10 +301,10 @@ describe("Main UI & Events", () => {
   });
 
   test("renderer.onCellClick executes normal move", async () => {
-    const { game, renderer } = await import("../js/main.js");
-    const { Hex } = await import("../js/hex.js");
-    const { PIECE_TYPE, Piece } = await import("../js/pieces.js");
-    const { FACTION } = await import("../js/board.js");
+    const { game, renderer } = await import("../js/main.ts");
+    const { Hex } = await import("../js/hex.ts");
+    const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
+    const { FACTION } = await import("../js/board.ts");
 
     const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
     game.pieces = [pawn];
@@ -320,7 +320,7 @@ describe("Main UI & Events", () => {
 
   test("triggerAutoMove delays if game state is not SELECT_PIECE", async () => {
     vi.useFakeTimers();
-    const { game, triggerAutoMove } = await import("../js/main.js");
+    const { game, triggerAutoMove } = await import("../js/main.ts");
 
     game.state = "select_target";
     triggerAutoMove(); // Should hit the setTimeout

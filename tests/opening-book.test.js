@@ -2,9 +2,9 @@
  * opening-book.test.js - Tests for TriSchach Opening Book
  */
 import { expect, test, describe, beforeEach, vi } from "vitest";
-import { FACTION, generateBoard } from "../js/board.js";
-import { PIECE_TYPE, Piece } from "../js/pieces.js";
-import { GAME_STATE } from "../js/game.js";
+import { FACTION, generateBoard } from "../js/board.ts";
+import { PIECE_TYPE, Piece } from "../js/pieces.ts";
+import { GAME_STATE } from "../js/game.ts";
 
 // Import all exported functions from opening-book.js
 import {
@@ -24,7 +24,7 @@ import {
   loadOpeningBook,
   saveLearnedDataToStorage,
   loadLearnedDataFromStorage,
-} from "../js/opening-book.js";
+} from "../js/opening-book.ts";
 
 // Mock Game class that mimics the real Game behavior
 class MockGame {
@@ -198,7 +198,7 @@ function createStartingGame() {
 }
 
 // Use real Hex for tests
-import { Hex } from "../js/hex.js";
+import { Hex } from "../js/hex.ts";
 
 describe("Opening Book: BOOK_INFO", () => {
   test("has correct metadata", () => {
@@ -1239,7 +1239,7 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
 
     // Re-import to get mocked version
     const { loadOpeningBook: mockedLoad, BOOK_INFO: mockedInfo } =
-      await import("../js/opening-book.js");
+      await import("../js/opening-book.ts");
     const result = await mockedLoad();
 
     expect(result).toBe(true);
@@ -1254,7 +1254,7 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
     });
 
     const { loadOpeningBook: mockedLoad } =
-      await import("../js/opening-book.js");
+      await import("../js/opening-book.ts");
     const result = await mockedLoad();
 
     expect(result).toBe(false);
@@ -1266,7 +1266,7 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
     }));
 
     const { loadOpeningBook: mockedLoad } =
-      await import("../js/opening-book.js");
+      await import("../js/opening-book.ts");
     const result = await mockedLoad();
 
     expect(result).toBe(false);

@@ -9,6 +9,9 @@
  * - Moves: 1. fire_Pawn_-4,5 water_Pawn_0,2 2. nature_Pawn_-1,1 fire_Pawn_-4,4 ...
  *   Format: <moveNumber>. <faction>_<pieceId> <targetCoord> [<rpsResult>] [<special>]
  *   Special: =Q (promotion), x (capture), # (checkmate), + (check), !? (annotations)
+ *
+ * NOTE: Ported 1:1 from replay.js. Types are intentionally loose (`any`) to
+ * match the original JS semantics and keep the migration mechanical.
  */
 
 export const REPLAY_VERSION = "1.0";
@@ -18,7 +21,7 @@ export const REPLAY_VERSION = "1.0";
 /**
  * Serialize a game to TSPN format string.
  */
-export function serializeGame(game, options = {}) {
+export function serializeGame(game: any, options: any = {}): string {
   const {
     event = "Casual Game",
     site = "TriSchach",
@@ -28,7 +31,7 @@ export function serializeGame(game, options = {}) {
     includeComments = true,
   } = options;
 
-  const lines = [];
+  const lines: string[] = [];
   const date = new Date().toISOString().split("T")[0];
 
   // Headers
@@ -46,12 +49,13 @@ export function serializeGame(game, options = {}) {
   lines.push("");
 
   // Move list
-  const moveLines = [];
+  const moveLines: string[] = [];
   let moveNumber = 1;
-  let moveBuffer = [];
+  let moveBuffer: string[] = [];
 
-  for (let i = 0; i < game.moveHistory.length; i++) {
-    const move = game.moveHistory[i];
+  const moveHistory = game.moveHistory || [];
+  for (let i = 0; i < moveHistory.length; i++) {
+    const move = moveHistory[i];
     const notation = formatMove(move, game, i);
 
     if (moveBuffer.length === 0) {
@@ -85,9 +89,9 @@ export function serializeGame(game, options = {}) {
 /**
  * Format a single move for TSPN output.
  */
-export function formatMove(move, game, moveIndex) {
+export function formatMove(move: any, game: any, moveIndex: number): string {
   // Use 'to' for target position (move history uses 'to', not 'target')
-  const target = move.to;
+  const target = move.to ?? move.target;
 
   // Handle promotion-only entries (no target)
   if (move.action === "promotion" || !target) {
@@ -142,14 +146,14 @@ export function formatMove(move, game, moveIndex) {
 /**
  * Get result string from game state.
  */
-export function getResultString(game) {
+export function getResultString(game: any): string {
   if (game.state !== "game_over") return "*";
 
   const winner = game.moveHistory[game.moveHistory.length - 1]?.winner_faction;
   if (!winner) return "1/2-1/2-1/2"; // Draw (shouldn't happen in 3-player)
 
   // Map faction to result
-  const results = {
+  const results: Record<string, string> = {
     fire: "1-0-0",
     water: "0-1-0",
     nature: "0-0-1",
@@ -160,7 +164,7 @@ export function getResultString(game) {
 /**
  * Escape string for PGN header.
  */
-export function escapePGN(str) {
+export function escapePGN(str: string): string {
   return str.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, " ");
 }
 
@@ -168,11 +172,11 @@ export function escapePGN(str) {
  * Wrap long line at maxLength.
  * Keeps words intact - if a single word exceeds maxLength, it stays on its own line.
  */
-export function wrapLine(line, maxLength) {
+export function wrapLine(line: string, maxLength: number): string[] {
   if (line.length <= maxLength) return [line];
 
   const words = line.split(" ");
-  const lines = [];
+  const lines: string[] = [];
   let current = "";
 
   for (const word of words) {
@@ -200,14 +204,34 @@ export function wrapLine(line, maxLength) {
 
 // ─── Deserialization ──────────────────────────────────────────────────────
 
+interface ParsedMove {
+  san: string;
+  raw: string;
+  faction?: string;
+  pieceName?: string;
+  target?: { q: number; r: number } | null;
+  rpsResult?: string | null;
+  promotion?: boolean;
+  promotionType?: string | null;
+  check?: boolean;
+  checkmate?: boolean;
+  isCapture?: boolean;
+}
+
+interface ParsedTSPN {
+  headers: Record<string, string>;
+  moves: ParsedMove[];
+  raw: string;
+}
+
 /**
  * Parse a TSPN string and return game data for replay.
  * Returns { headers, moves, rawMoves }
  */
-export function parseTSPN(tspnString) {
+export function parseTSPN(tspnString: string): ParsedTSPN {
   const lines = tspnString.trim().split("\n");
-  const headers = {};
-  const moves = [];
+  const headers: Record<string, string> = {};
+  const moves: ParsedMove[] = [];
   let inMoves = false;
   let moveText = "";
 
@@ -218,7 +242,7 @@ export function parseTSPN(tspnString) {
       // Parse headers
       const match = trimmed.match(/^\[(\w+)\s+"([^"]*)"\]$/);
       if (match) {
-        headers[match[1]] = match[2];
+        headers[match[1]!] = match[2]!;
       } else if (trimmed === "") {
         inMoves = true;
       }
@@ -240,16 +264,16 @@ export function parseTSPN(tspnString) {
  * Parse move text into structured move objects.
  * Handles RPS symbols that are space-separated from moves.
  */
-export function parseMoveText(text) {
+export function parseMoveText(text: string): ParsedMove[] {
   // Remove move numbers (1., 2., etc.)
   const cleaned = text.replace(/\d+\.\s*/g, "");
   const tokens = cleaned.split(/\s+/).filter((t) => t);
 
-  const moves = [];
+  const moves: ParsedMove[] = [];
   let i = 0;
 
   while (i < tokens.length) {
-    const token = tokens[i];
+    const token = tokens[i]!;
 
     // Skip comment annotations
     if (token.startsWith("[") && token.endsWith("]")) {
@@ -261,7 +285,7 @@ export function parseMoveText(text) {
     // If so, append it to current token for parseMoveToken
     let fullToken = token;
     if (i + 1 < tokens.length) {
-      const nextToken = tokens[i + 1];
+      const nextToken = tokens[i + 1]!;
       if (nextToken === ">" || nextToken === "<" || nextToken === "=") {
         fullToken = token + " " + nextToken;
         i++; // consume RPS symbol
@@ -284,9 +308,8 @@ export function parseMoveText(text) {
  *   nature_Pawn_-1,1 =
  *   fire_Pawn_0,0 =Q+
  */
-export function parseMoveToken(token) {
+export function parseMoveToken(token: string): ParsedMove {
   // Pattern: faction_PieceName[_x]_q,r [><=] [=Q] [#+] [comments]
-  // Capture groups: faction, pieceName, isCapture, coord, rpsSymbol, promotion, check, comment
 
   // Remove trailing comments [...] - but save for raw
   const cleanToken = token.replace(/\s*\[.*?\]\s*$/, "");
@@ -295,7 +318,7 @@ export function parseMoveToken(token) {
   // Format: faction_PieceName_Promotion=Q OR faction_Promotion=Q
   const promoMatch = cleanToken.match(/^([a-zA-Z]+)_(.+?)_Promotion=Q$/);
   if (promoMatch) {
-    const pieceName = promoMatch[2].toLowerCase();
+    const pieceName = promoMatch[2]!.toLowerCase();
     return {
       san: cleanToken,
       raw: token,
@@ -341,9 +364,12 @@ export function parseMoveToken(token) {
     return { san: token, raw: token };
   }
 
-  const [, faction, pieceName, coord, rpsSymbol, promotion, check] = match;
-  const [q, r] = coord.split(",").map(Number);
-
+  const faction = match[1]!;
+  const pieceName = match[2]!;
+  const coord = match[3]!;
+  const rpsSymbol = match[4];
+  const promotion = match[5];
+  const check = match[6];
   const rpsResult =
     rpsSymbol === ">"
       ? "advantage"
@@ -358,13 +384,14 @@ export function parseMoveToken(token) {
     /^([a-zA-Z]+)_(.+?)_x_([+-]?\d+,[+-]?\d+)/,
   );
   const isCapture = !!fullMatch;
+  const [q, r] = coord.split(",").map(Number) as [number, number];
 
   return {
     san: cleanToken,
     raw: token,
     faction,
     pieceName: pieceName.toLowerCase(),
-    target: { q: parseInt(q), r: parseInt(r) },
+    target: { q, r },
     rpsResult,
     promotion: !!promotion,
     promotionType: promotion ? "queen" : null,
@@ -380,7 +407,7 @@ export function parseMoveToken(token) {
  * Replay a game from move history.
  * Returns a generator that yields game states after each move.
  */
-export function* replayGame(initialGame, moveHistory) {
+export function* replayGame(initialGame: any, moveHistory: any[]): Generator<any> {
   const game = cloneGameForReplay(initialGame);
   yield { game: cloneGameState(game), move: null, index: -1 };
 
@@ -388,9 +415,9 @@ export function* replayGame(initialGame, moveHistory) {
     const move = moveHistory[i];
 
     // Execute move
-    if (move.piece && move.target) {
+    if (move.piece && (move.target ?? move.to)) {
       game.handleCellClick(move.piece.pos);
-      const result = game.handleCellClick(move.target);
+      const result = game.handleCellClick(move.target ?? move.to);
 
       if (result.promotion && move.promotion) {
         game.completePromotion(move.promotionType || "queen");
@@ -411,7 +438,12 @@ export function* replayGame(initialGame, moveHistory) {
  * Provides step-by-step control over replay.
  */
 export class ReplayController {
-  constructor(initialGame, moveHistory) {
+  initialGame: any;
+  moveHistory: any[];
+  currentIndex: number;
+  states: any[];
+
+  constructor(initialGame: any, moveHistory: any[]) {
     this.initialGame = cloneGameForReplay(initialGame);
     this.moveHistory = moveHistory;
     this.currentIndex = -1;
@@ -419,14 +451,14 @@ export class ReplayController {
     this.precomputeStates();
   }
 
-  precomputeStates() {
+  precomputeStates(): void {
     let game = cloneGameForReplay(this.initialGame);
     this.states = [cloneGameState(game)];
 
     for (const move of this.moveHistory) {
-      if (move.piece && move.target) {
+      if (move.piece && (move.target ?? move.to)) {
         game.handleCellClick(move.piece.pos);
-        const result = game.handleCellClick(move.target);
+        const result = game.handleCellClick(move.target ?? move.to);
 
         if (result.promotion && move.promotion) {
           game.completePromotion(move.promotionType || "queen");
@@ -436,23 +468,23 @@ export class ReplayController {
     }
   }
 
-  getCurrentState() {
+  getCurrentState(): any {
     return this.states[this.currentIndex + 1] || this.states[0];
   }
 
-  getCurrentMove() {
+  getCurrentMove(): any {
     return this.moveHistory[this.currentIndex] || null;
   }
 
-  canGoForward() {
+  canGoForward(): boolean {
     return this.currentIndex < this.moveHistory.length - 1;
   }
 
-  canGoBack() {
+  canGoBack(): boolean {
     return this.currentIndex >= 0;
   }
 
-  next() {
+  next(): any {
     if (this.canGoForward()) {
       this.currentIndex++;
       return this.getCurrentState();
@@ -460,7 +492,7 @@ export class ReplayController {
     return null;
   }
 
-  previous() {
+  previous(): any {
     if (this.canGoBack()) {
       this.currentIndex--;
       return this.getCurrentState();
@@ -468,7 +500,7 @@ export class ReplayController {
     return null;
   }
 
-  goTo(index) {
+  goTo(index: number): any {
     if (index >= -1 && index < this.moveHistory.length) {
       this.currentIndex = index;
       return this.getCurrentState();
@@ -476,29 +508,29 @@ export class ReplayController {
     return null;
   }
 
-  goToStart() {
+  goToStart(): any {
     this.currentIndex = -1;
     return this.getCurrentState();
   }
 
-  goToEnd() {
+  goToEnd(): any {
     this.currentIndex = this.moveHistory.length - 1;
     return this.getCurrentState();
   }
 
-  getTotalMoves() {
+  getTotalMoves(): number {
     return this.moveHistory.length;
   }
 
-  getCurrentMoveNumber() {
+  getCurrentMoveNumber(): number {
     return this.currentIndex + 1;
   }
 
   /** Export current game state as TSPN string (including all moves played so far) */
-  exportTSPN(headers = {}) {
+  exportTSPN(headers: Record<string, string> = {}): string {
     // Reconstruct a temporary game to serialize
-    const tempGame = {
-      pieces: this.initialGame.pieces.map((p) => ({ ...p })),
+    const tempGame: any = {
+      pieces: this.initialGame.pieces.map((p: any) => ({ ...p })),
       currentFaction: this.initialGame.currentFaction,
       currentFactionIdx: this.initialGame.currentFactionIdx,
       state: this.initialGame.state,
@@ -526,9 +558,9 @@ export class ReplayController {
   }
 
   /** Export the complete game as TSPN string (all moves from start to finish) */
-  exportTSPNFull(headers = {}) {
-    const tempGame = {
-      pieces: this.initialGame.pieces.map((p) => ({ ...p })),
+  exportTSPNFull(headers: Record<string, string> = {}): string {
+    const tempGame: any = {
+      pieces: this.initialGame.pieces.map((p: any) => ({ ...p })),
       currentFaction: this.initialGame.currentFaction,
       currentFactionIdx: this.initialGame.currentFactionIdx,
       state: "game_over",
@@ -559,7 +591,7 @@ export class ReplayController {
 /**
  * Clone game for replay (immutable snapshot).
  */
-export function cloneGameForReplay(game) {
+export function cloneGameForReplay(game: any): any {
   // Create a fresh game and replay all moves
   // For now, return the game - in practice would create fresh Game instance
   return game;
@@ -568,9 +600,9 @@ export function cloneGameForReplay(game) {
 /**
  * Clone game state for yield.
  */
-export function cloneGameState(game) {
+export function cloneGameState(game: any): any {
   return {
-    pieces: game.pieces.map((p) => ({
+    pieces: game.pieces.map((p: any) => ({
       id: p.id,
       type: p.type,
       faction: p.faction,
@@ -584,9 +616,9 @@ export function cloneGameState(game) {
     state: game.state,
     eliminatedFactions: Array.from(game.eliminatedFactions),
     capturedPieces: {
-      fire: game.capturedPieces.fire.map((p) => p.id),
-      water: game.capturedPieces.water.map((p) => p.id),
-      nature: game.capturedPieces.nature.map((p) => p.id),
+      fire: game.capturedPieces.fire.map((p: any) => p.id),
+      water: game.capturedPieces.water.map((p: any) => p.id),
+      nature: game.capturedPieces.nature.map((p: any) => p.id),
     },
     moveHistory: game.moveHistory,
   };
@@ -596,7 +628,7 @@ export function cloneGameState(game) {
  * Reconstruct a game from TSPN headers and moves.
  * Creates a fresh Game instance and replays all moves.
  */
-export function reconstructGameFromTSPN(parsedTSPN, GameClass, boardCells) {
+export function reconstructGameFromTSPN(parsedTSPN: any, GameClass: any, boardCells: any): { game: any; controller: ReplayController } {
   const game = new GameClass();
   game.init(boardCells);
 
@@ -614,7 +646,7 @@ export function reconstructGameFromTSPN(parsedTSPN, GameClass, boardCells) {
 /**
  * Download game as .tspn file.
  */
-export function downloadGame(game, filename = null) {
+export function downloadGame(game: any, filename: string | null = null): void {
   const tspn = serializeGame(game);
   const blob = new Blob([tspn], { type: "text/plain" });
   const url = URL.createObjectURL(blob);
@@ -631,7 +663,7 @@ export function downloadGame(game, filename = null) {
 /**
  * Copy game to clipboard.
  */
-export async function copyGameToClipboard(game) {
+export async function copyGameToClipboard(game: any): Promise<void> {
   const tspn = serializeGame(game);
   await navigator.clipboard.writeText(tspn);
 }
@@ -639,12 +671,12 @@ export async function copyGameToClipboard(game) {
 /**
  * Load game from file.
  */
-export function loadGameFromFile(file) {
+export function loadGameFromFile(file: File): Promise<ParsedTSPN> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const parsed = parseTSPN(e.target.result);
+        const parsed = parseTSPN(e.target?.result as string);
         resolve(parsed);
       } catch (err) {
         reject(err);
@@ -658,6 +690,9 @@ export function loadGameFromFile(file) {
 /**
  * Load game from TSPN string.
  */
-export function loadGameFromString(tspnString) {
+export function loadGameFromString(tspnString: string): ParsedTSPN {
   return parseTSPN(tspnString);
 }
+
+// Re-export ParsedTSPN type alias for callers expecting it
+export type { ParsedTSPN };

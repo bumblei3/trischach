@@ -1,8 +1,8 @@
 import { expect, test, describe } from "vitest";
-import { Game } from "../js/game.js";
-import { generateBoard } from "../js/board.js";
-import { calculateBestMove } from "../js/ai.js";
-import { PIECE_TYPE } from "../js/pieces.js";
+import { Game } from "../js/game.ts";
+import { generateBoard } from "../js/board.ts";
+import { calculateBestMove } from "../js/ai.ts";
+import { PIECE_TYPE } from "../js/pieces.ts";
 
 describe("AI Simulation (Integration)", () => {
   test("AI can play a sequence of moves without crashing", () => {

@@ -1,8 +1,8 @@
 import { expect, test, describe, beforeEach } from "vitest";
-import { Game } from "../js/game.js";
-import { FACTION, generateBoard, getRPSResult } from "../js/board.js";
-import { Piece, PIECE_TYPE } from "../js/pieces.js";
-import { Hex } from "../js/hex.js";
+import { Game } from "../js/game.ts";
+import { FACTION, generateBoard, getRPSResult } from "../js/board.ts";
+import { Piece, PIECE_TYPE } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
 
 describe("RPS Attack Categorization", () => {
   let game;

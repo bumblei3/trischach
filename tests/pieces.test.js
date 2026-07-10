@@ -1,7 +1,7 @@
 import { expect, test, describe } from "vitest";
-import { getValidMoves, PIECE_TYPE, Piece } from "../js/pieces.js";
-import { Hex } from "../js/hex.js";
-import { FACTION, generateBoard } from "../js/board.js";
+import { getValidMoves, PIECE_TYPE, Piece } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
+import { FACTION, generateBoard } from "../js/board.ts";
 
 function buildOccupied(allPieces) {
   const occupied = new Map();

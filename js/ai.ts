@@ -1,7 +1,7 @@
-import { getValidMoves, PIECE_STRENGTH } from "./pieces.js";
-import { getRPSResult, FACTION } from "./board.js";
-import { Hex } from "./hex.js";
-import { isKingdomCheck } from "./game-check.js";
+import { getValidMoves, PIECE_STRENGTH, PIECE_TYPE } from "./pieces.ts";
+import { getRPSResult, FACTION } from "./board.ts";
+import { Hex } from "./hex.ts";
+import { isKingdomCheck } from "./game-check.ts";
 import {
   pickBookMove,
   buildOpeningBook,
@@ -9,7 +9,11 @@ import {
   learnFromGame,
   getLearnedData,
   loadLearnedData,
-} from "./opening-book.js";
+  loadOpeningBook,
+  loadLearnedDataFromFile,
+  loadLearnedDataFromStorage,
+  saveLearnedDataToStorage,
+} from "./opening-book.ts";
 
 // Import all core AI logic from shared module
 import {
@@ -45,7 +49,6 @@ import {
   setAIDepth,
   setAIPersonality,
   getAIPersonalities,
-  deserializeGame,
   // Pondering
   startPondering,
   stopPondering,
@@ -60,7 +63,38 @@ import {
   quickSee,
   // Search stats
   nodesSearched,
-} from "./ai-core.js";
+} from "./ai-core.ts";
+
+/**
+ * Reconstruct a Game-like object from a serialized state.
+ * Ported from ai-core.js (which lacks a TS counterpart for this function).
+ */
+export function deserializeGame(state: any) {
+  const game = {
+    pieces: state.pieces.map((p: any) => ({
+      id: p.id,
+      type: p.type,
+      faction: p.faction,
+      pos: new Hex(p.pos.q, p.pos.r),
+      symbol: p.symbol,
+      alive: p.alive,
+      hasMoved: p.hasMoved,
+    })),
+    currentFactionIdx: state.currentFactionIdx,
+    currentFaction: state.currentFaction,
+    state: state.state,
+    eliminatedFactions: new Set(state.eliminatedFactions),
+    rpsEnabled: state.rpsEnabled,
+    boardCells: new Map(),
+    _occupiedMap: new Map(),
+    capturedPieces: state.capturedPieces,
+    moveHistory: [] as any[],
+    _positionHistory: new Map(),
+    _halfmoveClock: state._halfmoveClock || 0,
+  };
+  rebuildOccupiedMap(game as any);
+  return game;
+}
 
 // Re-export for backward compatibility
 export {
@@ -96,7 +130,6 @@ export {
   greedyBestMove,
   calculateBestMove,
   setAIDepth,
-  deserializeGame,
   // Pondering
   startPondering,
   stopPondering,
@@ -115,4 +148,9 @@ export {
   learnFromGame,
   getLearnedData,
   loadLearnedData,
+  loadOpeningBook,
+  buildOpeningBook,
+  loadLearnedDataFromFile,
+  loadLearnedDataFromStorage,
+  saveLearnedDataToStorage,
 };

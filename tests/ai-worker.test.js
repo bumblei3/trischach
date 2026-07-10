@@ -3,10 +3,10 @@
  * Tests the worker message interface AND core AI functions (now exported for coverage)
  */
 import { expect, test, describe, vi } from "vitest";
-import { Hex } from "../js/hex.js";
-import { FACTION, generateBoard } from "../js/board.js";
-import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.js";
-import { GAME_STATE } from "../js/game.js";
+import { Hex } from "../js/hex.ts";
+import { FACTION, generateBoard } from "../js/board.ts";
+import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.ts";
+import { GAME_STATE } from "../js/game.ts";
 
 // Import exported core functions from ai-worker.js
 import {
@@ -28,10 +28,10 @@ import {
   deserializeGame,
   TURN_ORDER,
   AI_PERSONALITIES,
-} from "../js/ai-worker.js";
+} from "../js/ai-worker.ts";
 
 // Mock opening-book to avoid needing full Game instance
-vi.mock("../js/opening-book.js", () => ({
+vi.mock("../js/opening-book.ts", () => ({
   pickBookMove: vi.fn(() => null),
   buildOpeningBook: vi.fn(),
   inBook: vi.fn(() => false),

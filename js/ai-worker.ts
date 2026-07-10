@@ -10,11 +10,11 @@
  *   - Worker -> Main: { type: 'ponderMove', move }
  */
 
-import { getValidMoves, PIECE_STRENGTH, PIECE_TYPE } from "./pieces.js";
-import { getRPSResult, FACTION } from "./board.js";
-import { Hex } from "./hex.js";
-import { isKingdomCheck } from "./game-check.js";
-import { pickBookMove, buildOpeningBook, inBook } from "./opening-book.js";
+import { getValidMoves, PIECE_STRENGTH, PIECE_TYPE } from "./pieces.ts";
+import { getRPSResult, FACTION } from "./board.ts";
+import { Hex } from "./hex.ts";
+import { isKingdomCheck } from "./game-check.ts";
+import { pickBookMove, buildOpeningBook, inBook } from "./opening-book.ts";
 
 // Import all core AI logic from shared module
 import {
@@ -47,18 +47,19 @@ import {
   greedyBestMove,
   calculateBestMove,
   setAIDepth,
-  deserializeGame,
   // Pondering
   startPondering,
   stopPondering,
   getPonderMove,
   isPondering,
+  setPonderProgressCallback,
   // SEE (Static Exchange Evaluation)
   SEE_PIECE_VALUES,
   getSeeValue,
   see,
   quickSee,
-} from "./ai-core.js";
+} from "./ai-core.ts";
+import { deserializeGame } from "./ai.ts";
 
 // Re-export for unit testing (coverage)
 export {
@@ -97,6 +98,7 @@ export {
   stopPondering,
   getPonderMove,
   isPondering,
+  setPonderProgressCallback,
   // SEE (Static Exchange Evaluation)
   SEE_PIECE_VALUES,
   getSeeValue,
@@ -112,18 +114,20 @@ let _bookBuilt = false;
 let _ponderAbort = false;
 let _ponderWorkerState = null; // Will hold the ponder state object from ai-core
 
-self.onmessage = function (e) {
-  const { type, gameState, faction, depth } = e.data;
+const ctx: Worker = self as unknown as Worker;
+
+ctx.onmessage = function (e: MessageEvent) {
+  const { type, gameState, faction, depth } = e.data as any;
 
   if (type === "calculate") {
     // Reconstruct game object from serialized state
-    const game = deserializeGame(gameState);
+    const game: any = deserializeGame(gameState);
     if (depth !== undefined) setAIDepth(depth);
 
     const move = calculateBestMove(game, faction);
 
     if (move) {
-      self.postMessage({
+      ctx.postMessage({
         type: "result",
         move: {
           pieceId: move.piece.id,
@@ -134,14 +138,14 @@ self.onmessage = function (e) {
         },
       });
     } else {
-      self.postMessage({ type: "result", move: null });
+      ctx.postMessage({ type: "result", move: null });
     }
   } else if (type === "startPonder") {
     // Stop any existing pondering
     _ponderAbort = true;
 
     // Start new pondering
-    const game = deserializeGame(gameState);
+    const game: any = deserializeGame(gameState);
     const opponentFaction = faction; // In worker context, faction is the opponent to ponder for
     _ponderAbort = false;
 
@@ -150,9 +154,9 @@ self.onmessage = function (e) {
     startPondering(game, opponentFaction);
 
     // Set up progress reporting to send updates to main thread
-    setPonderProgressCallback((depth, score, nodes) => {
+    setPonderProgressCallback((depth: number, score: number, nodes: number) => {
       if (!_ponderAbort) {
-        self.postMessage({
+        ctx.postMessage({
           type: "ponderProgress",
           depth,
           score,
@@ -167,7 +171,7 @@ self.onmessage = function (e) {
     // Signal ready for backward compat
     setTimeout(() => {
       if (!_ponderAbort) {
-        self.postMessage({ type: "ponderReady" });
+        ctx.postMessage({ type: "ponderReady" });
       }
     }, 50);
   } else if (type === "stopPonder") {
@@ -177,7 +181,7 @@ self.onmessage = function (e) {
     stopPondering()
       .then((move) => {
         if (move) {
-          self.postMessage({
+          ctx.postMessage({
             type: "ponderResult",
             move: {
               pieceId: move.piece.id,
@@ -188,15 +192,15 @@ self.onmessage = function (e) {
             },
           });
         } else {
-          self.postMessage({ type: "ponderResult", move: null });
+          ctx.postMessage({ type: "ponderResult", move: null });
         }
 
         // Clear progress callback
-        setPonderProgressCallback(null);
+        setPonderProgressCallback(null as any);
       })
       .catch(() => {
-        self.postMessage({ type: "ponderResult", move: null });
-        setPonderProgressCallback(null);
+        ctx.postMessage({ type: "ponderResult", move: null });
+        setPonderProgressCallback(null as any);
       });
   } else if (type === "setDepth") {
     setAIDepth(depth);
@@ -204,16 +208,16 @@ self.onmessage = function (e) {
     _workerPersonality = depth; // Note: bug in original - should be faction/personality param
   } else if (type === "initBook") {
     _bookBuilt = true;
-    self.postMessage({ type: "bookReady" });
+    ctx.postMessage({ type: "bookReady" });
   }
 };
 
 // Worker-specific state
 let _workerPersonality = "balanced";
 
-export function getWorkerPersonality() {
+export function getWorkerPersonality(): string {
   return _workerPersonality;
 }
-export function setWorkerPersonality(p) {
+export function setWorkerPersonality(p: string): void {
   _workerPersonality = p;
 }

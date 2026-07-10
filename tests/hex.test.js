@@ -9,7 +9,7 @@ import {
   pixelToHex,
   hexCorners,
   hexPolygonPoints,
-} from "../js/hex.js";
+} from "../js/hex.ts";
 
 describe("Hex coordinates", () => {
   test("constructor calculates s correctly", () => {

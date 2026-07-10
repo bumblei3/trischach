@@ -250,14 +250,14 @@ function calculateBestMoveWorker(
 ): Promise<WorkerMove | null> {
   return new Promise((resolve) => {
     if (!aiWorker || !workerReady) {
-      const move = calculateBestMove(game, faction);
+      const move = calculateBestMove(game, faction as any);
       if (move) {
         resolve({
           pieceId: move.piece.id,
           targetQ: move.target.q,
           targetR: move.target.r,
           moveType: move.type,
-          rps: move.rps,
+          rps: move.rps as string,
         });
       } else {
         resolve(null);
@@ -363,11 +363,19 @@ function init(): void {
   game.clearUndoStack();
   autoBattleBookMoves = []; // Clear learning tracking
 
+  // Render initial pieces synchronously (board must be ready immediately)
+  for (const p of game.getAlivePieces()) renderer.renderPiece(p);
+  updateUI();
+
   // Load production opening book + learned data
   (async () => {
-    await loadOpeningBook(); // Load compiled book from JSON
-    await loadLearnedDataFromFile(); // Load auto-battle learned data from file
-    loadLearnedDataFromStorage(); // Merge localStorage learned data
+    try {
+      await loadOpeningBook(); // Load compiled book from JSON
+      await loadLearnedDataFromFile(); // Load auto-battle learned data from file
+    } catch (e) {
+      console.warn("Failed to load opening book or learned data:", e);
+    }
+    loadLearnedDataFromStorage(); // Merge localStorage learned data (non-fatal)
     initAIWorker();
     const settings = loadSettings();
     applySettings(settings);
@@ -380,7 +388,6 @@ function init(): void {
       }
     }
 
-    for (const p of game.getAlivePieces()) renderer.renderPiece(p);
     updateUI();
   })();
 }
