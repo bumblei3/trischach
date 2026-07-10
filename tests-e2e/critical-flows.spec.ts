@@ -406,4 +406,66 @@ test.describe("TriSchach - Save/Load", () => {
       }
     }
   });
+
+  test("UI stays responsive after a human move (regression: main-thread freeze)", async ({
+    page,
+  }) => {
+    // Regression test for the freeze bug where startPondering() ran a
+    // synchronous minimax (depth up to 12) on the main thread after every
+    // move, freezing the UI. After the move the turn indicator must still be
+    // reachable (page not frozen).
+    const pieces = page.locator("#board-svg .piece-fire");
+    const pieceCount = await pieces.count();
+    expect(pieceCount).toBeGreaterThan(0);
+
+    let moved = false;
+    for (let i = 0; i < pieceCount && !moved; i++) {
+      const piece = pieces.nth(i);
+      await piece.click({ force: true });
+      await page.waitForTimeout(200);
+      const highlights = page.locator("#board-svg .highlight-move");
+      if ((await highlights.count()) > 0) {
+        await highlights.first().click({ force: true });
+        moved = true;
+      } else {
+        await piece.click({ force: true });
+        await page.waitForTimeout(80);
+      }
+    }
+    expect(moved).toBe(true);
+
+    // The UI must remain interactive: turn indicator still present and the
+    // move log must have grown. If the main thread had frozen, this times out.
+    await expect(page.locator("#turn-indicator")).toBeVisible({
+      timeout: 10000,
+    });
+    const moveEntries = await page.locator("#move-log .move-entry").count();
+    expect(moveEntries).toBeGreaterThan(0);
+  });
+
+  test("Auto-Battle plays multiple moves without freezing the UI (regression)", async ({
+    page,
+  }) => {
+    // Regression test for the freeze that occurred on the SECOND auto-battle
+    // move (startPondering() called after every auto move on the main thread).
+    // Verify the UI stays responsive after several auto moves.
+    await page.click("#auto-battle-btn");
+    await expect(page.locator("#auto-battle-btn")).toHaveClass(/active/);
+
+    // Let auto-battle play at least a few moves (worker-backed, async).
+    await page.waitForTimeout(6000);
+
+    // UI must still be interactive after multiple auto moves.
+    const moveEntries = await page.locator("#move-log .move-entry").count();
+    expect(moveEntries).toBeGreaterThan(2);
+
+    // Turn indicator must still be reachable (page not frozen).
+    await expect(page.locator("#turn-indicator")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Stop auto-battle cleanly.
+    await page.click("#auto-battle-btn");
+    await expect(page.locator("#auto-battle-btn")).not.toHaveClass(/active/);
+  });
 });
