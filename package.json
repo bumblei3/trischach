@@ -10,8 +10,6 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "tournament": "node tournament.js",
-    "tournament:large": "node tournament.js 20 3",
     "typecheck": "tsc --noEmit",
     "build": "vite build && node scripts/copy-assets.mjs",
     "check:js": "tsc --noEmit --skipLibCheck --allowJs --checkJs --noEmit"

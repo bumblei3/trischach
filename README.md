@@ -142,18 +142,6 @@ npm run lint
   - CombatUIManager: 92%, TooltipManager: 97%
   - Opening Book Learning: Integrated (auto-battle self-play)
 
-### Engine Tournament (Elo-Messung)
-
-```bash
-# Quick (4 Games/Pairing, Depth 2)
-npm run tournament
-
-# Full (20 Games/Pairing, Depth 3)
-npm run tournament:large
-```
-
-elo-Hierarchie (Beispiel): Ausgewogen > Aggressiv > Defensiv > Taktisch > Random
-
 ## 🤖 CI/CD
 
 Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
@@ -163,8 +151,7 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 | `lint-test`  | Push/PR                       | TypeScript, ESLint, Unit Tests (Node 20), Coverage ≥80%   |
 | `codeql`     | Push/PR                       | Security Scanning (JavaScript)                            |
 | `e2e-tests`  | Push/PR                       | Playwright E2E **Firefox** (Ubuntu 26.04 kompatibel)      |
-| `benchmark`  | Push/PR                       | Quick Tournament (4 Games @ Depth 2), PR-Comment          |
-| `tournament` | Schedule (03:00 UTC) / Manual | Full Tournament (10 Games @ Depth 3), 30d Artifact        |
+| `benchmark`  | Push/PR                       | Performance Benchmark (AI move timing)                    |
 | `release`    | Tag `v*`                      | Auto GitHub Release mit Release Notes                     |
 | `deploy`     | Push main                     | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
 

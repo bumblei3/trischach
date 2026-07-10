@@ -314,71 +314,6 @@ jobs:
               body
             });
 
-  # Tournament benchmark (manual/scheduled only)
-  tournament:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Setup Node 24
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Cache vitest
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cache/vitest
-            ~/.cache/npm
-          key: vitest-${{ runner.os }}-${{ hashFiles('package-lock.json', 'vite.config.ts') }}
-          restore-keys: |
-            vitest-${{ runner.os }}-
-
-      - name: Run tournament
-        env:
-          GAMES_PER_PAIRING: ${{ github.event.inputs.games || '10' }}
-          AI_DEPTH: ${{ github.event.inputs.depth || '3' }}
-        run: |
-          node tournament.js $GAMES_PER_PAIRING $AI_DEPTH
-
-      - name: Upload tournament results
-        uses: actions/upload-artifact@v6
-        with:
-          name: tournament-results
-          path: tournament-results.json
-          retention-days: 30
-
-      - name: Comment tournament results on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const results = JSON.parse(fs.readFileSync('tournament-results.json', 'utf8'));
-            const table = results.results ? Object.entries(results.results).map(([engine, matchups]) => {
-              const wins = Object.values(matchups).reduce((sum, m) => sum + m.wins, 0);
-              const draws = Object.values(matchups).reduce((sum, m) => sum + m.draws, 0);
-              const losses = Object.values(matchups).reduce((sum, m) => sum + m.losses, 0);
-              const elo = results.elo[engine] || 'N/A';
-              return `| ${engine} | ${elo} | ${wins} | ${draws} | ${losses} |`;
-            }).join('\n') : 'No results';
-
-            const body = `## 🏆 Tournament Results\n\n| Engine | Elo | W | D | L |\n|--------|-----|---|---|---|\n${table}\n\n*Depth: ${process.env.AI_DEPTH}, Games/pairing: ${process.env.GAMES_PER_PAIRING}*`;
-
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
   # Release automation
   release:
     name: Create Release
@@ -413,8 +348,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: |
-            tournament-results.json
 
   deploy:
     needs: [typecheck, lint, unit-tests, e2e-tests, codeql]

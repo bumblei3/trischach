@@ -26,7 +26,6 @@ export default defineConfig({
         "tests/**",
         "tests-e2e/**",
         "*.config.*",
-        "tournament.js",
         "js/**/*.ts", // TypeScript files excluded from coverage (tested via .js)
         "js/main.js", // UI code - tested via E2E
         "js/board.js", // Touch handlers - tested via E2E
