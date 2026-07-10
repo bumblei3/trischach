@@ -860,7 +860,7 @@ describe("Opening Book: saveLearnedData", () => {
     expect(typeof saveLearnedData).toBe("function");
   });
 
-  test.skip("returns data object with version, updated, positions", async () => {
+  test("returns data object with version, updated, positions", async () => {
     // Add learning data
     const game = createStartingGame();
     const hash = boardHash(game);
@@ -879,7 +879,7 @@ describe("Opening Book: saveLearnedData", () => {
     expect(new Date(data.updated).toString()).not.toBe("Invalid Date");
   });
 
-  test.skip("includes learned positions in saved data", async () => {
+  test("includes learned positions in saved data", async () => {
     const game = createStartingGame();
     const hash = boardHash(game);
     const variations = OPENING_BOOK.get(hash);

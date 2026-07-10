@@ -1048,24 +1048,23 @@ describe("Replay: Export/Import Helpers", () => {
     vi.unstubAllGlobals();
   });
 
-  // Skip: vitest spy doesn't work with named exports from async imports
-  test.skip("copyGameToClipboard calls serializeGame", async () => {
+  test("copyGameToClipboard writes serialized TSPN to clipboard", async () => {
     const game = createMockGame({ moveHistory: createMoveHistory() });
 
-    // Spy on serializeGame
-    const serializeSpy = vi
-      .spyOn(await import("../js/replay.ts"), "serializeGame")
-      .mockReturnValue("mocked tspn");
-
-    // Mock navigator.clipboard.writeText (may not work in test env)
-    vi.stubGlobal("navigator", {
-      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
-    });
+    // Mock clipboard.writeText and capture what copyGameToClipboard serializes
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
 
     await copyGameToClipboard(game);
-    expect(serializeSpy).toHaveBeenCalledWith(game);
 
-    serializeSpy.mockRestore();
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const written = writeText.mock.calls[0][0];
+    // The written content must be the TSPN produced by serializeGame
+    expect(written).toBe(serializeGame(game));
+    // And it must round-trip back into the same number of moves
+    const parsed = parseTSPN(written);
+    expect(parsed.moves.length).toBe(game.moveHistory.length);
+
     vi.unstubAllGlobals();
   });
 
@@ -1109,8 +1108,7 @@ describe("Replay: Export/Import Helpers", () => {
 });
 
 describe("Replay: Round-trip Serialization", () => {
-  // Skip: Test environment difference - works in node directly but not in vitest
-  test.skip("serialize -> parse -> moves preserved", () => {
+  test("serialize -> parse -> moves preserved", () => {
     const game = createMockGame({
       rpsEnabled: true,
       moveHistory: [
@@ -1166,8 +1164,7 @@ describe("Replay: Round-trip Serialization", () => {
     expect(parsed.moves[2].faction).toBe("nature");
   });
 
-  // Skip: Test environment difference - works in node directly but not in vitest
-  test.skip("preserves RPS setting in headers", () => {
+  test("preserves RPS setting in headers", () => {
     const game = createMockGame({ rpsEnabled: true, moveHistory: [] });
     const tspn = serializeGame(game);
     const parsed = parseTSPN(tspn);

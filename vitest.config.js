@@ -27,6 +27,7 @@ export default defineConfig({
         "tests-e2e/**",
         "*.config.*",
         "js/**/*.ts", // TypeScript files excluded from coverage (tested via .js)
+        "js/main.ts", // UI/event code (~100KB) — covered by E2E, not unit tests
         "js/main.js", // UI code - tested via E2E
         "js/board.js", // Touch handlers - tested via E2E
         "js/sounds.js", // Audio - hard to unit test
