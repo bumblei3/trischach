@@ -1,8 +1,13 @@
 import { expect, test, describe } from "vitest";
 import { Game } from "../js/game.ts";
 import { generateBoard } from "../js/board.ts";
-import { calculateBestMove } from "../js/ai.ts";
+import { calculateBestMove, setAIDepth } from "../js/ai.ts";
 import { PIECE_TYPE } from "../js/pieces.ts";
+
+// Keep the AI search shallow so the synchronous (main-thread) calculateBestMove
+// used here stays fast. These tests verify game/AI *logic* (moves execute
+// without crashing, the game reaches a final state), not search strength.
+setAIDepth(2);
 
 describe("AI Simulation (Integration)", () => {
   test("AI can play a sequence of moves without crashing", () => {

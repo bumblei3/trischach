@@ -1946,7 +1946,7 @@ export function iterativeDeepening(
   let bestResult: SearchResult = { score: -Infinity, action: actions[0] };
   let prevScore = 0;
 
-  const MAX_DEPTH_CAP = 12;
+  const MAX_DEPTH_CAP = MAX_DEPTH;
   for (let depth = 1; depth <= MAX_DEPTH_CAP; depth++) {
     ttNewSearch(); // Increment TT age for this depth
     if (Date.now() > searchDeadline - timeBudget * 0.2) break;
