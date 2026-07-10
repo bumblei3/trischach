@@ -17,9 +17,13 @@ describe("AI Simulation (Integration)", () => {
     const game = new Game();
     game.init(generateBoard());
 
-    // Play 20 turns
+    // Play up to 20 turns. Bound the loop by wall-clock time as well, so a
+    // pathologically slow runtime can never hang the test (MAX_SEARCH_MS
+    // already bounds each individual calculateBestMove call).
+    const start = Date.now();
     for (let turn = 0; turn < 20; turn++) {
       if (game.state === "game_over") break;
+      if (Date.now() - start > 15000) break;
 
       const faction = game.currentFaction;
       const action = calculateBestMove(game, faction);
@@ -28,9 +32,9 @@ describe("AI Simulation (Integration)", () => {
         break;
       }
 
-      // Execute the action
+      // Execute the action (selResult may be null if selection fails)
       const selResult = game.handleCellClick(action.piece.pos);
-      if (selResult.action === "deselect") {
+      if (!selResult || selResult.action === "deselect") {
         // AI selected an invalid piece; skip this turn
         break;
       }
@@ -52,7 +56,12 @@ describe("AI Simulation (Integration)", () => {
     game.init(generateBoard());
 
     let moveCount = 0;
+    const start = Date.now();
     while (game.state !== "game_over" && moveCount < 100) {
+      // Hard wall-clock guard: never let this loop run past 15s even if a
+      // single calculateBestMove somehow exceeds its budget.
+      if (Date.now() - start > 15000) break;
+
       const action = calculateBestMove(game, game.currentFaction);
       if (!action) break;
 

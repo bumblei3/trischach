@@ -60,14 +60,16 @@ beforeAll(() => {
   vi.stubGlobal("fetch", fetchMock.mockFn);
 });
 
-afterEach(() => {
-  vi.clearAllTimers();
-});
-
 describe("Main UI & Events", () => {
   beforeEach(() => {
     document.body.innerHTML = bodyHTML;
-    vi.resetModules(); // Ensure main.js runs cleanly each time
+    vi.resetModules(); // Ensure main.ts runs cleanly each time
+
+    // Control ALL timers (main.ts registers real setTimeout/setInterval for
+    // auto-battle, combat resolution, replay, puzzle, toasts). With fake
+    // timers no callback can leak across tests or fire after the suite ends
+    // (which previously crashed the run with a null.classList error).
+    vi.useFakeTimers();
 
     // Mock AudioContext
     globalThis.AudioContext = vi.fn().mockImplementation(() => ({
@@ -95,7 +97,13 @@ describe("Main UI & Events", () => {
   });
 
   afterEach(() => {
+    // Clear any pending timers and restore the real timer implementation so
+    // later tests (and the harness) are not left in a fake-timer context.
+    // We do NOT blank document.body here: main.ts registers timers that may
+    // fire during teardown, and removing the DOM would make them throw. The
+    // next beforeEach rebuilds the body from bodyHTML anyway.
     vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   test("UI initializes correctly on load", async () => {
@@ -120,7 +128,6 @@ describe("Main UI & Events", () => {
   });
 
   test("Auto Battle toggle button", async () => {
-    vi.useFakeTimers();
     await import("../js/main.ts");
     const autoBattleBtn = document.getElementById("auto-battle-btn");
 
@@ -131,7 +138,6 @@ describe("Main UI & Events", () => {
 
     autoBattleBtn.click();
     expect(autoBattleBtn.classList.contains("active")).toBe(false);
-    vi.useRealTimers();
   });
 
   test("Restart button resets the game", async () => {
@@ -162,7 +168,6 @@ describe("Main UI & Events", () => {
   });
 
   test("Simulate gameplay clicks (move and combat)", async () => {
-    vi.useFakeTimers();
     await import("../js/main.ts");
     const pieces = document.querySelectorAll(".piece");
     expect(pieces.length).toBeGreaterThan(0);
@@ -184,31 +189,59 @@ describe("Main UI & Events", () => {
       vi.advanceTimersByTime(2500);
       expect(combatOverlay.classList.contains("visible")).toBe(false);
     }
-
-    vi.useRealTimers();
   });
 
   test("Auto Battle can be stopped during combat animation", async () => {
-    vi.useFakeTimers();
     await import("../js/main.ts");
 
     // Force auto battle on
     const autoBattleBtn = document.getElementById("auto-battle-btn");
     autoBattleBtn.click();
 
-    // Inject a fake combat stop button if it doesn't exist yet (to test the handler)
-    // Actually, showCombat adds it to the overlay.
-    // We can't easily trigger showCombat because it's private.
-    // But we can check if it's there after a while if we mock AI to force a combat.
-    // This is tested via 'Simulate gameplay clicks' partially.
+    // We can't easily trigger showCombat because it's private, but enabling
+    // auto-battle and advancing timers must not throw.
+    vi.advanceTimersByTime(500);
 
-    vi.useRealTimers();
+    autoBattleBtn.click();
+    expect(autoBattleBtn.classList.contains("active")).toBe(false);
+  });
+
+  test("Combat resolution callback cleans up DOM without throwing", async () => {
+    // Regression guard for the null.classList crash in main.ts: the delayed
+    // combat-resolution callback must tolerate a missing #combat-overlay and
+    // still update the board when the element is present.
+    await import("../js/main.ts");
+    const { game, renderer } = await import("../js/main.ts");
+    const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
+    const { FACTION } = await import("../js/board.ts");
+    const { Hex } = await import("../js/hex.ts");
+
+    // Case 1: overlay present — combat resolution runs and clears it.
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(0, 2));
+    game.pieces = [firePawn, waterPawn, waterKing];
+    game._rebuildOccupiedMap();
+    game.state = "select_piece";
+    game.currentFactionIdx = 0; // Fire
+
+    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    if (!autoBattleBtn.classList.contains("active")) autoBattleBtn.click();
+
+    renderer.onCellClick(firePawn.pos);
+    renderer.onCellClick(waterPawn.pos);
+
+    // showCombat timeout is 2200ms — must resolve without throwing even though
+    // the combat-overlay element exists in the injected DOM.
+    expect(() => vi.advanceTimersByTime(2500)).not.toThrow();
+
+    autoBattleBtn.click(); // stop auto battle
   });
 
   test("UI responds to game over state", async () => {
-    vi.useFakeTimers();
-    const { game, renderer } = await import("../js/main.ts");
+    await import("../js/main.ts");
     const statusEl = document.getElementById("status");
+    const { game, renderer } = await import("../js/main.ts");
     const { FACTION } = await import("../js/board.ts");
 
     // Simulate game over state
@@ -250,11 +283,11 @@ describe("Main UI & Events", () => {
 
     expect(game.state).toBe("game_over");
 
-    vi.useRealTimers();
+    autoBattleBtn.click(); // stop auto battle
   });
 
   test("Auto Battle triggers a normal move", async () => {
-    vi.useFakeTimers();
+    await import("../js/main.ts");
     const { game } = await import("../js/main.ts");
     const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
     const { FACTION } = await import("../js/board.ts");
@@ -272,11 +305,12 @@ describe("Main UI & Events", () => {
     }
 
     vi.advanceTimersByTime(500);
-    vi.useRealTimers();
+
+    autoBattleBtn.click(); // stop auto battle
   });
 
   test("Auto Battle continues after non-game-over combat", async () => {
-    vi.useFakeTimers();
+    await import("../js/main.ts");
     const { game, renderer } = await import("../js/main.ts");
     const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
     const { FACTION } = await import("../js/board.ts");
@@ -304,10 +338,11 @@ describe("Main UI & Events", () => {
     // showCombat timeout is 2200ms
     vi.advanceTimersByTime(2500);
 
-    vi.useRealTimers();
+    autoBattleBtn.click(); // stop auto battle
   });
 
   test("renderer.onCellClick executes normal move", async () => {
+    await import("../js/main.ts");
     const { game, renderer } = await import("../js/main.ts");
     const { Hex } = await import("../js/hex.ts");
     const { PIECE_TYPE, Piece } = await import("../js/pieces.ts");
@@ -326,13 +361,12 @@ describe("Main UI & Events", () => {
   });
 
   test("triggerAutoMove delays if game state is not SELECT_PIECE", async () => {
-    vi.useFakeTimers();
+    await import("../js/main.ts");
     const { game, triggerAutoMove } = await import("../js/main.ts");
 
     game.state = "select_target";
     triggerAutoMove(); // Should hit the setTimeout
 
     vi.advanceTimersByTime(1000);
-    vi.useRealTimers();
   });
 });

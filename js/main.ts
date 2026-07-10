@@ -435,14 +435,14 @@ function updateUI(): void {
     if (el && game.eliminatedFactions.has(fac)) el.classList.add("eliminated");
   }
 
-  const rpsInfoEl = document.getElementById("rps-info") as HTMLElement;
+  const rpsInfoEl = document.getElementById("rps-info") as HTMLElement | null;
   if (game.rpsEnabled) {
-    rpsInfoEl.classList.remove("rps-inactive");
+    if (rpsInfoEl) rpsInfoEl.classList.remove("rps-inactive");
     document
       .querySelectorAll(".rps-hint")
       .forEach((el) => el.classList.remove("hidden"));
   } else {
-    rpsInfoEl.classList.add("rps-inactive");
+    if (rpsInfoEl) rpsInfoEl.classList.add("rps-inactive");
     document
       .querySelectorAll(".rps-hint")
       .forEach((el) => el.classList.add("hidden"));
