@@ -865,6 +865,13 @@ function triggerAutoMove(): void {
         }
       } else if (result && result.action === "combat") {
         addToLog(result);
+        // A combat can also trigger a pawn promotion: complete it so the
+        // game leaves the promotion state and Auto-Battle can continue.
+        if (result.promotion) {
+          const promoResult = game.completePromotion("queen");
+          if (promoResult) addToLog(promoResult);
+          updateUI();
+        }
         showCombat(result);
       } else {
         autoBattleActive = false;
