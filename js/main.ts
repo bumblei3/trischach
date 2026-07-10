@@ -68,6 +68,21 @@ declare global {
   }
 }
 
+// ─── Security: HTML escaping for dynamic values rendered via innerHTML ──
+// All externally-sourced data (puzzle SAN strings, captured-piece symbols
+// from loaded game files) must be escaped before being interpolated into an
+// innerHTML template, otherwise a crafted .tspn/.json file is a stored-XSS
+// vector. Internal enums (FACTION_COLORS, PIECE_TYPE names) are safe.
+
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── Settings Persistence (localStorage) ────────────────────────────────
 
 const STORAGE_KEY = "trischach-settings";
@@ -452,7 +467,7 @@ function updateUI(): void {
     const capEl = document.getElementById(`captures-${fac}`);
     if (capEl) {
       capEl.innerHTML = game.capturedPieces[fac]
-        .map((p) => `<span class="captured-piece">${p.symbol}</span>`)
+        .map((p) => `<span class="captured-piece">${escapeHtml(p.symbol)}</span>`)
         .join("");
     }
   }
@@ -1905,7 +1920,7 @@ function initEventListeners(): void {
         return `
         <div class="puzzle-move ${statusClass}">
           <span class="puzzle-move-number">${i + 1}.</span>
-          <span class="puzzle-move-san">${move.san}</span>
+          <span class="puzzle-move-san">${escapeHtml(move.san)}</span>
           <span class="puzzle-move-status ${statusClass}">${statusText}</span>
         </div>
       `;
