@@ -2,18 +2,29 @@
 /* eslint-env serviceworker */
 // Provides offline support and caching for PWA
 
-const CACHE_NAME = "trischach-v2";
-const STATIC_CACHE = "trischach-static-v2";
-const DYNAMIC_CACHE = "trischach-dynamic-v2";
+const CACHE_VERSION = "v3";
+const CACHE_NAME = `trischach-${CACHE_VERSION}`;
+const STATIC_CACHE = `trischach-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `trischach-dynamic-${CACHE_VERSION}`;
 
+// All JS chunks must be listed here. main.ts dynamically imports several
+// modules (board.js, hex.js, opening-book.js, game-check.js) at runtime; if
+// they are not pre-cached, a stale SW from a previous deploy can serve an old
+// main.js whose dynamic imports resolve to chunk names that no longer exist
+// after a new build → 404. Listing every chunk guarantees a consistent set.
 const STATIC_ASSETS = [
   "/",
   "/index.html",
   "/manifest.json",
   "/css/style.css",
   "/main.js",
+  "/ai.js",
   "/ai-core.js",
   "/ai-worker.js",
+  "/board.js",
+  "/hex.js",
+  "/game-check.js",
+  "/opening-book.js",
   "/opening-book.compiled.js",
 ];
 
