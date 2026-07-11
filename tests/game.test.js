@@ -167,6 +167,30 @@ describe("Game logic", () => {
     expect(waterQueen.alive).toBe(true);
   });
 
+  test("RPS disabled: combat always eliminates the defender (classic capture)", () => {
+    // With RPS off, a capture is a normal chess capture regardless of faction:
+    // the defender always dies, no advantage/disadvantage resolution.
+    game.rpsEnabled = false;
+    const firePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.QUEEN);
+    const naturePiece = game
+      .getAlivePieces()
+      .find((p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.QUEEN);
+    firePiece.pos = new Hex(0, 0);
+    naturePiece.pos = new Hex(0, 1);
+    game._rebuildOccupiedMap();
+    game.handleCellClick(firePiece.pos);
+    const result = game.handleCellClick(naturePiece.pos);
+    expect(result.action).toBe("combat");
+    // No RPS resolution -> the attacker wins, defender is always captured.
+    expect(naturePiece.alive).toBe(false);
+    expect(firePiece.alive).toBe(true);
+    expect(
+      game.capturedPieces[FACTION.FIRE].some((p) => p.id === naturePiece.id),
+    ).toBe(true);
+  });
+
   test("nextTurn skips eliminated factions", () => {
     game.eliminatedFactions.add(FACTION.WATER);
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
