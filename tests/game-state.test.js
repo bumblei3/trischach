@@ -205,3 +205,32 @@ describe("board.getRPSResult neutral branch", () => {
     expect(getRPSResult(FACTION.NATURE, FACTION.NATURE)).toBe("neutral");
   });
 });
+
+describe("restore() robustness", () => {
+  let game;
+  beforeEach(() => {
+    game = makeGame();
+  });
+
+  test("restore tolerates a captured id that no longer matches a live piece", () => {
+    // Capture a snapshot, then remove a piece from the board so its id is
+    // stale, then restore — the capturedPieces rebuild must skip the missing
+    // id (game.ts L602-603 `if (piece)` guard) instead of throwing.
+    const snap = game.snapshot();
+    const victim = game.pieces.find(
+      (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.PAWN,
+    );
+    // Record the victim as a captured piece of FIRE in the snapshot, then
+    // delete the victim from the live board so restore cannot find it.
+    snap.capturedPieces.fire.push(victim.id);
+    game.pieces = game.pieces.filter((p) => p.id !== victim.id);
+    game._rebuildOccupiedMap();
+
+    expect(() => game.restore(snap)).not.toThrow();
+    // The stale captured id is silently dropped, not added to capturedPieces.
+    const stillCaptured = game.capturedPieces[FACTION.FIRE].some(
+      (p) => p.id === victim.id,
+    );
+    expect(stillCaptured).toBe(false);
+  });
+});
