@@ -133,7 +133,7 @@ npm run lint
 ```
 
 - **591 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped)
-- **20 E2E Tests** ✅ (Playwright Firefox)
+- **20 E2E Tests** ✅ (Playwright Chromium)
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors)
 - **Coverage Gates:** 80% Thresholds, `vitest check: true`
@@ -150,7 +150,7 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 | ----------- | --------- | --------------------------------------------------------- |
 | `lint-test` | Push/PR   | TypeScript, ESLint, Unit Tests (Node 24), Coverage ≥80%   |
 | `codeql`    | Push/PR   | Security Scanning (JavaScript)                            |
-| `e2e-tests` | Push/PR   | Playwright E2E **Firefox** (Ubuntu 26.04 kompatibel)      |
+| `e2e-tests` | Push/PR   | Playwright E2E **Chromium** (Ubuntu 26.04 kompatibel)      |
 | `benchmark` | Push/PR   | Performance Benchmark (AI move timing)                    |
 | `release`   | Tag `v*`  | Auto GitHub Release mit Release Notes                     |
 | `deploy`    | Push main | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
@@ -162,7 +162,7 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 - Lint + Typecheck blocking (fail on errors)
 - E2E / CodeQL non-blocking (continue-on-error)
 
-**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts, Firefox statt Chromium → stabile E2E Runs
+**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts, Chromium statt Firefox → stabile E2E Runs
 
 ## 📜 Lizenz
 
