@@ -402,18 +402,20 @@ describe("Check Resolution in Game Flow", () => {
     //   (-2,+1)->(-3,2), (-1,+2)->(-2,3), (+1,+1)->(0,2)
     // (0,1) is NOT reachable. Good!
 
-    // Now verify no nature piece can capture the queen
-    console.log("Checking if any nature piece can capture queen at (0,1):");
-    for (const p of game.pieces.filter(
+    // Now verify no nature piece can capture the queen on (0,1).
+    // (If any could, the king would have an escape and it would not be mate.)
+    const queenHex = new Hex(0, 1);
+    const naturePieces = game.pieces.filter(
       (p) => p.faction === FACTION.NATURE && p.alive,
-    )) {
+    );
+    for (const p of naturePieces) {
       const m = game.getLegalMoves(p);
-      const canCaptureQueen = m.attacks.some((a) => a.equals(new Hex(0, 1)));
-      if (canCaptureQueen || m.moves.some((m) => m.equals(new Hex(0, 1)))) {
-        console.log("  PROBLEM:", p.type, p.pos.toString(), "can reach queen!");
-      } else {
-        console.log("  OK:", p.type, p.pos.toString(), "cannot reach queen");
-      }
+      const canReachQueen =
+        m.attacks.some((a) => a.equals(queenHex)) ||
+        m.moves.some((mv) => mv.equals(queenHex));
+      expect(canReachQueen, `${p.type} at ${p.pos} must NOT reach queen`).toBe(
+        false,
+      );
     }
 
     expect(game.isKingInCheck(FACTION.NATURE)).toBe(true);

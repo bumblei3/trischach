@@ -141,7 +141,9 @@ describe("Game logic", () => {
     game._rebuildOccupiedMap();
     game.handleCellClick(firePiece.pos);
     const result = game.handleCellClick(waterPiece.pos);
-    if (result.action === "deselect") return;
+    // The test sets up an adjacent attacker/defender pair, so the second
+    // click must resolve as combat (not a stray deselect that would
+    // silently skip the assertions below).
     expect(result.action).toBe("combat");
     expect(result.rpsResult).toBe("disadvantage");
     expect(waterPiece.alive).toBe(true);

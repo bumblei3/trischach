@@ -109,6 +109,23 @@ describe("serializeGame / parseTSPN round-trip", () => {
     expect(parsed.moves).toEqual([]);
   });
 
+  test("cloneGameState copies captured pieces for all three factions", () => {
+    // Exercises the water/nature branches of the capturedPieces
+    // serialization (replay.ts:623-624) that the fire-only move
+    // fixtures skip.
+    const game = makeGameLike({
+      capturedPieces: {
+        fire: [{ id: "np1", type: "pawn", faction: "nature" }],
+        water: [{ id: "fp1", type: "rook", faction: "fire" }],
+        nature: [{ id: "wp1", type: "bishop", faction: "water" }],
+      },
+    });
+    const clone = cloneGameState(game);
+    expect(clone.capturedPieces.fire).toEqual(["np1"]);
+    expect(clone.capturedPieces.water).toEqual(["fp1"]);
+    expect(clone.capturedPieces.nature).toEqual(["wp1"]);
+  });
+
   test("parseMoveText parses the real faction_PieceType_q,r format", () => {
     const moves = parseMoveText("1. fire_Pawn_0,1 2. water_King_2,2");
     expect(moves.length).toBe(2);
