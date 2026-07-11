@@ -215,4 +215,41 @@ describe("game-check: legal move filtering", () => {
     // any attack that leaves the king in check is filtered out
     expect(attacks.length).toBe(0);
   });
+
+  test("getLegalMoves forbids a king move into a square under attack", () => {
+    // Fire king at (0,0); a water rook on (0,3) controls the entire r-axis.
+    // The king may NOT step to (0,1) or (0,2) (both inside the rook's line),
+    // even though they are empty. Only squares outside the rook's attack that
+    // are not occupied by a friendly piece are legal.
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    const king = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
+    );
+    const { moves } = getLegalMoves(game, king);
+    // (0,1) and (0,2) are attacked by the rook -> never legal king targets.
+    const intoCheck = moves.some((m) => m.q === 0 && (m.r === 1 || m.r === 2));
+    expect(intoCheck).toBe(false);
+    // The king must have at least one escape off the rook's axis.
+    expect(moves.length).toBeGreaterThan(0);
+    expect(moves.every((m) => !(m.q === 0 && m.r > 0))).toBe(true);
+  });
+
+  test("getLegalMoves allows a king to escape check to a safe square", () => {
+    // Fire king at (0,0) in check from a water rook on (0,3). The king can
+    // step off the r-axis to a safe neighbor (e.g. (1,0)) and that move is
+    // legal (it removes the check).
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    const king = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
+    );
+    const { moves } = getLegalMoves(game, king);
+    // Stepping to (1,0) leaves the rook's file -> must be a legal escape.
+    expect(moves.some((m) => m.q === 1 && m.r === 0)).toBe(true);
+  });
 });

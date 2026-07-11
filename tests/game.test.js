@@ -531,6 +531,35 @@ describe("Game Over: last faction standing", () => {
     ).toBe(0);
   });
 
+  test("a disadvantage combat (RPS loss) kills the attacker through handleCellClick", () => {
+    // Fire loses to Water in RPS. A Fire attacker capturing a Water piece must
+    // die itself and the Water defender must survive — the symmetric rule to
+    // the advantage case, exercised through the real handleCellClick flow
+    // (not just simulateMove).
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    g.pieces = [firePawn, waterPawn, fireKing, waterKing];
+    g._rebuildOccupiedMap();
+    g.currentFactionIdx = 0; // FIRE to move
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    g.handleCellClick(new Hex(0, 2)); // select fire pawn
+    const r = g.handleCellClick(new Hex(0, 1)); // capture water pawn
+
+    expect(r.action).toBe("combat");
+    expect(r.rpsResult).toBe("disadvantage");
+    expect(firePawn.alive).toBe(false); // attacker died
+    expect(waterPawn.alive).toBe(true); // defender survived
+    expect(g.eliminatedFactions.has(FACTION.FIRE)).toBe(false); // no king died
+    // Turn advances to the next living faction (Water) despite the attacker dying.
+    expect(g.currentFaction).toBe(FACTION.WATER);
+  });
   test("eliminating the 2nd-last faction ends the game with a winner", () => {
     // When only one faction remains after an elimination, the game must end
     // and declare that faction the winner (game.ts:398-403). Drive it with a

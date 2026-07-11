@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across six iterations (565 → 579 passing unit tests,
-  no skips, `tsc --noEmit` clean):
+- Test-suite hardening across thirteen iterations (565 → 591 passing unit
+  tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
     *consecutive* occurrences of the same position hash — an intervening
@@ -49,6 +49,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `game.snapshot()` → `game.restore(snap)` reproduces the exact state and is a
     true deep copy (mutating the restored game does not leak back into the
     snapshot). Protects the undo/AI snapshot path.
+  - **AI search honors a tight time limit** (`tests/integration.test.js`):
+    `calculateBestMove` returns well within a hard ceiling (regression guard for
+    the 1.1.1 CI hang) even with an artificially low `MAX_SEARCH_MS`.
+  - **Undo reverts a stalemate elimination** (`tests/game-state.test.js`):
+    the undo path restores a stalemate-eliminated faction (not only a
+    king-capture elimination).
+  - **Threefold repetition over the full handleCellClick flow** (`tests/game-draw.test.js`):
+    a 4-ply knight-commutation that returns to the same position with the same
+    side-to-move triggers `DRAW_REPETITION` end-to-end (not just the isolated
+    `_updateDrawState` unit).
+  - **Undo reverts a promotion** (`tests/promotion.test.js`): a promoted pawn is
+    demoted back to a pawn (and returned to its pre-promo square) by `undo()`.
+  - **Pinned piece cannot move** (`tests/check.test.js`): a pinned pawn that
+    would expose its own king to check is rejected by `handleCellClick` (the
+    pawn stays put, turn does not advance).
+  - **King may not move into check / may escape check** (`tests/game-check.test.js`):
+    `getLegalMoves` excludes king squares under attack and keeps the legal
+    escape square.
+  - **handleCellClick is a no-op after the game ends** (`tests/promotion.test.js`):
+    clicks in `GAME_OVER` / draw states return `null` and leave state untouched.
+  - **RPS disadvantage kills the attacker** (`tests/game.test.js`,
+    `tests/promotion.test.js`): through both `handleCellClick` and
+    `simulateMove`, a disadvantaged attacker dies and the defender survives
+    (symmetric counterpart to the advantage case).
+  - **50-move rule over the full handleCellClick flow** (`tests/game-draw.test.js`):
+    a quiet move reaching 100 half-moves ends in `DRAW_50MOVE`, while a capture
+    resets the clock to 0 and prevents the draw — both verified end-to-end.
 
 ### Fixed
 
