@@ -149,7 +149,6 @@ const svg = document.getElementById("board-svg") as unknown as SVGSVGElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const turnEl = document.getElementById("turn-indicator") as HTMLElement;
 const rpsInfoEl = document.getElementById("rps-info") as HTMLElement;
-const combatOverlay = document.getElementById("combat-overlay") as HTMLElement;
 const promotionOverlay = document.getElementById(
   "promotion-overlay",
 ) as HTMLElement;
@@ -909,13 +908,14 @@ function showCombat(result: GameResult): void {
   if (!piece || !defender) return;
   const combatOverlay = document.getElementById(
     "combat-overlay",
-  ) as HTMLElement;
+  ) as HTMLElement | null;
   const attColor = FACTION_COLORS[piece.faction];
   const defColor = FACTION_COLORS[defender.faction];
   const rps = result.rpsResult;
 
   sounds.playCombat();
 
+  if (!combatOverlay) return; // Overlay missing (e.g. headless) — nothing to render
   combatOverlay.innerHTML = `
     <div class="combat-box">
       <div class="combat-fighters">
@@ -944,7 +944,7 @@ function showCombat(result: GameResult): void {
       ${autoBattleActive && !result.gameOver ? `<button id="stop-auto-combat" class="combat-stop-btn">⏹ Auto Battle Stoppen</button>` : ""}
     </div>
   `;
-  combatOverlay.classList.add("visible");
+  if (combatOverlay) combatOverlay.classList.add("visible");
 
   const stopBtn = document.getElementById("stop-auto-combat");
   if (stopBtn) {
@@ -2218,7 +2218,7 @@ function initEventListeners(): void {
       | "tactical";
     setAIPersonality(personality);
     if (aiWorker && workerReady) {
-      aiWorker.postMessage({ type: "setPersonality", depth: personality });
+      aiWorker.postMessage({ type: "setPersonality", personality });
     }
     saveSettings({ ...loadSettings(), aiPersonality: personality });
   });

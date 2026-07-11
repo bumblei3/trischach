@@ -125,7 +125,7 @@ const ctx: Worker = self as unknown as Worker;
 ctx.postMessage({ type: "ready" });
 
 ctx.onmessage = function (e: MessageEvent) {
-  const { type, gameState, faction, depth } = e.data as any;
+  const { type, gameState, faction, depth, personality } = e.data as any;
 
   if (type === "calculate") {
     // Reconstruct game object from serialized state
@@ -213,7 +213,7 @@ ctx.onmessage = function (e: MessageEvent) {
   } else if (type === "setDepth") {
     setAIDepth(depth);
   } else if (type === "setPersonality") {
-    _workerPersonality = depth; // Note: bug in original - should be faction/personality param
+    _workerPersonality = personality;
   } else if (type === "initBook") {
     _bookBuilt = true;
     ctx.postMessage({ type: "bookReady" });
