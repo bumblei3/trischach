@@ -625,4 +625,44 @@ describe("Game Over: last faction standing", () => {
     // The attacker moves onto the captured square.
     expect(firePawn.pos.equals(new Hex(0, 1))).toBe(true);
   });
+
+  test("clicking a non-target cell deselects; clicking own piece reselects", () => {
+    // Once a piece is selected (SELECT_TARGET), handleCellClick must only act
+    // on valid move/attack squares. A click on a square that is neither a valid
+    // move nor attack must CANCEL the selection (deselect) without moving,
+    // while a click on another friendly piece must RESELECT it. This guards the
+    // UI against accidental moves into empty/off-board cells.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    g.pieces = [firePawn, fireKing, waterKing];
+    g._rebuildOccupiedMap();
+    g.currentFactionIdx = 0; // FIRE to move
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    // Select the pawn.
+    const sel = g.handleCellClick(new Hex(0, 2));
+    expect(sel.action).toBe("select");
+    expect(g.state).toBe(GAME_STATE.SELECT_TARGET);
+
+    // Click a square that is NOT a valid move or attack (far away) -> deselect.
+    const bad = g.handleCellClick(new Hex(5, -5)); // water king's square, unreachable
+    expect(bad.action).toBe("deselect");
+    expect(g.selectedPiece).toBeNull();
+    expect(g.state).toBe(GAME_STATE.SELECT_PIECE);
+    expect(firePawn.pos.equals(new Hex(0, 2))).toBe(true); // pawn did NOT move
+
+    // Re-select the pawn, then click the friendly king -> reselect the king.
+    g.handleCellClick(new Hex(0, 2));
+    expect(g.selectedPiece?.id).toBe(firePawn.id);
+    const re = g.handleCellClick(new Hex(-5, 5)); // own king
+    expect(re.action).toBe("select"); // reselection of a new piece
+    expect(g.selectedPiece?.id).toBe(fireKing.id); // king is now selected
+    expect(g.state).toBe(GAME_STATE.SELECT_TARGET);
+  });
 });

@@ -359,6 +359,52 @@ describe("undo() restores an eliminated faction", () => {
   }
 });
 
+describe("undo() after a game-ending move", () => {
+  let game;
+  beforeEach(() => {
+    game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = true;
+    // Only two factions on the board: Fire queen can capture the Nature king
+    // (Fire beats Nature = advantage). Killing the last Nature piece ends the
+    // game (only Fire remains). We then undo and verify the game returns to a
+    // playable state (not stuck in GAME_OVER).
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
+    game.pieces = [fireQueen, natureKing];
+    game._rebuildOccupiedMap();
+    game.eliminatedFactions.add(FACTION.WATER); // no water pieces on board
+    game.currentFactionIdx = 0; // FIRE to move
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+  });
+
+  test("undo reverts a game-over move back to a playable state", () => {
+    // Fire queen captures the Nature king -> only Fire remains -> GAME_OVER.
+    game.handleCellClick(new Hex(0, 0));
+    const result = game.handleCellClick(new Hex(0, 1));
+    expect(result.gameOver).toBe(true);
+    expect(game.state).toBe(GAME_STATE.GAME_OVER);
+    expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
+
+    // Undo the game-ending move: the Nature king must be revived, Nature
+    // de-eliminated, and the game playable again (NOT stuck at GAME_OVER).
+    const restored = game.undo();
+    expect(restored).not.toBeNull();
+    expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(false);
+    const revivedKing = game.pieces.find(
+      (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
+    );
+    expect(revivedKing.alive).toBe(true);
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    expect(game.state).toBe(GAME_STATE.SELECT_PIECE); // playable again
+  });
+});
+
 describe("post-move stalemate eliminates the stalemated faction", () => {
   let game;
   beforeEach(() => {
