@@ -364,10 +364,11 @@ export class Game {
     this.state = GAME_STATE.SELECT_PIECE;
 
     // Check for checkmate or stalemate of any faction that is in check
+    // or stalemated (no legal moves but not in check = patt).
     let checkedFaction: Faction | null = null;
     for (const fac of TURN_ORDER) {
       if (this.eliminatedFactions.has(fac)) continue;
-      if (this.isKingInCheck(fac)) {
+      if (this.isKingInCheck(fac) || this.isStalemate(fac)) {
         checkedFaction = fac;
         break;
       }

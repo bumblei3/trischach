@@ -90,6 +90,12 @@ function hasLegalMoves(game: IGame, faction: Faction): boolean {
  * Check if `faction` is in checkmate.
  */
 export function isCheckmateInternal(game: IGame, faction: Faction): boolean {
+  const hasKing = game.pieces.some(
+    (p: Piece) =>
+      p.faction === faction && p.type === PIECE_TYPE.KING && p.alive,
+  );
+  // No living king -> faction already eliminated, not in checkmate.
+  if (!hasKing) return false;
   if (!isKingdomCheck(game, faction)) return false;
   return !hasLegalMoves(game, faction);
 }
@@ -98,6 +104,12 @@ export function isCheckmateInternal(game: IGame, faction: Faction): boolean {
  * Check if `faction` is in stalemate.
  */
 export function isStalemateInternal(game: IGame, faction: Faction): boolean {
+  const hasKing = game.pieces.some(
+    (p: Piece) =>
+      p.faction === faction && p.type === PIECE_TYPE.KING && p.alive,
+  );
+  // No living king -> faction already eliminated, not in stalemate.
+  if (!hasKing) return false;
   if (isKingdomCheck(game, faction)) return false;
   return !hasLegalMoves(game, faction);
 }

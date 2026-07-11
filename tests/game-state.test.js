@@ -267,3 +267,50 @@ describe("restore() robustness", () => {
     expect(stillCaptured).toBe(false);
   });
 });
+
+describe("post-move stalemate eliminates the stalemated faction", () => {
+  let game;
+  beforeEach(() => {
+    game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = false;
+    // Water king cornered at (7,-7): no legal moves AND not in check
+    // -> isStalemate(WATER) === true (verified), isCheckmate === false.
+    // Fire + Nature kings stay alive so eliminating Water is NOT game over;
+    // this isolates the stalemate-elimination branch (game.ts:382).
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(7, -7));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(-3, 3),
+    );
+    // A Fire pawn that can make a legal move this turn.
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 4));
+    game.pieces = [waterKing, fireKing, natureKing, firePawn];
+    game._rebuildOccupiedMap();
+    // FIRE to move; Water is already stalemated.
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+  });
+
+  test("water is stalemated (not checkmated) before the move", () => {
+    expect(game.isCheckmate(FACTION.WATER)).toBe(false);
+    expect(game.isStalemate(FACTION.WATER)).toBe(true);
+  });
+
+  test("a fire move eliminates the stalemated water faction", () => {
+    game.handleCellClick(game.pieces[3].pos); // select fire pawn
+    const target = game.validMoves[0];
+    const result = game.handleCellClick(target);
+
+    // The stalemate branch must fire: result.stalemate names WATER,
+    // the faction is eliminated, and it is NOT game over (Fire+Nature live).
+    expect(result.stalemate).toBe(FACTION.WATER);
+    expect(result.elimination).toBe(FACTION.WATER);
+    expect(game.eliminatedFactions.has(FACTION.WATER)).toBe(true);
+    expect(game.state).not.toBe(GAME_STATE.GAME_OVER);
+    expect(result.gameOver).toBeFalsy();
+  });
+});
