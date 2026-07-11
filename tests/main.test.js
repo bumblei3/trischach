@@ -284,17 +284,29 @@ describe("Main UI & Events", () => {
     const { Hex } = await import("../js/hex.ts");
 
     // Give AI a piece that can move but NOT attack
-    game.pieces = [new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5))];
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.state = "select_piece";
     game.currentFactionIdx = 0; // Fire
+
+    const movesBefore = game.moveHistory.length;
+    const posBefore = pawn.pos.key;
 
     const autoBattleBtn = document.getElementById("auto-battle-btn");
     if (!autoBattleBtn.classList.contains("active")) {
       autoBattleBtn.click();
     }
 
-    vi.advanceTimersByTime(500);
+    // Advance past the auto-move timer (500ms in main.ts).
+    // Use the async variant: triggerAutoMove awaits import()/worker
+    // promises, which only flush under fake timers via the *Async API.
+    await vi.advanceTimersByTimeAsync(500);
+
+    // Auto Battle must have actually moved the pawn (new history entry +
+    // position changed), not just toggled the button.
+    expect(game.moveHistory.length).toBeGreaterThan(movesBefore);
+    expect(pawn.pos.key).not.toBe(posBefore);
 
     autoBattleBtn.click(); // stop auto battle
   });
@@ -355,8 +367,15 @@ describe("Main UI & Events", () => {
     const { game, triggerAutoMove } = await import("../js/main.ts");
 
     game.state = "select_target";
-    triggerAutoMove(); // Should hit the setTimeout
+    game.moveHistory = [];
+    triggerAutoMove(); // Should hit the setTimeout, NOT move synchronously
 
-    vi.advanceTimersByTime(1000);
+    // The whole point of the guard is that the move is deferred to a
+    // timer, so no game state may change synchronously here.
+    expect(game.moveHistory.length).toBe(0);
+
+    // Flush the (async) timer; use the async variant so the awaited
+    // import()/worker promises inside the callback resolve.
+    await vi.advanceTimersByTimeAsync(1000);
   });
 });
