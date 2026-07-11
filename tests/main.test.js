@@ -17,7 +17,7 @@ import path from "path";
 const htmlPath = path.resolve(__dirname, "../index.html");
 const htmlContent = fs.readFileSync(htmlPath, "utf-8");
 const doc = new DOMParser().parseFromString(htmlContent, "text/html");
-doc.querySelectorAll("script").forEach((s) => s.remove());
+doc.querySelectorAll("script, link").forEach((s) => s.remove());
 const bodyHTML = doc.body.innerHTML;
 
 // Mock fetch globally BEFORE any module loads (happy-dom SyncFetch uses this)
