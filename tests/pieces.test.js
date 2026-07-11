@@ -193,4 +193,50 @@ describe("Piece movements", () => {
     expect(moves.length).toBe(0);
     expect(attacks.length).toBe(0);
   });
+
+  test("Pawn double-step is allowed on its first move when path is clear", () => {
+    const pawn = {
+      type: PIECE_TYPE.PAWN,
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 5),
+      hasMoved: false,
+      forwardDir: new Hex(0, -1), // Fire moves up
+    };
+    const { moves } = getValidMoves(pawn, mockCells, buildOccupied([]));
+    // single step (0,4) and double step (0,3) both present
+    expect(moves.some((m) => m.equals(new Hex(0, 4)))).toBe(true);
+    expect(moves.some((m) => m.equals(new Hex(0, 3)))).toBe(true);
+  });
+
+  test("Pawn double-step is blocked when the intermediate square is occupied", () => {
+    const pawn = {
+      type: PIECE_TYPE.PAWN,
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 5),
+      hasMoved: false,
+      forwardDir: new Hex(0, -1),
+    };
+    const blocker = {
+      type: PIECE_TYPE.PAWN,
+      faction: FACTION.WATER,
+      pos: new Hex(0, 4), // intermediate square
+      alive: true,
+    };
+    const { moves } = getValidMoves(pawn, mockCells, buildOccupied([blocker]));
+    // double step (0,3) must NOT be reachable; single (0,4) is blocked too
+    expect(moves.some((m) => m.equals(new Hex(0, 3)))).toBe(false);
+  });
+
+  test("Pawn that has already moved does not get a double-step", () => {
+    const pawn = {
+      type: PIECE_TYPE.PAWN,
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 5),
+      hasMoved: true,
+      forwardDir: new Hex(0, -1),
+    };
+    const { moves } = getValidMoves(pawn, mockCells, buildOccupied([]));
+    expect(moves.some((m) => m.equals(new Hex(0, 3)))).toBe(false);
+    expect(moves.some((m) => m.equals(new Hex(0, 4)))).toBe(true);
+  });
 });

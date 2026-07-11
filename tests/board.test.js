@@ -9,6 +9,16 @@ import {
 } from "../js/board.ts";
 import { Hex } from "../js/hex.ts";
 
+// Touch-event test helpers (shared across describe blocks). The BoardRenderer
+// touch handlers only read `changedTouches` and `preventDefault`, so a plain
+// object suffices — happy-dom's TouchEvent support is not required.
+function makeTouch(id, x, y) {
+  return { identifier: id, clientX: x, clientY: y };
+}
+function makeTouchEvent(type, touches) {
+  return { type, changedTouches: touches, preventDefault: () => {} };
+}
+
 describe("Board Generator & Logic", () => {
   test("generateBoard creates exactly 66 cells", () => {
     const cells = generateBoard();
@@ -344,21 +354,6 @@ describe("BoardRenderer — touch rotation gestures", () => {
   let svgContainer;
   let renderer;
 
-  function makeTouch(id, x, y) {
-    return { identifier: id, clientX: x, clientY: y };
-  }
-
-  function makeTouchEvent(type, touches) {
-    // happy-dom may not implement TouchEvent; the handlers only read
-    // `changedTouches` and `preventDefault`, so a plain object suffices.
-    const event = {
-      type,
-      changedTouches: touches,
-      preventDefault: () => {},
-    };
-    return event;
-  }
-
   beforeEach(() => {
     document.body.innerHTML = '<svg id="board-svg"></svg>';
     svgContainer = document.getElementById("board-svg");
@@ -513,5 +508,49 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
       new Hex(1, 1),
     );
     expect(result).toBeUndefined();
+  });
+
+  test("_onTouchMove bails out when a touch was lifted mid-gesture (≠2 touches)", () => {
+    renderer._touchState.isRotating = true;
+    renderer._touchState.touches.set(1, { clientX: 0, clientY: 0 });
+    renderer._touchState.touches.set(2, { clientX: 100, clientY: 0 });
+    // Only one touch remains in changedTouches (the other was lifted) and the
+    // recorded state still has 2 -> after the update loop the array has length 1
+    renderer._touchState.touches.delete(2);
+    renderer._onTouchMove(
+      makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]),
+    );
+    expect(renderer.currentRotation).toBe(0);
+  });
+
+  test("renderPiece long-press: contextmenu triggers onPieceLongPress", () => {
+    const onPieceLongPress = vi.fn();
+    renderer.onPieceLongPress = onPieceLongPress;
+    const piece = {
+      id: "lp",
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 0),
+      symbol: "P",
+    };
+    renderer.renderPiece(piece);
+    const el = renderer.pieceElements.get("lp").element;
+    const evt = new window.Event("contextmenu");
+    evt.preventDefault = () => {};
+    evt.clientX = 12;
+    evt.clientY = 34;
+    el.dispatchEvent(evt);
+    expect(onPieceLongPress).toHaveBeenCalledTimes(1);
+    const arg = onPieceLongPress.mock.calls[0][1];
+    expect(arg).toEqual({ clientX: 12, clientY: 34 });
+  });
+
+  test("renderPiece long-press: onPressEnd with no pending timer is a no-op", () => {
+    // Cover the `if (pressTimer)` false branch in onPressEnd.
+    const piece = { id: "lp2", faction: FACTION.FIRE, pos: new Hex(0, 0), symbol: "P" };
+    renderer.renderPiece(piece);
+    const el = renderer.pieceElements.get("lp2").element;
+    const up = new window.Event("pointerup");
+    // No pointerdown happened first -> pressTimer is null -> clearTimeout skipped
+    expect(() => el.dispatchEvent(up)).not.toThrow();
   });
 });

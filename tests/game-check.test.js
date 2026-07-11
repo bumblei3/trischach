@@ -186,4 +186,20 @@ describe("game-check: legal move filtering", () => {
     const { moves, attacks } = getLegalMoves(game, pawn);
     expect(moves.length + attacks.length).toBe(0);
   });
+
+  test("getLegalMoves drops an attack that would expose the own king", () => {
+    // Fire king at (0,0); a fire pawn at (1,0) could attack a water piece at
+    // (2,0), but doing so exposes the king to a water rook on the same rank.
+    setPieces([
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(3, 0)),
+    ]);
+    const pawn = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+    );
+    const { attacks } = getLegalMoves(game, pawn);
+    // any attack that leaves the king in check is filtered out
+    expect(attacks.length).toBe(0);
+  });
 });
