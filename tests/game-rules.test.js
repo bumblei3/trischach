@@ -103,13 +103,25 @@ describe("Game rules: direct unit tests", () => {
     });
 
     test("legal moves never leave the king in check (filter applied)", () => {
-      // For the initial position no piece is in check, so all raw moves pass
-      const king = game.pieces.find(
-        (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
-      );
+      // Fire king at (0,0) is in check from a Water rook on the
+      // same line at (0,-2): the rook controls (0,-1) and (0,0).
+      // A raw king move to (0,-1) would step onto the rook's line
+      // and remain in check, so the legal-move filter must drop it.
+      const king = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
+      const rook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, -2));
+      game.pieces = [king, rook];
+      for (const p of game.pieces) p.alive = true;
+      game.eliminatedFactions = new Set();
+      game.rpsEnabled = false;
+      game._rebuildOccupiedMap();
+
+      expect(game.isKingInCheck(FACTION.FIRE)).toBe(true);
+
       const { moves } = game.getLegalMoves(king);
-      // King has some legal escape squares in the starting position
-      expect(moves.length).toBeGreaterThanOrEqual(0);
+      // The (0,-1) hex is on the rook's line, so the king may NOT
+      // move there without staying in check.
+      const stepsIntoCheck = moves.some((m) => m.equals(new Hex(0, -1)));
+      expect(stepsIntoCheck).toBe(false);
     });
   });
 
