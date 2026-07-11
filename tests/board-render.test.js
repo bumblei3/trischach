@@ -107,4 +107,26 @@ describe("BoardRenderer — rendering & state", () => {
     const groups = svgContainer.querySelectorAll(`[data-piece-id="${p.id}"]`);
     expect(groups.length).toBe(1);
   });
+
+  test("setRotation counter-rotates piece symbols so they stay upright", () => {
+    const p = makePiece("p5", FACTION.FIRE, 0, 0, "♙");
+    renderer.renderPiece(p);
+    renderer.setRotation(120);
+    expect(renderer.currentRotation).toBe(120);
+    // The piece symbol must be rotated by -currentRotation so it remains
+    // readable when the whole board is rotated.
+    const el = renderer.pieceElements.get(p.id).element;
+    const symbol = el.querySelector(".piece-symbol");
+    expect(symbol.style.transform).toContain("rotate(-120deg)");
+  });
+
+  test("setRotation back to 0 restores upright symbols", () => {
+    const p = makePiece("p6", FACTION.WATER, 1, 1, "♟");
+    renderer.renderPiece(p);
+    renderer.setRotation(240);
+    renderer.setRotation(0);
+    const el = renderer.pieceElements.get(p.id).element;
+    const symbol = el.querySelector(".piece-symbol");
+    expect(symbol.style.transform).toContain("rotate(0deg)");
+  });
 });
