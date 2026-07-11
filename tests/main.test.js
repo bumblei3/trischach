@@ -10,25 +10,15 @@ import {
 import fs from "fs";
 import path from "path";
 
-// Read index.html to inject into JSDOM
+// Read index.html to inject into the test DOM. happy-dom provides DOMParser,
+// so we parse + extract the body and strip <script> tags via the DOM API
+// (no regex-based HTML filtering, which CodeQL flags as unsafe).
 // eslint-disable-next-line no-undef
 const htmlPath = path.resolve(__dirname, "../index.html");
 const htmlContent = fs.readFileSync(htmlPath, "utf-8");
-const bodyMatch = htmlContent.match(
-  new RegExp("<body[^>]*>([\\s\\S]*)<\\/body>", "i"),
-);
-let bodyHTML = bodyMatch ? bodyMatch[1] : htmlContent;
-// Remove ALL script tags (including module scripts with src) via DOM parsing
-// instead of regex to avoid incomplete-sanitization warnings.
-try {
-  const doc = new DOMParser().parseFromString(bodyHTML, "text/html");
-  doc.querySelectorAll("script").forEach((s) => s.remove());
-  bodyHTML = doc.body.innerHTML;
-} catch {
-  // Fallback for environments without DOMParser: strip scripts with a guarded
-  // single-purpose regex.
-  bodyHTML = bodyHTML.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
-}
+const doc = new DOMParser().parseFromString(htmlContent, "text/html");
+doc.querySelectorAll("script").forEach((s) => s.remove());
+const bodyHTML = doc.body.innerHTML;
 
 // Mock fetch globally BEFORE any module loads (happy-dom SyncFetch uses this)
 const fetchMock = vi.hoisted(() => {
