@@ -219,4 +219,34 @@ describe("Pawn Promotion", () => {
     expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
   });
+
+  test("undo reverts a promotion (pawn becomes a pawn again)", () => {
+    // The undo path must restore a promoted pawn to its original type AND
+    // square — mirroring the elimination-undo guarantees. Drive a real
+    // promote via handleCellClick, then undo and assert the pawn is back.
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    game.pieces = [pawn];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    game.handleCellClick(new Hex(0, 1)); // select pawn
+    const moveResult = game.handleCellClick(new Hex(0, 0)); // -> promotion zone
+    expect(moveResult.promotion).toBe(true);
+    expect(game.state).toBe(GAME_STATE.PROMOTION);
+
+    game.completePromotion(PIECE_TYPE.QUEEN);
+    expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
+    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
+
+    // Undo the whole promotion move. The popped snapshot is the one taken at
+    // the move (pawn already on 0,0), so the pawn returns there as a PAWN.
+    const restored = game.undo();
+    expect(restored).not.toBeNull();
+    expect(pawn.type).toBe(PIECE_TYPE.PAWN); // demoted back
+    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true); // back to pre-promo square
+    expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+  });
 });

@@ -203,6 +203,25 @@ describe("Game logic", () => {
     expect(game.currentFaction).toBe(FACTION.NATURE);
   });
 
+  test("nextTurn skips TWO eliminated factions and lands on the sole survivor", () => {
+    // When Water AND Nature are eliminated, a Fire move must advance the turn
+    // back onto Fire itself (the only remaining faction) without spinning
+    // through the eliminated ones. This exercises the do/while skip loop in
+    // _nextTurn for the 2-eliminated case — the historically infinite-loop
+    // prone path.
+    game.eliminatedFactions.add(FACTION.WATER);
+    game.eliminatedFactions.add(FACTION.NATURE);
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [firePawn];
+    game._rebuildOccupiedMap();
+    game.handleCellClick(firePawn.pos);
+    const result = game.handleCellClick(new Hex(0, 4));
+    expect(result.action).toBe("move");
+    // Turn must wrap back to the sole survivor (Fire), never to a dead faction.
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    expect(game.eliminatedFactions.has(game.currentFaction)).toBe(false);
+  });
+
   test("handleCellClick returns null in invalid state or game over", () => {
     game.state = GAME_STATE.GAME_OVER;
     expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
@@ -466,5 +485,79 @@ describe("Draw Rules: Integration with handleCellClick", () => {
     expect(result).not.toBeNull();
     expect(result.draw).toBe(true);
     expect(g.state).toBe(GAME_STATE.DRAW_50MOVE);
+  });
+});
+
+describe("Game Over: last faction standing", () => {
+  test("a checkmating move eliminates the mated faction (checkmate, not stalemate)", () => {
+    // A real checkmate must eliminate the mated faction, mirroring the
+    // stalemate-elimination rule. Drive it through handleCellClick: Water rocks
+    // the Fire king into a back-rank mate, then Fire is eliminated.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
+    const firePawn1 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, 0));
+    const firePawn2 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, -1));
+    const firePawn3 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    const firePawn4 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(-1, 0));
+    const firePawn5 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(-1, 1));
+    const waterRook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3));
+    g.pieces = [
+      fireKing,
+      firePawn1,
+      firePawn2,
+      firePawn3,
+      firePawn4,
+      firePawn5,
+      waterRook,
+    ];
+    g._rebuildOccupiedMap();
+    // Water to move; rook delivers mate by sliding to (0,2).
+    g.currentFactionIdx = 1; // WATER
+    g.currentFaction = FACTION.WATER;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    g.handleCellClick(waterRook.pos); // select rook
+    const r = g.handleCellClick(new Hex(0, 2)); // rook to (0,2) -> back-rank mate
+    // The move is recorded as a checkmate of FIRE (set before elimination).
+    expect(r.checkmate).toBe(FACTION.FIRE);
+    // Checkmate (not stalemate) eliminates the mated faction.
+    expect(g.eliminatedFactions.has(FACTION.FIRE)).toBe(true);
+    // Fire pieces are killed off on elimination.
+    expect(
+      g.pieces.filter((p) => p.faction === FACTION.FIRE && p.alive).length,
+    ).toBe(0);
+  });
+
+  test("eliminating the 2nd-last faction ends the game with a winner", () => {
+    // When only one faction remains after an elimination, the game must end
+    // and declare that faction the winner (game.ts:398-403). Drive it with a
+    // real capture of the last enemy king; the other faction is pre-marked
+    // eliminated so the post-capture checkmate cascade does not also remove it.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 1));
+    g.pieces = [fireQueen, natureKing];
+    g._rebuildOccupiedMap();
+    // Pre-state: Water already eliminated, Nature still standing.
+    g.eliminatedFactions.add(FACTION.WATER);
+    g.currentFactionIdx = 0;
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    // Fire queen captures Nature king -> only Fire remains -> GAME_OVER.
+    g.handleCellClick(fireQueen.pos);
+    const r = g.handleCellClick(natureKing.pos);
+    expect(r.loser?.type).toBe(PIECE_TYPE.KING);
+    expect(g.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
+    expect(g.eliminatedFactions.has(FACTION.WATER)).toBe(true);
+    expect(g.state).toBe(GAME_STATE.GAME_OVER);
+    expect(r.gameOver).toBe(true);
+    expect(r.winner_faction).toBe(FACTION.FIRE);
   });
 });

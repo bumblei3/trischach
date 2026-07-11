@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeEach } from "vitest";
-import { Game } from "../js/game.ts";
+import { Game, GAME_STATE } from "../js/game.ts";
 import { legalMoveCheck } from "../js/game-check.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
@@ -241,6 +241,36 @@ describe("Check Resolution in Game Flow", () => {
     // The pawn move should be blocked (deselect) because it's not a legal move
     // OR the pawn stays and king remains safe
     expect(game.isKingInCheck(FACTION.FIRE)).toBe(false);
+  });
+
+  test("pinned pawn cannot move (would expose own king to check)", () => {
+    // Classic pin: Fire King at (0,0), Fire Pawn at (0,1) sits between the
+    // king and a Water Rook on (0,3) along the r-axis. The pawn is pinned — any
+    // move that leaves the file exposes the king to the rook. Drive it through
+    // handleCellClick and assert the move is REJECTED (pawn stays put), not
+    // silently executed.
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const waterRook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3));
+    game.pieces = [fireKing, firePawn, waterRook];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+    game.rpsEnabled = false;
+
+    // The pawn would like to advance to (0,2) if it were free — but it is pinned.
+    game.handleCellClick(firePawn.pos); // select pawn
+    const result = game.handleCellClick(new Hex(0, 2)); // attempt pinned move
+
+    // The move is illegal: handleCellClick must reject it (not execute).
+    expect(result.action).not.toBe("move");
+    expect(result.action).not.toBe("combat");
+    // The pawn did NOT move — it is still on (0,1), king still safe.
+    expect(firePawn.pos.equals(new Hex(0, 1))).toBe(true);
+    expect(game.isKingInCheck(FACTION.FIRE)).toBe(false);
+    // It is still Fire's turn (the rejected move did not advance the turn).
+    expect(game.currentFaction).toBe(FACTION.FIRE);
   });
 
   test("result.inCheck is set after a move that gives check", () => {

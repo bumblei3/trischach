@@ -16,6 +16,8 @@
 
 export const REPLAY_VERSION = "1.0";
 
+import { Hex } from "./hex.ts";
+
 // ─── Serialization ────────────────────────────────────────────────────────
 
 /**
@@ -216,6 +218,7 @@ interface ParsedMove {
   check?: boolean;
   checkmate?: boolean;
   isCapture?: boolean;
+  elimination?: string | null;
 }
 
 interface ParsedTSPN {
@@ -262,38 +265,56 @@ export function parseTSPN(tspnString: string): ParsedTSPN {
 
 /**
  * Parse move text into structured move objects.
- * Handles RPS symbols that are space-separated from moves.
+ * Handles RPS symbols that are space-separated from moves, and trailing
+ * elimination annotations like "[nature eliminated]" that may contain spaces.
  */
 export function parseMoveText(text: string): ParsedMove[] {
-  // Remove move numbers (1., 2., etc.)
-  const cleaned = text.replace(/\d+\.\s*/g, "");
-  const tokens = cleaned.split(/\s+/).filter((t) => t);
-
   const moves: ParsedMove[] = [];
-  let i = 0;
 
-  while (i < tokens.length) {
-    const token = tokens[i]!;
+  // Split into individual moves on move-number boundaries ("1.", "12.").
+  // This supports both one-move-per-line TSPN and multiple moves in a single
+  // line (legacy format). Each segment is "fire_Queen_x_0,1 > [nature eliminated]".
+  const segments = text.split(/(?=\b\d+\.\s*)/).map((s) => s.trim()).filter(Boolean);
 
-    // Skip comment annotations
-    if (token.startsWith("[") && token.endsWith("]")) {
-      i++;
-      continue;
+  for (const seg of segments) {
+    // Strip the leading move number ("1.", "12.").
+    const withoutNumber = seg.replace(/^\d+\.\s*/, "");
+
+    // Extract a trailing "[...]" elimination annotation as a single unit
+    // (it may contain spaces, e.g. "[nature eliminated]") so it is NOT split
+    // into separate tokens. parseMoveToken already strips trailing "[...]"
+    // comments, so we save the faction and re-attach it below.
+    let elimination: string | null = null;
+    const annoMatch = withoutNumber.match(/\[([a-z]+)\s+eliminated\]\s*$/i);
+    let movePart = withoutNumber;
+    if (annoMatch) {
+      elimination = annoMatch[1]!.toLowerCase();
+      movePart = withoutNumber.replace(/\[([a-z]+)\s+eliminated\]\s*$/i, "").trim();
     }
 
-    // Check if next token is an RPS symbol (standalone > < =)
-    // If so, append it to current token for parseMoveToken
-    let fullToken = token;
-    if (i + 1 < tokens.length) {
-      const nextToken = tokens[i + 1]!;
-      if (nextToken === ">" || nextToken === "<" || nextToken === "=") {
-        fullToken = token + " " + nextToken;
-        i++; // consume RPS symbol
+    const tokens = movePart.split(/\s+/).filter((t) => t);
+    let i = 0;
+    while (i < tokens.length) {
+      const token = tokens[i]!;
+      // Skip standalone comment annotations (already handled above, but be safe).
+      if (token.startsWith("[") && token.endsWith("]")) {
+        i++;
+        continue;
       }
+      // Append a standalone RPS symbol (>, <, =) to the move token.
+      let fullToken = token;
+      if (i + 1 < tokens.length) {
+        const nextToken = tokens[i + 1]!;
+        if (nextToken === ">" || nextToken === "<" || nextToken === "=") {
+          fullToken = token + " " + nextToken;
+          i++;
+        }
+      }
+      const parsed = parseMoveToken(fullToken);
+      if (elimination) parsed.elimination = elimination;
+      moves.push(parsed);
+      i++;
     }
-
-    moves.push(parseMoveToken(fullToken));
-    i++;
   }
 
   return moves;
@@ -404,6 +425,44 @@ export function parseMoveToken(token: string): ParsedMove {
 // ─── Replay Engine ────────────────────────────────────────────────────────
 
 /**
+ * Resolve the source piece for a replay move.
+ *
+ * In-memory move history entries carry a live `piece` object (with `pos`), but
+ * moves loaded from a TSPN file via parseTSPN only have `faction`, `pieceName`
+ * and `target` — the source square is NOT stored in the TSPN notation. To make
+ * replaying saved games possible we resolve the source here: find the living
+ * piece of the right faction/type whose legal moves include the target. If a
+ * live `piece` is already present (in-memory path), it is used as-is.
+ */
+export function resolveSourcePiece(game: any, move: any): any {
+  if (move.piece && move.piece.pos) return move.piece;
+  const target = move.target ?? move.to;
+  if (!target || !move.faction || !move.pieceName) return null;
+
+  const type = move.pieceName.toLowerCase();
+  const alive =
+    typeof game.getAlivePieces === "function"
+      ? game.getAlivePieces()
+      : game.pieces.filter((p: any) => p.alive);
+  const candidates = alive.filter(
+    (p: any) => p.faction === move.faction && p.type === type,
+  );
+
+  for (const p of candidates) {
+    // Mock-based callers (unit tests) may not implement getLegalMoves; in that
+    // case fall back to the first candidate. Real Game instances resolve the
+    // exact source by checking which candidate's legal moves include the target.
+    if (typeof game.getLegalMoves !== "function") return candidates[0] ?? null;
+    const { moves, attacks } = game.getLegalMoves(p);
+    const hit = [...moves, ...attacks].some(
+      (h: any) => h.q === target.q && h.r === target.r,
+    );
+    if (hit) return p;
+  }
+  return candidates[0] ?? null;
+}
+
+/**
  * Replay a game from move history.
  * Returns a generator that yields game states after each move.
  */
@@ -416,11 +475,14 @@ export function* replayGame(
 
   for (let i = 0; i < moveHistory.length; i++) {
     const move = moveHistory[i];
+    const piece = resolveSourcePiece(game, move);
+    const targetRaw = move.target ?? move.to;
+    const target = targetRaw ? new Hex(targetRaw.q, targetRaw.r) : null;
 
     // Execute move
-    if (move.piece && (move.target ?? move.to)) {
-      game.handleCellClick(move.piece.pos);
-      const result = game.handleCellClick(move.target ?? move.to);
+    if (piece && target) {
+      game.handleCellClick(piece.pos);
+      const result = game.handleCellClick(target);
 
       if (result.promotion && move.promotion) {
         game.completePromotion(move.promotionType || "queen");
@@ -459,9 +521,13 @@ export class ReplayController {
     this.states = [cloneGameState(game)];
 
     for (const move of this.moveHistory) {
-      if (move.piece && (move.target ?? move.to)) {
-        game.handleCellClick(move.piece.pos);
-        const result = game.handleCellClick(move.target ?? move.to);
+      const piece = resolveSourcePiece(game, move);
+      const targetRaw = move.target ?? move.to;
+      const target = targetRaw ? new Hex(targetRaw.q, targetRaw.r) : null;
+
+      if (piece && target) {
+        game.handleCellClick(piece.pos);
+        const result = game.handleCellClick(target);
 
         if (result.promotion && move.promotion) {
           game.completePromotion(move.promotionType || "queen");

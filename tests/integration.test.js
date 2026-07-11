@@ -80,4 +80,29 @@ describe("AI Simulation (Integration)", () => {
 
     expect(moveCount).toBeGreaterThan(0);
   });
+
+  test("calculateBestMove honors a tight time limit and never hangs", () => {
+    // Regression guard for the 1.1.1 CI hang: with a pathological (tiny) time
+    // budget, calculateBestMove MUST still return promptly instead of running
+    // unbounded. We set a very low limit and assert the wall-clock cost stays
+    // well under a hard ceiling.
+    const prevLimit = 30; // ms — deliberately tiny
+    setAITimeLimit(prevLimit);
+
+    const game = new Game();
+    game.init(generateBoard());
+
+    const start = Date.now();
+    const action = calculateBestMove(game, game.currentFaction);
+    const elapsed = Date.now() - start;
+
+    // Restore the suite-wide limit so subsequent tests stay fast.
+    setAITimeLimit(200);
+
+    // Returns within a hard ceiling (1000ms) regardless of search speed.
+    expect(elapsed).toBeLessThan(1000);
+    // Either a legal action or null (no move available) — never an undefined
+    // hang / throw.
+    expect(action === null || typeof action === "object").toBe(true);
+  });
 });

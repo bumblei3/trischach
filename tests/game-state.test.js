@@ -266,6 +266,97 @@ describe("restore() robustness", () => {
     );
     expect(stillCaptured).toBe(false);
   });
+
+  test("cloneGameState + restore round-trips the exact game state (no aliasing)", () => {
+    // cloneGameState feeds the undo/AI snapshot path. Restoring it must
+    // reproduce the exact state and NOT alias live objects (mutating the
+    // restored game must not leak back into the snapshot).
+    const snap = game.snapshot();
+    game.restore(snap);
+
+    expect(game.currentFactionIdx).toBe(snap.currentFactionIdx);
+    expect(game.eliminatedFactions.size).toBe(snap.eliminatedFactions.size);
+    const liveKings = game.pieces.filter(
+      (p) => p.type === PIECE_TYPE.KING && p.alive,
+    );
+    const snapKings = snap.pieces.filter(
+      (p) => p.type === PIECE_TYPE.KING && p.alive,
+    );
+    expect(liveKings.length).toBe(snapKings.length);
+    // Piece positions are equal but are distinct objects (deep copy).
+    for (const sp of snap.pieces) {
+      const live = game.pieces.find((p) => p.id === sp.id);
+      expect(live).toBeDefined();
+      expect(`${live.pos.q},${live.pos.r}`).toBe(`${sp.pos.q},${sp.pos.r}`);
+      expect(live.pos).not.toBe(sp.pos); // not the same reference
+    }
+    // Mutating the restored game does not corrupt the snapshot.
+    game.pieces[0].pos = new Hex(9, 9);
+    const spAfter = snap.pieces.find((p) => p.id === game.pieces[0].id);
+    expect(`${spAfter.pos.q},${spAfter.pos.r}`).not.toBe("9,9");
+  });
+});
+
+describe("undo() restores an eliminated faction", () => {
+  let game;
+  beforeEach(() => {
+    game = makeGame();
+    game.rpsEnabled = true;
+    // Fire queen can capture the Nature king (Fire beats Nature = advantage).
+    // The Nature king's death eliminates the Nature faction; Water stays alive
+    // so the game is NOT over. We then undo and verify the elimination is
+    // fully reverted (the historically-buggy restore path for
+    // eliminatedFactions + killed pieces).
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(-3, 3));
+    game.pieces = [fireQueen, natureKing, waterKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE to move
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+  });
+
+  test("capturing the enemy king eliminates the faction, undo reverts it", () => {
+    // Pre-move invariants
+    expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(false);
+    expect(natureKing_alive(game)).toBe(true);
+
+    // Fire queen captures the Nature king (advantage -> defender dies).
+    game.handleCellClick(new Hex(0, 0));
+    const result = game.handleCellClick(new Hex(0, 1));
+
+    expect(result.action).toBe("combat");
+    expect(result.rpsResult).toBe("advantage");
+    expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
+    const natureKing = game.pieces.find(
+      (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
+    );
+    expect(natureKing.alive).toBe(false);
+    expect(game.state).not.toBe(GAME_STATE.GAME_OVER); // Water still alive
+
+    // Undo: Nature must be fully revived and de-eliminated.
+    const restored = game.undo();
+    expect(restored).not.toBeNull();
+    expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(false);
+    const revivedKing = game.pieces.find(
+      (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
+    );
+    expect(revivedKing.alive).toBe(true);
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
+  });
+
+  function natureKing_alive(g) {
+    const k = g.pieces.find(
+      (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
+    );
+    return k ? k.alive : false;
+  }
 });
 
 describe("post-move stalemate eliminates the stalemated faction", () => {
@@ -312,5 +403,32 @@ describe("post-move stalemate eliminates the stalemated faction", () => {
     expect(game.eliminatedFactions.has(FACTION.WATER)).toBe(true);
     expect(game.state).not.toBe(GAME_STATE.GAME_OVER);
     expect(result.gameOver).toBeFalsy();
+  });
+
+  test("undo reverts a stalemate elimination (not just a capture)", () => {
+    // The undo path must restore a stalemate-eliminated faction too, not only
+    // a king-capture elimination. Drive Water into stalemate, eliminate it,
+    // then undo and assert Water is fully revived + de-eliminated.
+    game.handleCellClick(game.pieces[3].pos); // select fire pawn
+    const target = game.validMoves[0];
+    const result = game.handleCellClick(target);
+    expect(result.elimination).toBe(FACTION.WATER);
+    expect(game.eliminatedFactions.has(FACTION.WATER)).toBe(true);
+
+    const waterKing = game.pieces.find(
+      (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.KING,
+    );
+    expect(waterKing.alive).toBe(false);
+
+    const restored = game.undo();
+    expect(restored).not.toBeNull();
+    expect(game.eliminatedFactions.has(FACTION.WATER)).toBe(false);
+    const revivedKing = game.pieces.find(
+      (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.KING,
+    );
+    expect(revivedKing.alive).toBe(true);
+    // The fire pawn returns to its pre-move square and the turn is Fire again.
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
   });
 });

@@ -135,6 +135,19 @@ describe("game-check: checkmate & stalemate", () => {
     ]);
     expect(isStalemateInternal(game, FACTION.FIRE)).toBe(false);
   });
+
+  test("isCheckmateInternal / isStalemateInternal false when the faction has no living king", () => {
+    // A faction whose king was already captured is eliminated, not in
+    // checkmate/stalemate. This guards the `!hasKing -> return false` guards
+    // in both predicates from misclassifying an eliminated faction.
+    setPieces([
+      // Fire has only a pawn, no king -> already eliminated.
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ]);
+    expect(isCheckmateInternal(game, FACTION.FIRE)).toBe(false);
+    expect(isStalemateInternal(game, FACTION.FIRE)).toBe(false);
+  });
 });
 
 describe("game-check: legal move filtering", () => {
