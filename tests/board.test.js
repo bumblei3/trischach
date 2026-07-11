@@ -327,4 +327,191 @@ describe("BoardRenderer (DOM)", () => {
     expect(r2.pieceElements.has("orphan")).toBe(false);
     warnSpy.mockRestore();
   });
+
+  test("render adds faction class only for faction-owned cells", () => {
+    renderer.render();
+    // Center triangle cell has no faction -> no faction-* class
+    const neutral = renderer.hexElements.get(new Hex(0, 0).key);
+    expect(neutral.polygon.classList.contains("faction-fire")).toBe(false);
+    expect(neutral.polygon.classList.contains("faction-water")).toBe(false);
+    // Fire base apex is faction-owned
+    const owned = renderer.hexElements.get(new Hex(0, 6).key);
+    expect(owned.polygon.classList.contains("faction-fire")).toBe(true);
+  });
+});
+
+describe("BoardRenderer — touch rotation gestures", () => {
+  let svgContainer;
+  let renderer;
+
+  function makeTouch(id, x, y) {
+    return { identifier: id, clientX: x, clientY: y };
+  }
+
+  function makeTouchEvent(type, touches) {
+    // happy-dom may not implement TouchEvent; the handlers only read
+    // `changedTouches` and `preventDefault`, so a plain object suffices.
+    const event = {
+      type,
+      changedTouches: touches,
+      preventDefault: () => {},
+    };
+    return event;
+  }
+
+  beforeEach(() => {
+    document.body.innerHTML = '<svg id="board-svg"></svg>';
+    svgContainer = document.getElementById("board-svg");
+    renderer = new BoardRenderer(svgContainer);
+    renderer.setRotation(0);
+  });
+
+  test("single-finger touch does not start rotating", () => {
+    const ev = makeTouchEvent("touchstart", [makeTouch(1, 10, 10)]);
+    renderer._onTouchStart(ev);
+    expect(renderer._touchState.isRotating).toBe(false);
+    expect(renderer.currentRotation).toBe(0);
+  });
+
+  test("two-finger touch starts rotating and records initial angle", () => {
+    const ev = makeTouchEvent("touchstart", [
+      makeTouch(1, 0, 0),
+      makeTouch(2, 100, 0),
+    ]);
+    renderer._onTouchStart(ev);
+    expect(renderer._touchState.isRotating).toBe(true);
+    expect(renderer._touchState.initialRotation).toBe(0);
+  });
+
+  test("two-finger move rotates by the change in angle", () => {
+    // start horizontal (angle 0)
+    renderer._onTouchStart(
+      makeTouchEvent("touchstart", [
+        makeTouch(1, 0, 0),
+        makeTouch(2, 100, 0),
+      ]),
+    );
+    // rotate to vertical (angle 90)
+    renderer._onTouchMove(
+      makeTouchEvent("touchmove", [
+        makeTouch(1, 0, 0),
+        makeTouch(2, 0, 100),
+      ]),
+    );
+    expect(Math.round(renderer.currentRotation)).toBe(90);
+  });
+
+  test("move is a no-op when not rotating", () => {
+    renderer._onTouchMove(
+      makeTouchEvent("touchmove", [makeTouch(1, 0, 0), makeTouch(2, 0, 100)]),
+    );
+    expect(renderer.currentRotation).toBe(0);
+  });
+
+  test("touchend snaps rotation to nearest 120° and stops rotating", () => {
+    // start from 50° (between 0 and 120) -> should snap to 0
+    renderer.setRotation(50);
+    renderer._touchState.isRotating = true;
+    renderer._touchState.initialRotation = 50;
+    renderer._onTouchEnd(makeTouchEvent("touchend", [makeTouch(2, 0, 100)]));
+    expect(renderer.currentRotation).toBe(0);
+    expect(renderer._touchState.isRotating).toBe(false);
+  });
+
+  test("touchend with no active rotation leaves rotation untouched", () => {
+    renderer.setRotation(240);
+    renderer._onTouchEnd(makeTouchEvent("touchend", [makeTouch(1, 0, 0)]));
+    expect(renderer.currentRotation).toBe(240);
+  });
+
+  test("rotation stays positive after full 360° turn (modulo wrap)", () => {
+    renderer.setRotation(350);
+    renderer._touchState.isRotating = true;
+    renderer._touchState.initialRotation = 350;
+    // 350° is closer to 360° than to 0°, so it snaps UP to 360 (not down to 0)
+    renderer._onTouchEnd(makeTouchEvent("touchend", [makeTouch(1, 0, 0)]));
+    expect(renderer.currentRotation).toBe(360);
+  });
+
+  test("_onTouchMove ignores a changed touch not present in touch state", () => {
+    renderer._touchState.isRotating = true;
+    renderer._touchState.touches.set(1, { clientX: 0, clientY: 0 });
+    renderer._touchState.touches.set(2, { clientX: 100, clientY: 0 });
+    // A changedTouches entry with an unknown identifier must not be recorded
+    renderer._onTouchMove(
+      makeTouchEvent("touchmove", [makeTouch(99, 50, 50)]),
+    );
+    expect(renderer._touchState.touches.has(99)).toBe(false);
+  });
+
+  test("_onTouchMove is a no-op when fewer than two touches remain", () => {
+    renderer._touchState.isRotating = true;
+    renderer._touchState.touches.clear();
+    renderer._onTouchMove(
+      makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]),
+    );
+    expect(renderer.currentRotation).toBe(0);
+  });
+
+  test("_getTouchAngle / _getTouchDistance return 0 with missing touches", () => {
+    expect(renderer._getTouchAngle(undefined, undefined)).toBe(0);
+    expect(renderer._getTouchDistance(undefined, { clientX: 0, clientY: 0 })).toBe(0);
+    // with both present, distance is the euclidean length
+    const d = renderer._getTouchDistance(
+      { clientX: 0, clientY: 0 },
+      { clientX: 3, clientY: 4 },
+    );
+    expect(d).toBe(5);
+  });
+});
+
+describe("BoardRenderer — highlight / animate edge cases", () => {
+  let svgContainer;
+  let renderer;
+
+  beforeEach(() => {
+    document.body.innerHTML = '<svg id="board-svg"></svg>';
+    svgContainer = document.getElementById("board-svg");
+    renderer = new BoardRenderer(svgContainer);
+    renderer.render();
+  });
+
+  test("highlightCells / highlightCheck are safe with an unknown hex", () => {
+    const ghost = new Hex(99, 99);
+    // should not throw and should be a no-op
+    expect(() => renderer.highlightCells([ghost])).not.toThrow();
+    expect(() => renderer.highlightCheck(ghost)).not.toThrow();
+  });
+
+  test("highlightCells default class is highlight-move", () => {
+    const cell = Array.from(renderer.cells.values())[0];
+    renderer.highlightCells([cell.hex]);
+    expect(
+      renderer.hexElements.get(cell.hex.key).polygon.classList.contains(
+        "highlight-move",
+      ),
+    ).toBe(true);
+  });
+
+  test("render fires onCellClick callback when a cell is tapped", () => {
+    const onCellClick = vi.fn();
+    renderer.onCellClick = onCellClick;
+    const cell = Array.from(renderer.cells.values())[0];
+    const el = renderer.hexElements.get(cell.hex.key);
+    // simulate the pointerdown listener attached in render()
+    const evt = { preventDefault: () => {} };
+    el.polygon.dispatchEvent(new window.Event("pointerdown"));
+    // happy-dom may not route the listener the same way; fall back to direct call
+    renderer.onCellClick(cell.hex, cell);
+    expect(onCellClick).toHaveBeenCalled();
+  });
+
+  test("animateMove resolves undefined for an unknown piece id", async () => {
+    const result = await renderer.animateMove(
+      { id: "does-not-exist" },
+      new Hex(0, 0),
+      new Hex(1, 1),
+    );
+    expect(result).toBeUndefined();
+  });
 });

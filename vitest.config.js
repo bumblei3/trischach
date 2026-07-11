@@ -19,23 +19,36 @@ export default defineConfig({
       threads: { singleThread: true },
     },
     coverage: {
-      provider: "v8",
-      reporter: ["text", "json", "html"],
+      // Istanbul instead of the default `v8` provider. Vitest 3.2+ v8 uses
+      // AST-based remapping (ast-v8-to-istanbul) which cannot map TypeScript
+      // statements back to source, so every .ts file reports 0% statements
+      // while still claiming 100% branches/functions. Istanbul instruments the
+      // TS source directly and yields correct per-statement coverage.
+      provider: "istanbul",
+      // `json-summary` produces coverage/coverage-summary.json which the CI
+      // threshold gate reads. Without it the gate reads a non-existent file
+      // and silently passes.
+      reporter: ["text", "json", "json-summary", "html"],
       exclude: [
         "node_modules/**",
         "tests/**",
         "tests-e2e/**",
         "*.config.*",
-        "js/**/*.ts", // TypeScript files excluded from coverage (tested via .js)
-        "js/main.ts", // UI/event code (~100KB) — covered by E2E, not unit tests
-        "js/main.js", // UI code - tested via E2E
-        "js/board.js", // Touch handlers - tested via E2E
-        "js/sounds.js", // Audio - hard to unit test
-        "js/ai-worker.js", // Worker wrapper - tested via ai.test.js
-        "generate-*.js", // Build scripts
+        // Build / tooling scripts — not app logic
+        "generate-*.js",
         "generate-icons.js",
+        "icons/generate-icons.js",
+        "dist/**",
         "sw.js", // Service worker
-        "js/typedefs.js",
+        "scripts/**",
+        "auto-battle-learn.js",
+        "debug-line.js",
+        "opening-book.compiled.json",
+        "js/main.ts", // UI/event code (~100KB) — covered by E2E, not unit tests
+        "js/sounds.ts", // Audio - hard to unit test
+        "js/types.ts", // Pure type definitions + re-exports — no logic to cover
+        "js/ai-worker.ts", // Web Worker message handler — covered by E2E, not unit tests
+        "js/puzzle.ts", // Puzzle generator is engine-driven (AI search) — covered by E2E, not unit tests
       ],
       thresholds: {
         lines: 80,

@@ -8,7 +8,8 @@
  */
 import { expect, test, describe, beforeEach } from "vitest";
 import { Hex } from "../js/hex.ts";
-import { FACTION } from "../js/board.ts";
+import { FACTION, generateBoard } from "../js/board.ts";
+import { Game } from "../js/game.ts";
 import {
   formatSAN,
   getPuzzleState,
@@ -20,6 +21,7 @@ import {
   savePuzzles,
   loadPuzzles,
   validatePuzzle,
+  getDailyPuzzle,
 } from "../js/puzzle.ts";
 
 // ─── Mock helpers ────────────────────────────────────────────────────────
@@ -274,3 +276,83 @@ describe("validatePuzzle", () => {
     expect(await validatePuzzle(bad)).toBe(false);
   });
 });
+
+// ─── Puzzle stats + persistence side-effects ──────────────────────────────
+
+describe("puzzle stats persistence", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    abandonPuzzle();
+  });
+
+  test("solving a puzzle updates its stats (attempts/solved/avgTime)", async () => {
+    const puzzle = makePuzzle({
+      id: "statpuzzle",
+      solution: [
+        { ...makePuzzle().solution[0], pieceId: "p1" },
+        { ...makePuzzle().solution[1], pieceId: "p2" },
+      ],
+    });
+    // updatePuzzleStats only persists when the puzzle already exists in storage
+    savePuzzles([puzzle]);
+    loadPuzzle(puzzle);
+    // play the full solution
+    makePuzzleMove({}, "p1", new Hex(2, 2));
+    makePuzzleMove({}, "p2", new Hex(3, 3));
+
+    // stats should have been persisted via updatePuzzleStats -> savePuzzles
+    const stored = loadPuzzles();
+    const found = stored.find((p) => p.id === "statpuzzle");
+    expect(found).toBeDefined();
+    expect(found.stats).toBeDefined();
+    expect(found.stats.attempts).toBe(1);
+    expect(found.stats.solved).toBe(1);
+  });
+
+  test("failing a puzzle still records an attempt without a solve", () => {
+    const puzzle = makePuzzle({ id: "failpuzzle" });
+    savePuzzles([puzzle]);
+    loadPuzzle(puzzle);
+    makePuzzleMove({}, "p1", new Hex(9, 9)); // wrong move
+
+    const stored = loadPuzzles();
+    const found = stored.find((p) => p.id === "failpuzzle");
+    expect(found.stats.attempts).toBe(1);
+    expect(found.stats.solved).toBe(0);
+  });
+});
+
+// ─── getDailyPuzzle cache ─────────────────────────────────────────────────
+
+describe("getDailyPuzzle", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  test("returns null when no book puzzles can be generated", async () => {
+    // Empty the opening book so generation yields nothing
+    const { OPENING_BOOK } = await import("../js/opening-book.ts");
+    const snapshot = new Map(OPENING_BOOK);
+    OPENING_BOOK.clear();
+    const result = await getDailyPuzzle();
+    expect(result).toBeNull();
+    // restore for other tests
+    for (const [k, v] of snapshot) OPENING_BOOK.set(k, v);
+  });
+
+  test("serves a cached daily puzzle for the same date without regenerating", async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const cached = makePuzzle({ id: "cached-daily", difficulty: "medium" });
+    localStorage.setItem(
+      "trischach-daily-puzzle-date",
+      today,
+    );
+    localStorage.setItem(
+      "trischach-daily-puzzle",
+      JSON.stringify(cached),
+    );
+    const result = await getDailyPuzzle();
+    expect(result?.id).toBe("cached-daily");
+  });
+});
+

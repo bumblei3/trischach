@@ -94,4 +94,29 @@ describe("boardHash / parseMove branches", () => {
     );
     expect(parseMove(game, `${pawn.id}->x,y`)).toBeNull();
   });
+
+  test("boardHash falls back to currentFaction when currentFactionIdx is undefined", () => {
+    const game = makeGame();
+    // Build a minimal object without currentFactionIdx, with currentFaction set
+    const mini = {
+      getAlivePieces: () => game.getAlivePieces(),
+      pieces: game.pieces,
+      currentFaction: FACTION.WATER,
+      currentFactionIdx: undefined,
+    };
+    const hash = boardHash(mini);
+    // WATER is index 1 -> hash suffix must be #1
+    expect(hash.endsWith("#1")).toBe(true);
+  });
+
+  test("boardHash uses index 0 when neither idx nor faction is present", () => {
+    const game = makeGame();
+    const mini = {
+      getAlivePieces: () => game.getAlivePieces(),
+      pieces: game.pieces,
+      currentFactionIdx: undefined,
+      currentFaction: undefined,
+    };
+    expect(boardHash(mini).endsWith("#0")).toBe(true);
+  });
 });
