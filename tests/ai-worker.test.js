@@ -585,4 +585,68 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       );
     });
   });
+
+  describe("Worker Message Interface (onmessage handler)", () => {
+    test("'calculate' message runs the search and posts a result", () => {
+      // Spy on the worker's postMessage so we can assert what the
+      // handler sends back without relying on a real Worker scope.
+      const posted = [];
+      const originalPost = self.postMessage;
+      self.postMessage = (msg) => posted.push(msg);
+
+      const gameState = createGameState({
+        pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
+        currentFaction: FACTION.FIRE,
+        currentFactionIdx: 0,
+      });
+
+      // The handler reads e.data.{type, gameState, faction, depth}
+      self.onmessage({
+        data: { type: "calculate", gameState, faction: FACTION.FIRE },
+      });
+
+      // It must have posted a 'result' with a move object
+      // (pieceId + targetQ/R + moveType), not an error.
+      const result = posted.find((m) => m.type === "result");
+      expect(result).toBeDefined();
+      expect(result.move).not.toBeNull();
+      expect(result.move).toHaveProperty("pieceId");
+      expect(result.move).toHaveProperty("targetQ");
+      expect(result.move).toHaveProperty("targetR");
+      expect(result.move).toHaveProperty("moveType");
+
+      self.postMessage = originalPost;
+    });
+
+    test("'calculate' with no legal moves posts result move: null", () => {
+      const posted = [];
+      const originalPost = self.postMessage;
+      self.postMessage = (msg) => posted.push(msg);
+
+      const gameState = createGameState({ pieces: [] });
+
+      self.onmessage({
+        data: { type: "calculate", gameState, faction: FACTION.FIRE },
+      });
+
+      const result = posted.find((m) => m.type === "result");
+      expect(result).toBeDefined();
+      expect(result.move).toBeNull();
+
+      self.postMessage = originalPost;
+    });
+
+    test("'setDepth' message updates the search depth without throwing", () => {
+      const posted = [];
+      const originalPost = self.postMessage;
+      self.postMessage = (msg) => posted.push(msg);
+
+      // Must not throw (the handler just calls setAIDepth).
+      expect(() =>
+        self.onmessage({ data: { type: "setDepth", depth: 4 } }),
+      ).not.toThrow();
+
+      self.postMessage = originalPost;
+    });
+  });
 });

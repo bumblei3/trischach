@@ -41,7 +41,11 @@ const fetchMock = vi.hoisted(() => {
             : "text/plain";
         return new Response(content, { headers: { "Content-Type": mime } });
       }
-      return originalFetch(url, opts);
+      // Any other localhost:3000 URL (e.g. opening-book.learned.json,
+      // stray css) — answer with empty content instead of falling
+      // through to the real fetch, which would 404 and surface as
+      // an uncaught DOMException in the suite.
+      return new Response("", { headers: { "Content-Type": "text/plain" } });
     },
   };
 });
