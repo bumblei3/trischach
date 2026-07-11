@@ -960,6 +960,11 @@ describe("Replay: reconstructGameFromTSPN", () => {
       currentFaction: "fire",
       currentFactionIdx: 0,
       state: "select_piece",
+      // Minimal engine stubs so the replay path (resolveSourcePiece /
+      // precomputeStates) can run against this mock without a real Game.
+      handleCellClick: vi.fn(() => ({ promotion: false })),
+      getAlivePieces: () => mockPieces.filter((p) => p.alive),
+      getLegalMoves: () => ({ moves: [], attacks: [] }),
     }));
 
     const boardCells = generateBoard();
@@ -1002,6 +1007,11 @@ describe("Replay: reconstructGameFromTSPN", () => {
       currentFaction: "fire",
       currentFactionIdx: 0,
       state: "select_piece",
+      // Minimal engine stubs so the replay path (resolveSourcePiece /
+      // precomputeStates) can run against this mock without a real Game.
+      handleCellClick: vi.fn(() => ({ promotion: false })),
+      getAlivePieces: () => mockPieces.filter((p) => p.alive),
+      getLegalMoves: () => ({ moves: [], attacks: [] }),
     }));
 
     const boardCells = generateBoard();

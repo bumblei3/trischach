@@ -10,7 +10,10 @@
  */
 import { expect, test, describe, beforeEach, vi } from "vitest";
 import { Game } from "../js/game.ts";
-import { generateBoard } from "../js/board.ts";
+import { generateBoard, FACTION } from "../js/board.ts";
+import { Piece, PIECE_TYPE } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
+import { GAME_STATE } from "../js/game.ts";
 import {
   serializeGame,
   parseTSPN,
@@ -18,6 +21,7 @@ import {
   getResultString,
   cloneGameState,
   ReplayController,
+  reconstructGameFromTSPN,
   downloadGame,
   copyGameToClipboard,
   loadGameFromString,
@@ -307,5 +311,89 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     const parsed = await loadGameFromFile({});
     expect(parsed.moves.length).toBe(2);
     vi.unstubAllGlobals();
+  });
+
+  test("eliminated faction is preserved through serialize -> parse (real game)", () => {
+    // Drive a REAL game to a state where one faction is eliminated, then
+    // confirm the elimination marker is written into the TSPN AND correctly
+    // round-trips through parseTSPN. This guards the parser against splitting
+    // the trailing "[nature eliminated]" annotation into bogus tokens
+    // (regression: the annotation used to be shredded into "[nature" /
+    // "eliminated]"). Mock-based serialize tests don't exercise the real
+    // elimination path through handleCellClick.
+    const game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = true;
+    // Fire queen captures the Nature king (Fire beats Nature = advantage) ->
+    // Nature is eliminated; Water alive so not game over.
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(-3, 3));
+    game.pieces = [fireQueen, natureKing, waterKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    game.handleCellClick(new Hex(0, 0));
+    game.handleCellClick(new Hex(0, 1));
+    expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
+
+    const tspn = serializeGame(game);
+    // The elimination must be encoded in the move notation.
+    expect(tspn).toContain("[nature eliminated]");
+
+    // Parse back: exactly ONE move, and it carries the elimination marker.
+    const parsed = parseTSPN(tspn);
+    expect(parsed.moves.length).toBe(1);
+    expect(parsed.moves[0].elimination).toBe("nature");
+  });
+
+  test("serialize -> reconstruct round-trip replays a saved game (real game)", () => {
+    // A TSPN file loaded via parseTSPN carries only faction/pieceName/target
+    // (no source square). reconstructGameFromTSPN + ReplayController must still
+    // replay it to the final position. Regression guard for the previously
+    // broken replay path that required `move.piece` AND passed a non-Hex
+    // {q,r} target straight into handleCellClick (which set piece.pos to a
+    // plain object and crashed the post-move check detection).
+    const game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = true;
+    // Play a real opening pawn move on the full starting board.
+    const firePawn = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+    );
+    const startKey = firePawn.pos.key;
+    game.handleCellClick(firePawn.pos);
+    const target = game.validMoves[0];
+    game.handleCellClick(target);
+    expect(firePawn.pos.key).toBe(target.key);
+
+    const tspn = serializeGame(game);
+    const parsed = parseTSPN(tspn);
+    const { controller } = reconstructGameFromTSPN(
+      parsed,
+      Game,
+      generateBoard(),
+    );
+    controller.goToEnd();
+    const finalState = controller.getCurrentState();
+
+    // The reconstructed game replayed the move: the pawn left its start square
+    // and now sits on the recorded target square. NOTE: cloneGameState returns
+    // pos as a plain {q,r} object (no .key), so compare q/r explicitly.
+    const replayedPawn = finalState.pieces.find((p) => p.id === firePawn.id);
+    expect(`${replayedPawn.pos.q},${replayedPawn.pos.r}`).toBe(
+      `${target.q},${target.r}`,
+    );
+    // The start square is now empty (pawn moved away).
+    const occupant = finalState.pieces.find(
+      (p) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
+    );
+    expect(occupant?.id === firePawn.id).toBe(false);
   });
 });

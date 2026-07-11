@@ -100,7 +100,7 @@ Die Codebase ist modular aufgebaut:
 - `js/hex.ts`: Mathematische Basis für Hex-Grid (Cube-Koordinaten, TS strict)
 - `js/board.ts`: SVG-Board Renderer, Touch-Gesten (Swipe-Rotate, Long-Press), Pieces
 - `js/pieces.ts`: Figuren-Eigenschaften, hex-basierte Zugmuster
-- `js/game.ts`: Zentrale State-Machine, Spielregeln, RPS-Logik, Undo/Redo
+- `js/game.ts`: Zentrale State-Machine, Spielregeln, RPS-Logik, Undo/Redo, Fraktions-Eliminierung (Schachmatt **und** Patt entfernen eine Fraktion)
 - `js/game-check.ts`: Schach/Checkmate/Stalemate Detection (3-Spieler)
 - `js/ai-core.ts`: **Shared AI Core** (Main Thread + Web Worker)
   - Zobrist TT, SEE, Futility/Razoring, NMP, LMR, Probcut
@@ -108,7 +108,7 @@ Die Codebase ist modular aufgebaut:
   - Aspiration Windows, Killer Moves, History Heuristic
   - **Endgame Evaluation**, Pawn Structure, Personality Weights
 - `js/ai.ts`: Main Thread Entry Point, Opening Book Integration
-- `js/ai-worker.js`: Web Worker Wrapper für non-blocking Search
+- `js/ai-worker.ts`: Web Worker Wrapper für non-blocking Search
 - `js/opening-book.ts`: Eröffnungsbibliothek (Generator + Weighted Random)
 - `js/replay.ts`: TSPN Format (Export/Import/Replay Controls)
 - `js/sounds.ts`: Audio Engine (Web Audio API, synthetisch)
@@ -132,14 +132,14 @@ npx tsc --noEmit
 npm run lint
 ```
 
-- **350 Unit Tests** ✅ (Vitest + Happy-DOM, 5 skipped)
-- **13 E2E Tests** ✅ (Playwright Firefox)
+- **591 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped)
+- **20 E2E Tests** ✅ (Playwright Chromium)
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors)
 - **Coverage Gates:** 80% Thresholds, `vitest check: true`
-  - Overall: ~84% Statements / ~90% Branches / ~89% Functions
-  - ai-core.ts: **89.93%** Coverage
-  - CombatUIManager: 92%, TooltipManager: 97%
+  - Overall: ~92% Statements / ~85% Branches / ~93% Functions
+  - ai-core.ts: **88%** Lines Coverage
+  - game.ts: **97%**, game-check.ts: **100%**, board.ts: **95%**
   - Opening Book Learning: Integrated (auto-battle self-play)
 
 ## 🤖 CI/CD
@@ -148,21 +148,21 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 
 | Job         | Trigger   | Beschreibung                                              |
 | ----------- | --------- | --------------------------------------------------------- |
-| `lint-test` | Push/PR   | TypeScript, ESLint, Unit Tests (Node 20), Coverage ≥80%   |
+| `lint-test` | Push/PR   | TypeScript, ESLint, Unit Tests (Node 24), Coverage ≥80%   |
 | `codeql`    | Push/PR   | Security Scanning (JavaScript)                            |
-| `e2e-tests` | Push/PR   | Playwright E2E **Firefox** (Ubuntu 26.04 kompatibel)      |
+| `e2e-tests` | Push/PR   | Playwright E2E **Chromium** (Ubuntu 26.04 kompatibel)     |
 | `benchmark` | Push/PR   | Performance Benchmark (AI move timing)                    |
 | `release`   | Tag `v*`  | Auto GitHub Release mit Release Notes                     |
 | `deploy`    | Push main | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
 
 **Quality Gates:**
 
-- Bundle Size Check: main.js ≤ 12KB gzipped (10% Growth-Limit)
+- Bundle Size Check: main.js ≤ ~20KB gzipped (10% Growth-Limit; raised from 12KB after the TS build)
 - Coverage enforcement ≥80% auf PRs
 - Lint + Typecheck blocking (fail on errors)
 - E2E / CodeQL non-blocking (continue-on-error)
 
-**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts, Firefox statt Chromium → stabile E2E Runs
+**Fixes:** `copy-assets` post-build, Script-Pfad korrigiert, erhöhte Timeouts, Chromium statt Firefox → stabile E2E Runs
 
 ## 📜 Lizenz
 
@@ -172,8 +172,8 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 
 ## 🗺️ Roadmap / Ideen
 
-- [ ] **Puzzle Mode** – "Mate in N" Generator aus Opening Book
-- [ ] **Mate-in-N Detection** – Quiescence erweitert, Eval Bar "Matt in 3"
+- [✅] **Puzzle Mode** – "Mate in N" Generator aus Opening Book
+- [✅] **Mate-in-N Detection** – Quiescence erweitert, Eval Bar "Matt in 3"
 - [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
 - [ ] **Neural Evaluation (tiny NNUE)** – ~150-200 Elo Gewinn
 - [ ] **Parallel Search** – SharedArrayBuffer + Web Workers

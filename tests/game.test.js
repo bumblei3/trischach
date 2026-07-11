@@ -203,6 +203,25 @@ describe("Game logic", () => {
     expect(game.currentFaction).toBe(FACTION.NATURE);
   });
 
+  test("nextTurn skips TWO eliminated factions and lands on the sole survivor", () => {
+    // When Water AND Nature are eliminated, a Fire move must advance the turn
+    // back onto Fire itself (the only remaining faction) without spinning
+    // through the eliminated ones. This exercises the do/while skip loop in
+    // _nextTurn for the 2-eliminated case — the historically infinite-loop
+    // prone path.
+    game.eliminatedFactions.add(FACTION.WATER);
+    game.eliminatedFactions.add(FACTION.NATURE);
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    game.pieces = [firePawn];
+    game._rebuildOccupiedMap();
+    game.handleCellClick(firePawn.pos);
+    const result = game.handleCellClick(new Hex(0, 4));
+    expect(result.action).toBe("move");
+    // Turn must wrap back to the sole survivor (Fire), never to a dead faction.
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    expect(game.eliminatedFactions.has(game.currentFaction)).toBe(false);
+  });
+
   test("handleCellClick returns null in invalid state or game over", () => {
     game.state = GAME_STATE.GAME_OVER;
     expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
@@ -466,5 +485,184 @@ describe("Draw Rules: Integration with handleCellClick", () => {
     expect(result).not.toBeNull();
     expect(result.draw).toBe(true);
     expect(g.state).toBe(GAME_STATE.DRAW_50MOVE);
+  });
+});
+
+describe("Game Over: last faction standing", () => {
+  test("a checkmating move eliminates the mated faction (checkmate, not stalemate)", () => {
+    // A real checkmate must eliminate the mated faction, mirroring the
+    // stalemate-elimination rule. Drive it through handleCellClick: Water rocks
+    // the Fire king into a back-rank mate, then Fire is eliminated.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
+    const firePawn1 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, 0));
+    const firePawn2 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, -1));
+    const firePawn3 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    const firePawn4 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(-1, 0));
+    const firePawn5 = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(-1, 1));
+    const waterRook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3));
+    g.pieces = [
+      fireKing,
+      firePawn1,
+      firePawn2,
+      firePawn3,
+      firePawn4,
+      firePawn5,
+      waterRook,
+    ];
+    g._rebuildOccupiedMap();
+    // Water to move; rook delivers mate by sliding to (0,2).
+    g.currentFactionIdx = 1; // WATER
+    g.currentFaction = FACTION.WATER;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    g.handleCellClick(waterRook.pos); // select rook
+    const r = g.handleCellClick(new Hex(0, 2)); // rook to (0,2) -> back-rank mate
+    // The move is recorded as a checkmate of FIRE (set before elimination).
+    expect(r.checkmate).toBe(FACTION.FIRE);
+    // Checkmate (not stalemate) eliminates the mated faction.
+    expect(g.eliminatedFactions.has(FACTION.FIRE)).toBe(true);
+    // Fire pieces are killed off on elimination.
+    expect(
+      g.pieces.filter((p) => p.faction === FACTION.FIRE && p.alive).length,
+    ).toBe(0);
+  });
+
+  test("a disadvantage combat (RPS loss) kills the attacker through handleCellClick", () => {
+    // Fire loses to Water in RPS. A Fire attacker capturing a Water piece must
+    // die itself and the Water defender must survive — the symmetric rule to
+    // the advantage case, exercised through the real handleCellClick flow
+    // (not just simulateMove).
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    g.pieces = [firePawn, waterPawn, fireKing, waterKing];
+    g._rebuildOccupiedMap();
+    g.currentFactionIdx = 0; // FIRE to move
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    g.handleCellClick(new Hex(0, 2)); // select fire pawn
+    const r = g.handleCellClick(new Hex(0, 1)); // capture water pawn
+
+    expect(r.action).toBe("combat");
+    expect(r.rpsResult).toBe("disadvantage");
+    expect(firePawn.alive).toBe(false); // attacker died
+    expect(waterPawn.alive).toBe(true); // defender survived
+    expect(g.eliminatedFactions.has(FACTION.FIRE)).toBe(false); // no king died
+    // Turn advances to the next living faction (Water) despite the attacker dying.
+    expect(g.currentFaction).toBe(FACTION.WATER);
+  });
+  test("eliminating the 2nd-last faction ends the game with a winner", () => {
+    // When only one faction remains after an elimination, the game must end
+    // and declare that faction the winner (game.ts:398-403). Drive it with a
+    // real capture of the last enemy king; the other faction is pre-marked
+    // eliminated so the post-capture checkmate cascade does not also remove it.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+
+    const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
+    g.pieces = [fireQueen, natureKing];
+    g._rebuildOccupiedMap();
+    // Pre-state: Water already eliminated, Nature still standing.
+    g.eliminatedFactions.add(FACTION.WATER);
+    g.currentFactionIdx = 0;
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    // Fire queen captures Nature king -> only Fire remains -> GAME_OVER.
+    g.handleCellClick(fireQueen.pos);
+    const r = g.handleCellClick(natureKing.pos);
+    expect(r.loser?.type).toBe(PIECE_TYPE.KING);
+    expect(g.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
+    expect(g.eliminatedFactions.has(FACTION.WATER)).toBe(true);
+    expect(g.state).toBe(GAME_STATE.GAME_OVER);
+    expect(r.gameOver).toBe(true);
+    expect(r.winner_faction).toBe(FACTION.FIRE);
+  });
+
+  test("with RPS disabled a disadvantaged attacker still wins (defender dies)", () => {
+    // When rpsEnabled is false the engine treats every combat as 'advantage',
+    // so the attacker always wins regardless of the RPS matchup. A Fire pawn
+    // (which would LOSE to Water under RPS) must therefore capture the Water
+    // pawn and survive when RPS is off — the exact opposite of the
+    // rpsEnabled=true disadvantage case.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = false; // RPS off -> all combats resolve as advantage
+
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    g.pieces = [firePawn, waterPawn, fireKing, waterKing];
+    g._rebuildOccupiedMap();
+    g.currentFactionIdx = 0; // FIRE to move
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    g.handleCellClick(new Hex(0, 2)); // select fire pawn
+    const r = g.handleCellClick(new Hex(0, 1)); // capture water pawn
+
+    expect(r.action).toBe("combat");
+    // With RPS off there is no disadvantage branch -> attacker wins.
+    expect(r.rpsResult).toBe("advantage");
+    expect(firePawn.alive).toBe(true); // attacker survives
+    expect(waterPawn.alive).toBe(false); // defender dies
+    // The attacker moves onto the captured square.
+    expect(firePawn.pos.equals(new Hex(0, 1))).toBe(true);
+  });
+
+  test("clicking a non-target cell deselects; clicking own piece reselects", () => {
+    // Once a piece is selected (SELECT_TARGET), handleCellClick must only act
+    // on valid move/attack squares. A click on a square that is neither a valid
+    // move nor attack must CANCEL the selection (deselect) without moving,
+    // while a click on another friendly piece must RESELECT it. This guards the
+    // UI against accidental moves into empty/off-board cells.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = true;
+
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    g.pieces = [firePawn, fireKing, waterKing];
+    g._rebuildOccupiedMap();
+    g.currentFactionIdx = 0; // FIRE to move
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    // Select the pawn.
+    const sel = g.handleCellClick(new Hex(0, 2));
+    expect(sel.action).toBe("select");
+    expect(g.state).toBe(GAME_STATE.SELECT_TARGET);
+
+    // Click a square that is NOT a valid move or attack (far away) -> deselect.
+    const bad = g.handleCellClick(new Hex(5, -5)); // water king's square, unreachable
+    expect(bad.action).toBe("deselect");
+    expect(g.selectedPiece).toBeNull();
+    expect(g.state).toBe(GAME_STATE.SELECT_PIECE);
+    expect(firePawn.pos.equals(new Hex(0, 2))).toBe(true); // pawn did NOT move
+
+    // Re-select the pawn, then click the friendly king -> reselect the king.
+    g.handleCellClick(new Hex(0, 2));
+    expect(g.selectedPiece?.id).toBe(firePawn.id);
+    const re = g.handleCellClick(new Hex(-5, 5)); // own king
+    expect(re.action).toBe("select"); // reselection of a new piece
+    expect(g.selectedPiece?.id).toBe(fireKing.id); // king is now selected
+    expect(g.state).toBe(GAME_STATE.SELECT_TARGET);
   });
 });
