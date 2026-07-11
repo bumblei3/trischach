@@ -150,7 +150,7 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 | ----------- | --------- | --------------------------------------------------------- |
 | `lint-test` | Push/PR   | TypeScript, ESLint, Unit Tests (Node 24), Coverage ≥80%   |
 | `codeql`    | Push/PR   | Security Scanning (JavaScript)                            |
-| `e2e-tests` | Push/PR   | Playwright E2E **Chromium** (Ubuntu 26.04 kompatibel)      |
+| `e2e-tests` | Push/PR   | Playwright E2E **Chromium** (Ubuntu 26.04 kompatibel)     |
 | `benchmark` | Push/PR   | Performance Benchmark (AI move timing)                    |
 | `release`   | Tag `v*`  | Auto GitHub Release mit Release Notes                     |
 | `deploy`    | Push main | GitHub Pages Deploy (nach lint-test + e2e-tests + codeql) |
