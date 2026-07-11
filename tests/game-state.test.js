@@ -89,6 +89,39 @@ describe("snapshot / restore / undo", () => {
   });
 });
 
+describe("undo() robustness", () => {
+  let game;
+  beforeEach(() => {
+    game = makeGame();
+    game.rpsEnabled = true;
+  });
+
+  test("undo tolerates a captured defender missing from the captured list", () => {
+    // Advantage combat: fire pawn captures nature pawn, nature pawn is added
+    // to fire's capturedPieces. Manually remove it, then undo — the restore
+    // must skip the missing defender (game.ts L524 `if (idx !== -1)`) without
+    // throwing or corrupting state.
+    const attacker = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const defender = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 0));
+    game.pieces = [attacker, defender];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    game.handleCellClick(attacker.pos);
+    game.handleCellClick(defender.pos);
+    expect(defender.alive).toBe(false);
+    expect(game.capturedPieces[FACTION.FIRE].length).toBe(1);
+
+    // Corrupt the captured list so the defender id is gone before undo.
+    game.capturedPieces[FACTION.FIRE] = [];
+    expect(() => game.undo()).not.toThrow();
+    // Defender is revived by the undo regardless of the stale captured entry.
+    expect(defender.alive).toBe(true);
+  });
+});
+
 describe("completePromotion", () => {
   let game;
   beforeEach(() => {

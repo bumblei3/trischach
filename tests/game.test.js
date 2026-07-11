@@ -184,6 +184,17 @@ describe("Game logic", () => {
     expect(game.handleCellClick(new Hex(0, 0))).toBeNull();
   });
 
+  test("handleCellClick is blocked after a draw (repetition / 50-move)", () => {
+    // A draw ends the game just like game_over: no further clicks may move.
+    const pawn = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+    );
+    game.state = GAME_STATE.DRAW_REPETITION;
+    expect(game.handleCellClick(pawn.pos)).toBeNull();
+    game.state = GAME_STATE.DRAW_50MOVE;
+    expect(game.handleCellClick(pawn.pos)).toBeNull();
+  });
+
   test("king elimination eliminates faction", () => {
     game.rpsEnabled = true;
     const fireQueen = game
