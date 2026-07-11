@@ -8,8 +8,7 @@
  */
 import { expect, test, describe, beforeEach } from "vitest";
 import { Hex } from "../js/hex.ts";
-import { FACTION, generateBoard } from "../js/board.ts";
-import { Game } from "../js/game.ts";
+import { FACTION } from "../js/board.ts";
 import {
   formatSAN,
   getPuzzleState,
@@ -343,16 +342,9 @@ describe("getDailyPuzzle", () => {
   test("serves a cached daily puzzle for the same date without regenerating", async () => {
     const today = new Date().toISOString().split("T")[0];
     const cached = makePuzzle({ id: "cached-daily", difficulty: "medium" });
-    localStorage.setItem(
-      "trischach-daily-puzzle-date",
-      today,
-    );
-    localStorage.setItem(
-      "trischach-daily-puzzle",
-      JSON.stringify(cached),
-    );
+    localStorage.setItem("trischach-daily-puzzle-date", today);
+    localStorage.setItem("trischach-daily-puzzle", JSON.stringify(cached));
     const result = await getDailyPuzzle();
     expect(result?.id).toBe("cached-daily");
   });
 });
-

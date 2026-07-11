@@ -29,7 +29,11 @@ describe("formatMove", () => {
   });
 
   test("entry without target falls back to Promotion=Q", () => {
-    const out = formatMove({ piece: { faction: "water", type: "rook" } }, {}, 0);
+    const out = formatMove(
+      { piece: { faction: "water", type: "rook" } },
+      {},
+      0,
+    );
     expect(out).toBe("water_Promotion=Q");
   });
 
@@ -43,7 +47,12 @@ describe("formatMove", () => {
     ).toContain(" >");
     expect(
       formatMove(
-        { action: "combat", rpsResult: "disadvantage", piece, to: { q: 1, r: 2 } },
+        {
+          action: "combat",
+          rpsResult: "disadvantage",
+          piece,
+          to: { q: 1, r: 2 },
+        },
         {},
         0,
       ),
@@ -104,13 +113,15 @@ describe("formatMove", () => {
 
 describe("getResultString", () => {
   test("ongoing game yields *", () => {
-    expect(getResultString({ state: "select_piece", moveHistory: [] })).toBe("*");
+    expect(getResultString({ state: "select_piece", moveHistory: [] })).toBe(
+      "*",
+    );
   });
 
   test("game over without winner yields draw marker", () => {
-    expect(
-      getResultString({ state: "game_over", moveHistory: [] }),
-    ).toBe("1/2-1/2-1/2");
+    expect(getResultString({ state: "game_over", moveHistory: [] })).toBe(
+      "1/2-1/2-1/2",
+    );
   });
 
   test("game over maps each winning faction to its result", () => {

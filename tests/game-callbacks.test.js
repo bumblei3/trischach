@@ -4,7 +4,7 @@
  * branches were uncovered, so they never ran in the suite before.
  */
 import { expect, test, describe, beforeEach, vi } from "vitest";
-import { Game, GAME_STATE } from "../js/game.ts";
+import { Game } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";

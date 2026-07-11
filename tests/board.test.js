@@ -381,17 +381,11 @@ describe("BoardRenderer — touch rotation gestures", () => {
   test("two-finger move rotates by the change in angle", () => {
     // start horizontal (angle 0)
     renderer._onTouchStart(
-      makeTouchEvent("touchstart", [
-        makeTouch(1, 0, 0),
-        makeTouch(2, 100, 0),
-      ]),
+      makeTouchEvent("touchstart", [makeTouch(1, 0, 0), makeTouch(2, 100, 0)]),
     );
     // rotate to vertical (angle 90)
     renderer._onTouchMove(
-      makeTouchEvent("touchmove", [
-        makeTouch(1, 0, 0),
-        makeTouch(2, 0, 100),
-      ]),
+      makeTouchEvent("touchmove", [makeTouch(1, 0, 0), makeTouch(2, 0, 100)]),
     );
     expect(Math.round(renderer.currentRotation)).toBe(90);
   });
@@ -433,24 +427,22 @@ describe("BoardRenderer — touch rotation gestures", () => {
     renderer._touchState.touches.set(1, { clientX: 0, clientY: 0 });
     renderer._touchState.touches.set(2, { clientX: 100, clientY: 0 });
     // A changedTouches entry with an unknown identifier must not be recorded
-    renderer._onTouchMove(
-      makeTouchEvent("touchmove", [makeTouch(99, 50, 50)]),
-    );
+    renderer._onTouchMove(makeTouchEvent("touchmove", [makeTouch(99, 50, 50)]));
     expect(renderer._touchState.touches.has(99)).toBe(false);
   });
 
   test("_onTouchMove is a no-op when fewer than two touches remain", () => {
     renderer._touchState.isRotating = true;
     renderer._touchState.touches.clear();
-    renderer._onTouchMove(
-      makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]),
-    );
+    renderer._onTouchMove(makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]));
     expect(renderer.currentRotation).toBe(0);
   });
 
   test("_getTouchAngle / _getTouchDistance return 0 with missing touches", () => {
     expect(renderer._getTouchAngle(undefined, undefined)).toBe(0);
-    expect(renderer._getTouchDistance(undefined, { clientX: 0, clientY: 0 })).toBe(0);
+    expect(
+      renderer._getTouchDistance(undefined, { clientX: 0, clientY: 0 }),
+    ).toBe(0);
     // with both present, distance is the euclidean length
     const d = renderer._getTouchDistance(
       { clientX: 0, clientY: 0 },
@@ -482,9 +474,9 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
     const cell = Array.from(renderer.cells.values())[0];
     renderer.highlightCells([cell.hex]);
     expect(
-      renderer.hexElements.get(cell.hex.key).polygon.classList.contains(
-        "highlight-move",
-      ),
+      renderer.hexElements
+        .get(cell.hex.key)
+        .polygon.classList.contains("highlight-move"),
     ).toBe(true);
   });
 
@@ -494,7 +486,6 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
     const cell = Array.from(renderer.cells.values())[0];
     const el = renderer.hexElements.get(cell.hex.key);
     // simulate the pointerdown listener attached in render()
-    const evt = { preventDefault: () => {} };
     el.polygon.dispatchEvent(new window.Event("pointerdown"));
     // happy-dom may not route the listener the same way; fall back to direct call
     renderer.onCellClick(cell.hex, cell);
@@ -517,9 +508,7 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
     // Only one touch remains in changedTouches (the other was lifted) and the
     // recorded state still has 2 -> after the update loop the array has length 1
     renderer._touchState.touches.delete(2);
-    renderer._onTouchMove(
-      makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]),
-    );
+    renderer._onTouchMove(makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]));
     expect(renderer.currentRotation).toBe(0);
   });
 
@@ -546,7 +535,12 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
 
   test("renderPiece long-press: onPressEnd with no pending timer is a no-op", () => {
     // Cover the `if (pressTimer)` false branch in onPressEnd.
-    const piece = { id: "lp2", faction: FACTION.FIRE, pos: new Hex(0, 0), symbol: "P" };
+    const piece = {
+      id: "lp2",
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 0),
+      symbol: "P",
+    };
     renderer.renderPiece(piece);
     const el = renderer.pieceElements.get("lp2").element;
     const up = new window.Event("pointerup");

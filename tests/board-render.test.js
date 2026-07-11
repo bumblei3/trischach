@@ -5,7 +5,7 @@
  * DOM-building branches that the rotate-gesture tests do not cover, with
  * real DOM assertions rather than "does not throw" only.
  */
-import { expect, test, describe, beforeEach, vi } from "vitest";
+import { expect, test, describe, beforeEach } from "vitest";
 import { BoardRenderer, FACTION } from "../js/board.ts";
 import { Hex } from "../js/hex.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
