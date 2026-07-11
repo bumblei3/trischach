@@ -343,9 +343,11 @@ describe("Auto-Battle Integration", () => {
 
     expect(result.action).toBe("combat");
     expect(result.rpsResult).toBe("disadvantage"); // Fire vs Water = disadvantage
-    expect(result.defender).toBeDefined();
-    expect(result.winner).toBeDefined();
-    expect(result.loser).toBeDefined();
+    // Fire (attacker) loses the disadvantage combat; Water (defender)
+    // wins. Assert the result identifies both sides correctly.
+    expect(result.defender).toBe(waterPawn);
+    expect(result.winner).toBe(waterPawn);
+    expect(result.loser).toBe(fireQueen);
   });
 
   test("Auto-battle skips eliminated factions", () => {
