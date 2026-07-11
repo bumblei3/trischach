@@ -97,5 +97,4 @@ test.describe("TriSchach - Regression flows", () => {
     await page.click("#rotate-btn", { timeout: 5000 });
     await page.waitForTimeout(300);
   });
-
 });
