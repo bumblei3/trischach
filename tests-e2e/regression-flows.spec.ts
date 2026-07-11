@@ -71,4 +71,31 @@ test.describe("TriSchach - Regression flows", () => {
       await expect(page.locator("#move-log")).toBeEmpty();
     }
   });
+
+  test("Rotate then New Game stays clickable (regression: SVG intercepts pointer events)", async ({
+    page,
+  }) => {
+    // Rotating the board-svg grows its hit-box beyond its layout box.
+    // After rotation the rotated <svg> must NOT swallow clicks on the
+    // controls below it (the bug made Drehen/Neu dead after one rotation).
+    await page.click("#rotate-btn");
+    await page.waitForTimeout(700);
+
+    // These must succeed WITHOUT force: the SVG must not intercept the click.
+    // (If the rotated SVG ate pointer events, Playwright would report
+    // "<svg id=board-svg> intercepts pointer events".)
+    await page.click("#rotate-btn", { timeout: 5000 });
+    await page.waitForTimeout(300);
+
+    await page.click("#restart-btn", { timeout: 5000 });
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#turn-indicator")).toContainText("Feuer");
+    await expect(page.locator("#move-log")).toBeEmpty();
+
+    // Controls remain live: rotate once more after restart.
+    await page.click("#rotate-btn", { timeout: 5000 });
+    await page.waitForTimeout(300);
+  });
+
 });

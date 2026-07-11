@@ -270,6 +270,19 @@ header h1 {
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+  /* The board rotates as a CSS transform around its own center. A rotated
+     SVG's hit-box grows beyond its layout box and would intercept pointer
+     events on the controls below it (bug: Drehen/Neu dead after a rotate).
+     Only the interactive cells/pieces receive events; the <svg> frame itself
+     stays click-through so nothing outside the board swallows clicks. */
+  pointer-events: none;
+}
+/* Re-enable clicks only on the board cells. Pieces intentionally stay
+   click-through (their parent .hex-cell owns the pointerdown handler),
+   so this mirrors the original per-cell hit-testing while keeping the
+   rotated <svg> frame from swallowing clicks on the controls below. */
+#board-svg .hex-cell {
+  pointer-events: auto;
 }
 
 .controls {
