@@ -35,6 +35,21 @@ describe("Pawn Promotion", () => {
     expect(game.isPromotion(queen, new Hex(0, 0))).toBe(false);
   });
 
+  test("isPromotion is faction-agnostic (all pawns promote at r<=0)", () => {
+    // The engine's promotion rule is `target.r <= 0`, independent of faction.
+    // Verify the same pawn landing on r=0 promotes whether it belongs to Fire,
+    // Water, or Nature — the rule must not be hardcoded to Fire's side of the
+    // board. This guards against a regression that would silently disable
+    // promotion for the other two factions.
+    for (const faction of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+      const pawn = new Piece(PIECE_TYPE.PAWN, faction, new Hex(0, 1));
+      expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(true);
+      // And a non-promotion square never promotes, for any faction.
+      const farPawn = new Piece(PIECE_TYPE.PAWN, faction, new Hex(0, 3));
+      expect(game.isPromotion(farPawn, new Hex(0, 2))).toBe(false);
+    }
+  });
+
   test("PROMOTION_CHOICES contains queen, rook, bishop, knight", () => {
     expect(PROMOTION_CHOICES).toEqual([
       PIECE_TYPE.QUEEN,

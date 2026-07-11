@@ -570,7 +570,11 @@ describe("Game Over: last faction standing", () => {
     g.rpsEnabled = true;
 
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
-    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 1));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
     g.pieces = [fireQueen, natureKing];
     g._rebuildOccupiedMap();
     // Pre-state: Water already eliminated, Nature still standing.
@@ -588,5 +592,37 @@ describe("Game Over: last faction standing", () => {
     expect(g.state).toBe(GAME_STATE.GAME_OVER);
     expect(r.gameOver).toBe(true);
     expect(r.winner_faction).toBe(FACTION.FIRE);
+  });
+
+  test("with RPS disabled a disadvantaged attacker still wins (defender dies)", () => {
+    // When rpsEnabled is false the engine treats every combat as 'advantage',
+    // so the attacker always wins regardless of the RPS matchup. A Fire pawn
+    // (which would LOSE to Water under RPS) must therefore capture the Water
+    // pawn and survive when RPS is off — the exact opposite of the
+    // rpsEnabled=true disadvantage case.
+    const g = new Game();
+    g.init(generateBoard());
+    g.rpsEnabled = false; // RPS off -> all combats resolve as advantage
+
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    g.pieces = [firePawn, waterPawn, fireKing, waterKing];
+    g._rebuildOccupiedMap();
+    g.currentFactionIdx = 0; // FIRE to move
+    g.currentFaction = FACTION.FIRE;
+    g.state = GAME_STATE.SELECT_PIECE;
+
+    g.handleCellClick(new Hex(0, 2)); // select fire pawn
+    const r = g.handleCellClick(new Hex(0, 1)); // capture water pawn
+
+    expect(r.action).toBe("combat");
+    // With RPS off there is no disadvantage branch -> attacker wins.
+    expect(r.rpsResult).toBe("advantage");
+    expect(firePawn.alive).toBe(true); // attacker survives
+    expect(waterPawn.alive).toBe(false); // defender dies
+    // The attacker moves onto the captured square.
+    expect(firePawn.pos.equals(new Hex(0, 1))).toBe(true);
   });
 });

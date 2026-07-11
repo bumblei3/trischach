@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
-    *consecutive* occurrences of the same position hash — an intervening
+    _consecutive_ occurrences of the same position hash — an intervening
     different position must not advance the original hash's counter.
   - **RPS attack-categorization invariant** (`tests/game-draw.test.js`):
     `categorizeAttacks` is verified to never classify a same-faction (neutral)
@@ -100,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      converted to a real `Hex` before being passed to `handleCellClick`, which
      previously set `piece.pos` to a plain object and crashed the post-move
      check detection (`getValidMoves` → `piece.pos.add is not a function`).
-  `Hex` is now imported in `replay.ts`.
+     `Hex` is now imported in `replay.ts`.
 
 ### Docs
 

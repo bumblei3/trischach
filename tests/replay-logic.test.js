@@ -327,7 +327,11 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     // Fire queen captures the Nature king (Fire beats Nature = advantage) ->
     // Nature is eliminated; Water alive so not game over.
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
-    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 1));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(-3, 3));
     game.pieces = [fireQueen, natureKing, waterKing];
     game._rebuildOccupiedMap();
@@ -371,7 +375,7 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
 
     const tspn = serializeGame(game);
     const parsed = parseTSPN(tspn);
-    const { game: rebuilt, controller } = reconstructGameFromTSPN(
+    const { controller } = reconstructGameFromTSPN(
       parsed,
       Game,
       generateBoard(),

@@ -159,7 +159,11 @@ describe("RPS attack categorization invariant", () => {
     // land in `advantage`, never `neutral`. Confirms the RPS mapping is applied
     // to every produced attack target.
     const fireQueen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
-    const naturePawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+    const naturePawn = new Piece(
+      PIECE_TYPE.PAWN,
+      FACTION.NATURE,
+      new Hex(1, 0),
+    );
     game.pieces = [fireQueen, naturePawn];
     game._rebuildOccupiedMap();
     game.currentFactionIdx = 0;
@@ -167,9 +171,9 @@ describe("RPS attack categorization invariant", () => {
     game.state = GAME_STATE.SELECT_PIECE;
 
     const result = game.handleCellClick(fireQueen.pos);
-    expect(result.rpsAttacks.advantage.some((h) => h.equals(new Hex(1, 0)))).toBe(
-      true,
-    );
+    expect(
+      result.rpsAttacks.advantage.some((h) => h.equals(new Hex(1, 0))),
+    ).toBe(true);
     expect(result.rpsAttacks.neutral.length).toBe(0);
   });
 });
@@ -188,7 +192,11 @@ describe("Threefold repetition over the full handleCellClick flow", () => {
     // letting two knights commute back to the start in 4 plies.
     game.eliminatedFactions.add(FACTION.NATURE);
 
-    const fireKnight = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
+    const fireKnight = new Piece(
+      PIECE_TYPE.KNIGHT,
+      FACTION.FIRE,
+      new Hex(0, 0),
+    );
     const waterKnight = new Piece(
       PIECE_TYPE.KNIGHT,
       FACTION.WATER,
@@ -244,7 +252,11 @@ describe("50-move rule over the full handleCellClick flow", () => {
     // quiet knight move advance the clock without resetting it.
     game.eliminatedFactions.add(FACTION.NATURE);
 
-    const fireKnight = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
+    const fireKnight = new Piece(
+      PIECE_TYPE.KNIGHT,
+      FACTION.FIRE,
+      new Hex(0, 0),
+    );
     const waterKnight = new Piece(
       PIECE_TYPE.KNIGHT,
       FACTION.WATER,

@@ -274,7 +274,10 @@ export function parseMoveText(text: string): ParsedMove[] {
   // Split into individual moves on move-number boundaries ("1.", "12.").
   // This supports both one-move-per-line TSPN and multiple moves in a single
   // line (legacy format). Each segment is "fire_Queen_x_0,1 > [nature eliminated]".
-  const segments = text.split(/(?=\b\d+\.\s*)/).map((s) => s.trim()).filter(Boolean);
+  const segments = text
+    .split(/(?=\b\d+\.\s*)/)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   for (const seg of segments) {
     // Strip the leading move number ("1.", "12.").
@@ -289,7 +292,9 @@ export function parseMoveText(text: string): ParsedMove[] {
     let movePart = withoutNumber;
     if (annoMatch) {
       elimination = annoMatch[1]!.toLowerCase();
-      movePart = withoutNumber.replace(/\[([a-z]+)\s+eliminated\]\s*$/i, "").trim();
+      movePart = withoutNumber
+        .replace(/\[([a-z]+)\s+eliminated\]\s*$/i, "")
+        .trim();
     }
 
     const tokens = movePart.split(/\s+/).filter((t) => t);
