@@ -122,14 +122,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the opponent was left in check by the promoted piece — a genuine
     inconsistency, not just a test gap.
     - **disadvantage combat into the promotion zone promoted a dead pawn**
-    (`js/game.ts`): `_selectTarget` ran the `isPromotion` check on the
-    selected pawn *after* a combat resolved, without verifying the pawn
-    survived. On a disadvantage RPS duel the attacker dies on its origin
-    square (never reaching the target), yet the engine still set
-    `pendingPromotion` and entered `PROMOTION` state — leaving a zombie
-    "promoted" corpse (a dead piece transformed to a queen, stuck in
-    PROMOTION). The check now also requires `selectedPiece.alive`, so only a
-    pawn that actually reaches the target square can promote.
+      (`js/game.ts`): `_selectTarget` ran the `isPromotion` check on the
+      selected pawn _after_ a combat resolved, without verifying the pawn
+      survived. On a disadvantage RPS duel the attacker dies on its origin
+      square (never reaching the target), yet the engine still set
+      `pendingPromotion` and entered `PROMOTION` state — leaving a zombie
+      "promoted" corpse (a dead piece transformed to a queen, stuck in
+      PROMOTION). The check now also requires `selectedPiece.alive`, so only a
+      pawn that actually reaches the target square can promote.
 
     ### Tests
 
@@ -167,9 +167,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     round-24 fix where a promotion returned `inCheck === undefined`).
   - **promotion by capture respects RPS survival**
     (`tests/promotion.test.js`): two new invariants around a pawn capturing
-    into the promotion zone — a *disadvantage* duel (attacker dies on its
+    into the promotion zone — a _disadvantage_ duel (attacker dies on its
     origin) must NOT promote the dead pawn (no zombie `PROMOTION` state; the
-    round-25 fix), while an *advantage* duel (attacker reaches the target)
+    round-25 fix), while an _advantage_ duel (attacker reaches the target)
     still promotes the surviving pawn.
 
 ### Docs

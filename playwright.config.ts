@@ -39,9 +39,17 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx vite preview --port 4173 --host",
+    // Use the Vite dev server (not `vite preview`) so the E2E suite does not
+    // depend on a prior production build producing dist/index.html. `vite
+    // preview` serves the *built* dist/ and silently serves a directory
+    // listing (app never loads) when the build omits index.html — which made
+    // every test hang on waitForSelector until timeout on branches whose
+    // vite.config entry did not emit index.html. The dev server serves
+    // index.html (and js/main.ts via on-the-fly TS transform) directly, so the
+    // suite is robust regardless of build config.
+    command: "npx vite --port 4173 --strictPort --host",
     url: "http://localhost:4173",
     reuseExistingServer: !process.env.CI,
-    timeout: 180000,
+    timeout: 120000,
   },
 });
