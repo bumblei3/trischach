@@ -239,6 +239,55 @@ describe("Threefold repetition over the full handleCellClick flow", () => {
   });
 });
 
+describe("Threefold repetition over a promotion (regression for draw-state fix)", () => {
+  test("completing a promotion that reaches the 3rd repetition ends in DRAW_REPETITION", () => {
+    // Regression guard for the round-21 fix: completePromotion now records the
+    // post-promotion position via _updateDrawState. Seed that position twice,
+    // then promote into it a third time — the engine must recognize the third
+    // occurrence and end the game as a repetition draw. Before the fix the
+    // promoted position was never recorded, so this would NOT draw.
+    const game = new Game();
+    game.init(generateBoard());
+    game.rpsEnabled = true;
+    game.pieces = [];
+    game._rebuildOccupiedMap();
+
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 7),
+    );
+    game.pieces = [pawn, fireKing, waterKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    // Drive the pawn to the promotion square (transient PROMOTION state).
+    game.handleCellClick(new Hex(0, 1));
+    game.handleCellClick(new Hex(0, 0));
+    expect(game.state).toBe(GAME_STATE.PROMOTION);
+
+    // Compute the post-promotion hash (queen on 0,0) and seed it twice so the
+    // upcoming promotion becomes the 3rd occurrence.
+    const postHash = `${game
+      .getAlivePieces()
+      .filter((p) => p.alive)
+      .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+      .sort()
+      .join("|")}#0`.replace("fp0,0", "fq0,0");
+    game._positionHistory.set(postHash, 2);
+
+    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+    expect(game.state).toBe(GAME_STATE.DRAW_REPETITION);
+    expect(result.draw).toBe(true);
+    expect(game._positionHistory.get(postHash)).toBe(3);
+  });
+});
+
 describe("50-move rule over the full handleCellClick flow", () => {
   test("a non-capturing move that reaches 100 half-moves ends as a draw", () => {
     // End-to-end guard: the half-move clock is advanced by every real move

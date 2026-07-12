@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across iterations (565 → 606 passing unit
+- Test-suite hardening across iterations (565 → 609 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
@@ -117,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- Test-suite hardening across iterations (565 → 606 passing unit
+- Test-suite hardening across iterations (565 → 609 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **completePromotion resets the 50-move clock** (`tests/promotion.test.js`):
     a promotion completes with `_halfmoveClock === 0`, matching the pawn-move
@@ -129,6 +129,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`tests/promotion.test.js`): a board click in `PROMOTION` state returns
     `null`, leaves state in `PROMOTION`, keeps `pendingPromotion` set, and does
     not move or promote the pawn.
+  - **Threefold repetition over a promotion (end-to-end)**
+    (`tests/game-draw.test.js`): seeding the post-promotion position twice and
+    then completing a promotion into it a third time ends the game as
+    `DRAW_REPETITION` — full-flow regression guard for the round-21
+    draw-state fix (previously the promoted position was never recorded).
+  - **simulateMove/undoMove round-trip (AI search integrity)**
+    (`tests/game.test.js`): a disadvantage capture (attacker dies) and an
+    advantage capture (defender dies) each fully revert via `undoMove` —
+    no stale `capturedPieces` entry leaks, protecting the AI search from
+    corrupted material state across make/unmake.
 
 ### Docs
 
