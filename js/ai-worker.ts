@@ -47,7 +47,10 @@ import {
   iterativeDeepening,
   greedyBestMove,
   calculateBestMove,
+  searchRootSubset,
+  calculateBestMoveParallel,
   setAIDepth,
+  getAIDepth,
   // Pondering
   startPondering,
   stopPondering,
@@ -150,6 +153,40 @@ ctx.onmessage = function (e: MessageEvent) {
     } else {
       ctx.postMessage({ type: "result", move: null });
     }
+  } else if (type === "searchSubset") {
+    // Root-move splitting: search only the assigned subset of root moves.
+    const game: any = deserializeGame(gameState);
+    if (depth !== undefined) setAIDepth(depth);
+    const subset = (e.data.subset as any[])
+      .map((s) => {
+        const target = new Hex(s.targetQ, s.targetR);
+        const actions = getAllActions(game, faction);
+        return actions.find(
+          (a: any) => a.piece.id === s.pieceId && a.target.equals(target),
+        )!;
+      })
+      .filter(Boolean);
+    const timeBudget = e.data.timeBudget ?? calculateTimeBudget(game);
+    beginSearch(timeBudget);
+    const res = searchRootSubset(
+      game,
+      faction,
+      subset,
+      e.data.searchDepth ?? getAIDepth(),
+    );
+    ctx.postMessage({
+      type: "subsetResult",
+      score: res.score,
+      move: res.action
+        ? {
+            pieceId: res.action.piece.id,
+            targetQ: res.action.target.q,
+            targetR: res.action.target.r,
+            moveType: res.action.type,
+            rps: res.action.rps,
+          }
+        : null,
+    });
   } else if (type === "startPonder") {
     // Stop any existing pondering
     _ponderAbort = true;

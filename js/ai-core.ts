@@ -2071,6 +2071,83 @@ export function iterativeDeepening(
   return bestResult.action ?? null;
 }
 
+/**
+ * Search only the given subset of root moves (root-move splitting for parallel
+ * search). Returns the best (score, action) within the subset, using a single
+ * minimax pass at `depth` with a bounded window. Callers MUST call
+ * `beginSearch()` first so the search globals / time window are valid — a bare
+ * minimax inherits stale deadline globals (the #42 issue) and returns
+ * timeout=true, action=null.
+ *
+ * Each subset is searched independently; the caller aggregates by picking the
+ * highest score across all subsets. This avoids any shared transposition table
+ * and is therefore deploy-safe on GitHub Pages (no SharedArrayBuffer needed).
+ */
+export function searchRootSubset(
+  game: IGame,
+  faction: Faction,
+  subset: AIAction[],
+  depth: number,
+): SearchResult {
+  if (subset.length === 0) return { score: -Infinity, action: null };
+  let best: SearchResult = { score: -Infinity, action: subset[0] ?? null };
+  let alpha = -Infinity;
+  for (const action of subset) {
+    const undo = simulateMove(game, action.piece, action.target);
+    const child = minimax(
+      game,
+      depth - 1,
+      alpha,
+      Infinity,
+      faction,
+      game.currentFaction,
+      searchDeadline,
+    );
+    undoMove(game, undo);
+    const score = child.score;
+    if (score > best.score) {
+      best = { score, action };
+    }
+    if (score > alpha) alpha = score;
+  }
+  return best;
+}
+
+/**
+ * Parallel root-move search via root-move splitting. Splits the legal root
+ * moves across `workerCount` groups and searches each group (the single-thread
+ * fallback here does them sequentially; the worker entry point dispatches one
+ * group per Web Worker). Returns the best move by score.
+ *
+ * Uses `beginSearch()` per call so each search is isolated (no shared globals).
+ * Falls back to `iterativeDeepening` when there is only one legal move or
+ * workerCount < 2. No rule/behaviour change — only search speed/depth.
+ */
+export function calculateBestMoveParallel(
+  game: IGame,
+  faction: Faction,
+  workerCount = 2,
+  depth?: number,
+): AIAction | null {
+  const actions = getAllActions(game, faction);
+  if (actions.length === 0) return null;
+  if (actions.length === 1 || workerCount < 2) {
+    return iterativeDeepening(game, faction);
+  }
+  const d = depth ?? getAIDepth();
+  const groups: AIAction[][] = Array.from({ length: workerCount }, () => []);
+  actions.forEach((a, i) => groups[i % workerCount]!.push(a));
+
+  beginSearch(calculateTimeBudget(game));
+  let best: SearchResult = { score: -Infinity, action: actions[0] ?? null };
+  for (const group of groups) {
+    if (group.length === 0) continue;
+    const r = searchRootSubset(game, faction, group, d);
+    if (r.score > best.score) best = r;
+  }
+  return best.action ?? null;
+}
+
 export function greedyBestMove(
   game: IGame,
   faction: Faction,
