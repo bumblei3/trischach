@@ -1,4 +1,3 @@
-// @ts-nocheck
 import {
   expect,
   test,
@@ -10,6 +9,8 @@ import {
 } from "vitest";
 import fs from "fs";
 import path from "path";
+import type { Hex } from "../js/hex.ts";
+type HexType = Hex;
 
 // Read index.html to inject into the test DOM. happy-dom provides DOMParser,
 // so we parse + extract the body and strip <script> tags via the DOM API
@@ -26,7 +27,10 @@ const fetchMock = vi.hoisted(() => {
   const originalFetch = globalThis.fetch;
   return {
     originalFetch,
-    mockFn: async (url, opts) => {
+    mockFn: async (
+      url: string | URL | Request,
+      opts?: RequestInit,
+    ): Promise<Response> => {
       if (typeof url === "string" && url.startsWith("http://localhost:3000/")) {
         const filePath = url.replace("http://localhost:3000/", "");
         let content = "";
@@ -54,6 +58,11 @@ const fetchMock = vi.hoisted(() => {
 beforeAll(() => {
   vi.stubGlobal("fetch", fetchMock.mockFn);
 });
+
+// Typed helper to read DOM elements (getElementById returns T | null).
+function byId(id: string): HTMLElement {
+  return document.getElementById(id) as HTMLElement;
+}
 
 describe("Main UI & Events", () => {
   beforeEach(() => {
@@ -104,17 +113,17 @@ describe("Main UI & Events", () => {
   test("UI initializes correctly on load", async () => {
     await import("../js/main.ts");
 
-    const svg = document.getElementById("board-svg");
+    const svg = byId("board-svg");
     expect(svg.querySelectorAll(".hex-polygon").length).toBeGreaterThan(0);
 
-    const turnEl = document.getElementById("turn-indicator");
+    const turnEl = byId("turn-indicator");
     expect(turnEl.textContent).toContain("Feuer");
   });
 
   test("Board rotate button applies rotation", async () => {
     await import("../js/main.ts");
-    const rotateBtn = document.getElementById("rotate-btn");
-    const svg = document.getElementById("board-svg");
+    const rotateBtn = byId("rotate-btn");
+    const svg = byId("board-svg");
 
     rotateBtn.click();
     expect(svg.style.transform).toBe("rotate(120deg)");
@@ -124,7 +133,7 @@ describe("Main UI & Events", () => {
 
   test("Auto Battle toggle button", async () => {
     await import("../js/main.ts");
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
 
     autoBattleBtn.click();
     expect(autoBattleBtn.classList.contains("active")).toBe(true);
@@ -137,22 +146,22 @@ describe("Main UI & Events", () => {
 
   test("Restart button resets the game", async () => {
     await import("../js/main.ts");
-    const restartBtn = document.getElementById("restart-btn");
-    const moveLogEl = document.getElementById("move-log");
+    const restartBtn = byId("restart-btn");
+    const moveLogEl = byId("move-log");
 
     moveLogEl.innerHTML = "<div>Fake Move</div>";
     restartBtn.click();
 
     expect(moveLogEl.innerHTML).toBe("");
-    const statusEl = document.getElementById("status");
+    const statusEl = byId("status");
     expect(statusEl.textContent).toBe("Wähle eine Figur");
   });
 
   test("Toggles for RPS and Sound", async () => {
     await import("../js/main.ts");
-    const rpsToggle = document.getElementById("rps-toggle");
-    const soundToggle = document.getElementById("sound-toggle");
-    const rpsInfoEl = document.getElementById("rps-info");
+    const rpsToggle = byId("rps-toggle") as HTMLInputElement;
+    const soundToggle = byId("sound-toggle") as HTMLInputElement;
+    const rpsInfoEl = byId("rps-info");
 
     rpsToggle.checked = false;
     rpsToggle.dispatchEvent(new Event("change"));
@@ -168,14 +177,14 @@ describe("Main UI & Events", () => {
     expect(pieces.length).toBeGreaterThan(0);
 
     // Auto Battle triggers a move and potentially combat
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
     autoBattleBtn.click();
 
     // Fast forward to trigger AI move
     vi.advanceTimersByTime(500);
 
     // If it was a combat, the overlay should be visible
-    const combatOverlay = document.getElementById("combat-overlay");
+    const combatOverlay = byId("combat-overlay");
     if (combatOverlay.classList.contains("visible")) {
       const stopBtn = document.getElementById("stop-auto-combat");
       if (stopBtn) stopBtn.click(); // Stop auto battle during combat
@@ -190,7 +199,7 @@ describe("Main UI & Events", () => {
     await import("../js/main.ts");
 
     // Force auto battle on
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
     autoBattleBtn.click();
 
     // We can't easily trigger showCombat because it's private, but enabling
@@ -220,11 +229,12 @@ describe("Main UI & Events", () => {
     game.state = "select_piece";
     game.currentFactionIdx = 0; // Fire
 
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
     if (!autoBattleBtn.classList.contains("active")) autoBattleBtn.click();
 
-    renderer.onCellClick(firePawn.pos);
-    renderer.onCellClick(waterPawn.pos);
+    const click = (h: HexType) => renderer.onCellClick!(h, undefined as never);
+    click(firePawn.pos);
+    click(waterPawn.pos);
 
     // showCombat timeout is 2200ms — must resolve without throwing even though
     // the combat-overlay element exists in the injected DOM.
@@ -235,7 +245,7 @@ describe("Main UI & Events", () => {
 
   test("UI responds to game over state", async () => {
     await import("../js/main.ts");
-    const statusEl = document.getElementById("status");
+    const statusEl = byId("status");
     const { game, renderer } = await import("../js/main.ts");
     const { FACTION } = await import("../js/board.ts");
 
@@ -260,8 +270,9 @@ describe("Main UI & Events", () => {
     game.rpsEnabled = false;
     game.currentFactionIdx = 0; // Fire
 
-    renderer.onCellClick(fireQueen.pos);
-    renderer.onCellClick(waterKing.pos);
+    const click = (h: HexType) => renderer.onCellClick!(h, undefined as never);
+    click(fireQueen.pos);
+    click(waterKing.pos);
 
     // Fast-forward showCombat timeout (2200ms)
     vi.advanceTimersByTime(2500);
@@ -272,7 +283,7 @@ describe("Main UI & Events", () => {
     // We can clear all pieces, so AI has no moves
     game.pieces = [];
     game._rebuildOccupiedMap();
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
     autoBattleBtn.click(); // Turn on auto battle
     vi.advanceTimersByTime(500); // trigger AutoMove
 
@@ -298,7 +309,7 @@ describe("Main UI & Events", () => {
     const movesBefore = game.moveHistory.length;
     const posBefore = pawn.pos.key;
 
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
     if (!autoBattleBtn.classList.contains("active")) {
       autoBattleBtn.click();
     }
@@ -333,14 +344,15 @@ describe("Main UI & Events", () => {
     game.currentFactionIdx = 0; // Fire
 
     // Turn on auto battle
-    const autoBattleBtn = document.getElementById("auto-battle-btn");
+    const autoBattleBtn = byId("auto-battle-btn");
     if (!autoBattleBtn.classList.contains("active")) {
       autoBattleBtn.click();
     }
 
     // Trigger combat manually via renderer to force showCombat
-    renderer.onCellClick(firePawn.pos);
-    renderer.onCellClick(waterPawn.pos);
+    const click = (h: HexType) => renderer.onCellClick!(h, undefined as never);
+    click(firePawn.pos);
+    click(waterPawn.pos);
 
     // showCombat timeout is 2200ms
     vi.advanceTimersByTime(2500);
@@ -361,8 +373,9 @@ describe("Main UI & Events", () => {
     game.currentFactionIdx = 0;
     game.state = "select_piece";
 
-    renderer.onCellClick(pawn.pos);
-    renderer.onCellClick(new Hex(0, 4));
+    const click = (h: HexType) => renderer.onCellClick!(h, undefined as never);
+    click(pawn.pos);
+    click(new Hex(0, 4));
 
     expect(pawn.pos.equals(new Hex(0, 4))).toBe(true);
   });

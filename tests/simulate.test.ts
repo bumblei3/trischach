@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
@@ -6,7 +5,7 @@ import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 
 describe("simulateMove / undoMove", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     game = new Game();

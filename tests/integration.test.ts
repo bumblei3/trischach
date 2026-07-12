@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe } from "vitest";
 import { Game } from "../js/game.ts";
 import { generateBoard } from "../js/board.ts";

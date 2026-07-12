@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach, vi } from "vitest";
 import {
   generateBoard,
@@ -9,16 +8,24 @@ import {
   RPS,
 } from "../js/board.ts";
 import { Hex } from "../js/hex.ts";
+import type { Cell, Faction, Piece } from "../js/types.ts";
 
 // Touch-event test helpers (shared across describe blocks). The BoardRenderer
 // touch handlers only read `changedTouches` and `preventDefault`, so a plain
 // object suffices — happy-dom's TouchEvent support is not required.
-function makeTouch(id, x, y) {
+interface TouchLike {
+  identifier: number;
+  clientX: number;
+  clientY: number;
+}
+function makeTouch(id: number, x: number, y: number): TouchLike {
   return { identifier: id, clientX: x, clientY: y };
 }
-function makeTouchEvent(type, touches) {
+function makeTouchEvent(type: string, touches: TouchLike[]): any {
   return { type, changedTouches: touches, preventDefault: () => {} };
 }
+
+const FACTION_VALUES: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 describe("Board Generator & Logic", () => {
   test("generateBoard creates exactly 66 cells", () => {
@@ -30,10 +37,10 @@ describe("Board Generator & Logic", () => {
   test("generateBoard correctly assigns zones", () => {
     const cells = generateBoard();
     // (0,0) should be TRIANGLE
-    expect(cells.get("0,0").zone).toBe("triangle");
+    expect(cells.get("0,0")!.zone).toBe("triangle");
 
     // (0,6) should be FIRE base
-    expect(cells.get("0,6").zone).toBe(`start_${FACTION.FIRE}`);
+    expect(cells.get("0,6")!.zone).toBe(`start_${FACTION.FIRE}`);
   });
 
   test("getRPSResult resolves combat correctly", () => {
@@ -85,14 +92,14 @@ describe("generateBoard — zone & faction distribution", () => {
 
   test("specific anchor cells have expected zone/faction", () => {
     const cells = generateBoard();
-    expect(cells.get("0,0").zone).toBe("triangle");
-    expect(cells.get("0,0").faction).toBeNull();
+    expect(cells.get("0,0")!.zone).toBe("triangle");
+    expect(cells.get("0,0")!.faction).toBeNull();
     // Apex of the fire base
-    expect(cells.get("0,6").zone).toBe("start_fire");
-    expect(cells.get("0,6").faction).toBe(FACTION.FIRE);
+    expect(cells.get("0,6")!.zone).toBe("start_fire");
+    expect(cells.get("0,6")!.faction).toBe(FACTION.FIRE);
     // Apex of the water base
-    expect(cells.get("1,0").zone).toBe("start_water");
-    expect(cells.get("1,0").faction).toBe(FACTION.WATER);
+    expect(cells.get("1,0")!.zone).toBe("start_water");
+    expect(cells.get("1,0")!.faction).toBe(FACTION.WATER);
   });
 
   test("generateBoard is deterministic across calls", () => {
@@ -102,24 +109,22 @@ describe("generateBoard — zone & faction distribution", () => {
     for (const [key, cell] of a) {
       const other = b.get(key);
       expect(other).toBeDefined();
-      expect(other.zone).toBe(cell.zone);
-      expect(other.faction).toBe(cell.faction);
+      expect(other!.zone).toBe(cell.zone);
+      expect(other!.faction).toBe(cell.faction);
     }
   });
 });
 
 describe("getRPSResult — full matrix & invariants", () => {
-  const factions = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
-
   test("same faction is always neutral", () => {
-    for (const f of factions) {
+    for (const f of FACTION_VALUES) {
       expect(getRPSResult(f, f)).toBe("neutral");
     }
   });
 
   test("advantage is the inverse of disadvantage (symmetric RPS)", () => {
-    for (const a of factions) {
-      for (const d of factions) {
+    for (const a of FACTION_VALUES) {
+      for (const d of FACTION_VALUES) {
         if (a === d) continue;
         const r = getRPSResult(a, d);
         const inv = getRPSResult(d, a);
@@ -168,8 +173,8 @@ describe("FACTION / ZONE / RPS constants — invariants", () => {
 });
 
 describe("BoardRenderer (DOM)", () => {
-  let svgContainer;
-  let renderer;
+  let svgContainer: SVGSVGElement;
+  let renderer: BoardRenderer;
 
   beforeEach(() => {
     // Create mock SVG container using happy-dom
@@ -183,7 +188,9 @@ describe("BoardRenderer (DOM)", () => {
       <div id="eval-water" class="eval-segment water"></div>
     `;
     document.body.appendChild(evalContainer);
-    svgContainer = document.getElementById("board-svg");
+    svgContainer = document.getElementById(
+      "board-svg",
+    ) as unknown as SVGSVGElement;
     renderer = new BoardRenderer(svgContainer);
   });
 
@@ -195,7 +202,7 @@ describe("BoardRenderer (DOM)", () => {
 
   test("clearHighlights removes highlight classes", () => {
     renderer.render();
-    const firstCell = svgContainer.querySelector(".hex-polygon");
+    const firstCell = svgContainer.querySelector(".hex-polygon")!;
     firstCell.classList.add("highlight-move");
 
     renderer.clearHighlights();
@@ -210,24 +217,30 @@ describe("BoardRenderer (DOM)", () => {
   test("renderPiece appends piece group to DOM", () => {
     renderer.render();
 
-    const mockPiece = {
+    const mockPiece: Piece = {
       id: "test-piece",
       type: "pawn",
       faction: FACTION.FIRE,
       pos: new Hex(0, 0),
       symbol: "P",
+      alive: true,
+      hasMoved: false,
     };
 
     renderer.renderPiece(mockPiece);
-    const pieceEl = document.querySelector('[data-piece-id="test-piece"]');
+    const pieceEl = document.querySelector(
+      '[data-piece-id="test-piece"]',
+    ) as SVGGElement | null;
 
     expect(pieceEl).not.toBeNull();
-    expect(pieceEl.classList.contains("piece")).toBe(true);
-    expect(pieceEl.classList.contains("piece-fire")).toBe(true);
+    expect(pieceEl!.classList.contains("piece")).toBe(true);
+    expect(pieceEl!.classList.contains("piece-fire")).toBe(true);
 
     // Ensure text rotation matches board counter-rotation
-    const textEl = pieceEl.querySelector(".piece-symbol");
-    expect(textEl.style.transform).toBe("rotate(0deg)");
+    const textEl = pieceEl!.querySelector(
+      ".piece-symbol",
+    ) as SVGTextElement | null;
+    expect(textEl!.style.transform).toBe("rotate(0deg)");
 
     // Removing the piece should remove it from DOM
     renderer.removePiece(mockPiece.id);
@@ -238,9 +251,10 @@ describe("BoardRenderer (DOM)", () => {
   test("highlightCells and clearHighlights", () => {
     renderer.render();
     const cells = Array.from(renderer.cells.values());
+    const cell0 = cells[0]!;
 
-    renderer.highlightCells([cells[0].hex]); // default arg test
-    const el = renderer.hexElements.get(cells[0].hex.key);
+    renderer.highlightCells([cell0.hex]); // default arg test
+    const el = renderer.hexElements.get(cell0.hex.key)!;
     expect(el.polygon.classList.contains("highlight-move")).toBe(true);
 
     renderer.clearHighlights();
@@ -250,34 +264,39 @@ describe("BoardRenderer (DOM)", () => {
   test("selectCell clears previous selection and selects new", () => {
     renderer.render();
     const cells = Array.from(renderer.cells.values());
+    const cell0 = cells[0]!;
+    const cell1 = cells[1]!;
 
-    renderer.selectCell(cells[0].hex);
+    renderer.selectCell(cell0.hex);
     expect(
       renderer.hexElements
-        .get(cells[0].hex.key)
+        .get(cell0.hex.key)!
         .polygon.classList.contains("selected"),
     ).toBe(true);
 
-    renderer.selectCell(cells[1].hex);
+    renderer.selectCell(cell1.hex);
     expect(
       renderer.hexElements
-        .get(cells[0].hex.key)
+        .get(cell0.hex.key)!
         .polygon.classList.contains("selected"),
     ).toBe(false);
     expect(
       renderer.hexElements
-        .get(cells[1].hex.key)
+        .get(cell1.hex.key)!
         .polygon.classList.contains("selected"),
     ).toBe(true);
   });
 
   test("animateMove transforms piece element", async () => {
     renderer.render();
-    const piece = {
+    const piece: Piece = {
       id: "test_piece",
+      type: "pawn",
       faction: FACTION.FIRE,
       pos: new Hex(0, 0),
       symbol: "P",
+      alive: true,
+      hasMoved: false,
     };
     renderer.renderPiece(piece);
 
@@ -287,7 +306,7 @@ describe("BoardRenderer (DOM)", () => {
 
     // test unknown piece
     const p2 = await renderer.animateMove(
-      { id: "unknown" },
+      { id: "unknown", pos: new Hex(0, 0) },
       new Hex(0, 0),
       new Hex(1, 1),
     );
@@ -311,8 +330,9 @@ describe("BoardRenderer (DOM)", () => {
   test("highlightCheck and clearCheck toggle the check class", () => {
     renderer.render();
     const cells = Array.from(renderer.cells.values());
-    renderer.highlightCheck(cells[0].hex);
-    const el = renderer.hexElements.get(cells[0].hex.key);
+    const cell0 = cells[0]!;
+    renderer.highlightCheck(cell0.hex);
+    const el = renderer.hexElements.get(cell0.hex.key)!;
     expect(el.polygon.classList.contains("highlight-check")).toBe(true);
     renderer.clearCheck();
     expect(el.polygon.classList.contains("highlight-check")).toBe(false);
@@ -323,14 +343,17 @@ describe("BoardRenderer (DOM)", () => {
     const detached = document.createElementNS(
       "http://www.w3.org/2000/svg",
       "svg",
-    );
+    ) as SVGSVGElement;
     const r2 = new BoardRenderer(detached);
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     r2.renderPiece({
       id: "orphan",
+      type: "pawn",
       faction: FACTION.FIRE,
       pos: new Hex(0, 0),
       symbol: "P",
+      alive: true,
+      hasMoved: false,
     });
     expect(warnSpy).toHaveBeenCalledWith(
       "board-group not found, piece not rendered",
@@ -342,30 +365,34 @@ describe("BoardRenderer (DOM)", () => {
   test("render adds faction class only for faction-owned cells", () => {
     renderer.render();
     // Center triangle cell has no faction -> no faction-* class
-    const neutral = renderer.hexElements.get(new Hex(0, 0).key);
+    const neutral = renderer.hexElements.get(new Hex(0, 0).key)!;
     expect(neutral.polygon.classList.contains("faction-fire")).toBe(false);
     expect(neutral.polygon.classList.contains("faction-water")).toBe(false);
     // Fire base apex is faction-owned
-    const owned = renderer.hexElements.get(new Hex(0, 6).key);
+    const owned = renderer.hexElements.get(new Hex(0, 6).key)!;
     expect(owned.polygon.classList.contains("faction-fire")).toBe(true);
   });
 });
 
 describe("BoardRenderer — touch rotation gestures", () => {
-  let svgContainer;
-  let renderer;
+  let svgContainer: SVGSVGElement;
+  let renderer: BoardRenderer;
+  let pr: any;
 
   beforeEach(() => {
     document.body.innerHTML = '<svg id="board-svg"></svg>';
-    svgContainer = document.getElementById("board-svg");
+    svgContainer = document.getElementById(
+      "board-svg",
+    ) as unknown as SVGSVGElement;
     renderer = new BoardRenderer(svgContainer);
+    pr = renderer as any;
     renderer.setRotation(0);
   });
 
   test("single-finger touch does not start rotating", () => {
     const ev = makeTouchEvent("touchstart", [makeTouch(1, 10, 10)]);
-    renderer._onTouchStart(ev);
-    expect(renderer._touchState.isRotating).toBe(false);
+    pr._onTouchStart(ev);
+    expect(pr._touchState.isRotating).toBe(false);
     expect(renderer.currentRotation).toBe(0);
   });
 
@@ -374,25 +401,25 @@ describe("BoardRenderer — touch rotation gestures", () => {
       makeTouch(1, 0, 0),
       makeTouch(2, 100, 0),
     ]);
-    renderer._onTouchStart(ev);
-    expect(renderer._touchState.isRotating).toBe(true);
-    expect(renderer._touchState.initialRotation).toBe(0);
+    pr._onTouchStart(ev);
+    expect(pr._touchState.isRotating).toBe(true);
+    expect(pr._touchState.initialRotation).toBe(0);
   });
 
   test("two-finger move rotates by the change in angle", () => {
     // start horizontal (angle 0)
-    renderer._onTouchStart(
+    pr._onTouchStart(
       makeTouchEvent("touchstart", [makeTouch(1, 0, 0), makeTouch(2, 100, 0)]),
     );
     // rotate to vertical (angle 90)
-    renderer._onTouchMove(
+    pr._onTouchMove(
       makeTouchEvent("touchmove", [makeTouch(1, 0, 0), makeTouch(2, 0, 100)]),
     );
     expect(Math.round(renderer.currentRotation)).toBe(90);
   });
 
   test("move is a no-op when not rotating", () => {
-    renderer._onTouchMove(
+    pr._onTouchMove(
       makeTouchEvent("touchmove", [makeTouch(1, 0, 0), makeTouch(2, 0, 100)]),
     );
     expect(renderer.currentRotation).toBe(0);
@@ -401,51 +428,49 @@ describe("BoardRenderer — touch rotation gestures", () => {
   test("touchend snaps rotation to nearest 120° and stops rotating", () => {
     // start from 50° (between 0 and 120) -> should snap to 0
     renderer.setRotation(50);
-    renderer._touchState.isRotating = true;
-    renderer._touchState.initialRotation = 50;
-    renderer._onTouchEnd(makeTouchEvent("touchend", [makeTouch(2, 0, 100)]));
+    pr._touchState.isRotating = true;
+    pr._touchState.initialRotation = 50;
+    pr._onTouchEnd(makeTouchEvent("touchend", [makeTouch(2, 0, 100)]));
     expect(renderer.currentRotation).toBe(0);
-    expect(renderer._touchState.isRotating).toBe(false);
+    expect(pr._touchState.isRotating).toBe(false);
   });
 
   test("touchend with no active rotation leaves rotation untouched", () => {
     renderer.setRotation(240);
-    renderer._onTouchEnd(makeTouchEvent("touchend", [makeTouch(1, 0, 0)]));
+    pr._onTouchEnd(makeTouchEvent("touchend", [makeTouch(1, 0, 0)]));
     expect(renderer.currentRotation).toBe(240);
   });
 
   test("rotation stays positive after full 360° turn (modulo wrap)", () => {
     renderer.setRotation(350);
-    renderer._touchState.isRotating = true;
-    renderer._touchState.initialRotation = 350;
+    pr._touchState.isRotating = true;
+    pr._touchState.initialRotation = 350;
     // 350° is closer to 360° than to 0°, so it snaps UP to 360 (not down to 0)
-    renderer._onTouchEnd(makeTouchEvent("touchend", [makeTouch(1, 0, 0)]));
+    pr._onTouchEnd(makeTouchEvent("touchend", [makeTouch(1, 0, 0)]));
     expect(renderer.currentRotation).toBe(360);
   });
 
   test("_onTouchMove ignores a changed touch not present in touch state", () => {
-    renderer._touchState.isRotating = true;
-    renderer._touchState.touches.set(1, { clientX: 0, clientY: 0 });
-    renderer._touchState.touches.set(2, { clientX: 100, clientY: 0 });
+    pr._touchState.isRotating = true;
+    pr._touchState.touches.set(1, { clientX: 0, clientY: 0 });
+    pr._touchState.touches.set(2, { clientX: 100, clientY: 0 });
     // A changedTouches entry with an unknown identifier must not be recorded
-    renderer._onTouchMove(makeTouchEvent("touchmove", [makeTouch(99, 50, 50)]));
-    expect(renderer._touchState.touches.has(99)).toBe(false);
+    pr._onTouchMove(makeTouchEvent("touchmove", [makeTouch(99, 50, 50)]));
+    expect(pr._touchState.touches.has(99)).toBe(false);
   });
 
   test("_onTouchMove is a no-op when fewer than two touches remain", () => {
-    renderer._touchState.isRotating = true;
-    renderer._touchState.touches.clear();
-    renderer._onTouchMove(makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]));
+    pr._touchState.isRotating = true;
+    pr._touchState.touches.clear();
+    pr._onTouchMove(makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]));
     expect(renderer.currentRotation).toBe(0);
   });
 
   test("_getTouchAngle / _getTouchDistance return 0 with missing touches", () => {
-    expect(renderer._getTouchAngle(undefined, undefined)).toBe(0);
-    expect(
-      renderer._getTouchDistance(undefined, { clientX: 0, clientY: 0 }),
-    ).toBe(0);
+    expect(pr._getTouchAngle(undefined, undefined)).toBe(0);
+    expect(pr._getTouchDistance(undefined, { clientX: 0, clientY: 0 })).toBe(0);
     // with both present, distance is the euclidean length
-    const d = renderer._getTouchDistance(
+    const d = pr._getTouchDistance(
       { clientX: 0, clientY: 0 },
       { clientX: 3, clientY: 4 },
     );
@@ -454,12 +479,14 @@ describe("BoardRenderer — touch rotation gestures", () => {
 });
 
 describe("BoardRenderer — highlight / animate edge cases", () => {
-  let svgContainer;
-  let renderer;
+  let svgContainer: SVGSVGElement;
+  let renderer: BoardRenderer;
 
   beforeEach(() => {
     document.body.innerHTML = '<svg id="board-svg"></svg>';
-    svgContainer = document.getElementById("board-svg");
+    svgContainer = document.getElementById(
+      "board-svg",
+    ) as unknown as SVGSVGElement;
     renderer = new BoardRenderer(svgContainer);
     renderer.render();
   });
@@ -472,11 +499,11 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
   });
 
   test("highlightCells default class is highlight-move", () => {
-    const cell = Array.from(renderer.cells.values())[0];
+    const cell = Array.from(renderer.cells.values())[0]!;
     renderer.highlightCells([cell.hex]);
     expect(
       renderer.hexElements
-        .get(cell.hex.key)
+        .get(cell.hex.key)!
         .polygon.classList.contains("highlight-move"),
     ).toBe(true);
   });
@@ -484,8 +511,8 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
   test("render fires onCellClick callback when a cell is tapped", () => {
     const onCellClick = vi.fn();
     renderer.onCellClick = onCellClick;
-    const cell = Array.from(renderer.cells.values())[0];
-    const el = renderer.hexElements.get(cell.hex.key);
+    const cell = Array.from(renderer.cells.values())[0]!;
+    const el = renderer.hexElements.get(cell.hex.key)!;
     // simulate the pointerdown listener attached in render()
     el.polygon.dispatchEvent(new window.Event("pointerdown"));
     // happy-dom may not route the listener the same way; fall back to direct call
@@ -495,7 +522,7 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
 
   test("animateMove resolves undefined for an unknown piece id", async () => {
     const result = await renderer.animateMove(
-      { id: "does-not-exist" },
+      { id: "does-not-exist", pos: new Hex(0, 0) },
       new Hex(0, 0),
       new Hex(1, 1),
     );
@@ -503,47 +530,54 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
   });
 
   test("_onTouchMove bails out when a touch was lifted mid-gesture (≠2 touches)", () => {
-    renderer._touchState.isRotating = true;
-    renderer._touchState.touches.set(1, { clientX: 0, clientY: 0 });
-    renderer._touchState.touches.set(2, { clientX: 100, clientY: 0 });
+    const pr = renderer as any;
+    pr._touchState.isRotating = true;
+    pr._touchState.touches.set(1, { clientX: 0, clientY: 0 });
+    pr._touchState.touches.set(2, { clientX: 100, clientY: 0 });
     // Only one touch remains in changedTouches (the other was lifted) and the
     // recorded state still has 2 -> after the update loop the array has length 1
-    renderer._touchState.touches.delete(2);
-    renderer._onTouchMove(makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]));
+    pr._touchState.touches.delete(2);
+    pr._onTouchMove(makeTouchEvent("touchmove", [makeTouch(1, 0, 0)]));
     expect(renderer.currentRotation).toBe(0);
   });
 
   test("renderPiece long-press: contextmenu triggers onPieceLongPress", () => {
     const onPieceLongPress = vi.fn();
     renderer.onPieceLongPress = onPieceLongPress;
-    const piece = {
+    const piece: Piece = {
       id: "lp",
+      type: "pawn",
       faction: FACTION.FIRE,
       pos: new Hex(0, 0),
       symbol: "P",
+      alive: true,
+      hasMoved: false,
     };
     renderer.renderPiece(piece);
-    const el = renderer.pieceElements.get("lp").element;
-    const evt = new window.Event("contextmenu");
+    const el = renderer.pieceElements.get("lp")!.element;
+    const evt = new window.Event("contextmenu") as unknown as MouseEvent;
     evt.preventDefault = () => {};
-    evt.clientX = 12;
-    evt.clientY = 34;
+    (evt as any).clientX = 12;
+    (evt as any).clientY = 34;
     el.dispatchEvent(evt);
     expect(onPieceLongPress).toHaveBeenCalledTimes(1);
-    const arg = onPieceLongPress.mock.calls[0][1];
+    const arg = (onPieceLongPress.mock.calls[0] as unknown as any[])[1];
     expect(arg).toEqual({ clientX: 12, clientY: 34 });
   });
 
   test("renderPiece long-press: onPressEnd with no pending timer is a no-op", () => {
     // Cover the `if (pressTimer)` false branch in onPressEnd.
-    const piece = {
+    const piece: Piece = {
       id: "lp2",
+      type: "pawn",
       faction: FACTION.FIRE,
       pos: new Hex(0, 0),
       symbol: "P",
+      alive: true,
+      hasMoved: false,
     };
     renderer.renderPiece(piece);
-    const el = renderer.pieceElements.get("lp2").element;
+    const el = renderer.pieceElements.get("lp2")!.element;
     const up = new window.Event("pointerup");
     // No pointerdown happened first -> pressTimer is null -> clearTimeout skipped
     expect(() => el.dispatchEvent(up)).not.toThrow();

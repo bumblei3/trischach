@@ -1,11 +1,11 @@
-// @ts-nocheck
 import { expect, test, describe } from "vitest";
 import { getValidMoves, PIECE_TYPE, Piece } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
+import type { Faction } from "../js/types.ts";
 
-function buildOccupied(allPieces) {
-  const occupied = new Map();
+function buildOccupied(allPieces: Piece[]): Map<string, Piece> {
+  const occupied = new Map<string, Piece>();
   for (const p of allPieces) {
     if (p.alive) occupied.set(p.pos.key, p);
   }
@@ -14,24 +14,26 @@ function buildOccupied(allPieces) {
 
 describe("Piece movements", () => {
   // Mock board logic
-  const mockCells = new Map();
+  const mockCells = new Map<
+    string,
+    { hex: Hex; zone: string; faction: Faction | null }
+  >();
   // Create a 5-radius hex grid locally to simulate a board
   for (let q = -5; q <= 5; q++) {
     for (let r = -5; r <= 5; r++) {
       if (Math.abs(-q - r) <= 5) {
-        mockCells.set(`${q},${r}`, { hex: new Hex(q, r), zone: "triangle" });
+        mockCells.set(`${q},${r}`, {
+          hex: new Hex(q, r),
+          zone: "triangle",
+          faction: null,
+        });
       }
     }
   }
 
   test("Pawn basic movement", () => {
-    const pawn = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 5),
-      hasMoved: false,
-      forwardDir: new Hex(0, -1), // Fire moves up
-    };
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    pawn.hasMoved = false;
 
     const { moves, attacks } = getValidMoves(
       pawn,
@@ -47,20 +49,11 @@ describe("Piece movements", () => {
   });
 
   test("Pawn attacks diagonally", () => {
-    const pawn = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 2),
-      hasMoved: true,
-      forwardDir: new Hex(0, -1),
-    };
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    pawn.hasMoved = true;
 
-    const enemy = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.WATER,
-      pos: new Hex(1, 1), // Diagonal to the right
-      alive: true,
-    };
+    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(1, 1)); // Diagonal to the right
+    enemy.alive = true;
 
     const { moves, attacks } = getValidMoves(
       pawn,
@@ -69,18 +62,14 @@ describe("Piece movements", () => {
     );
 
     expect(moves.length).toBe(1); // 1 step forward
-    expect(moves[0].equals(new Hex(0, 1))).toBe(true);
+    expect(moves[0]!.equals(new Hex(0, 1))).toBe(true);
     expect(attacks.length).toBe(1); // 1 attack
-    expect(attacks[0].equals(new Hex(1, 1))).toBe(true);
+    expect(attacks[0]!.equals(new Hex(1, 1))).toBe(true);
   });
 
   test("Knight movement", () => {
-    const knight = {
-      type: PIECE_TYPE.KNIGHT,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 0),
-      hasMoved: true,
-    };
+    const knight = new Piece(PIECE_TYPE.KNIGHT, FACTION.FIRE, new Hex(0, 0));
+    knight.hasMoved = true;
 
     const { moves, attacks } = getValidMoves(
       knight,
@@ -95,7 +84,7 @@ describe("Piece movements", () => {
 
   test("pieces at edge of board have restricted moves", () => {
     const boardCells = generateBoard();
-    const alivePieces = [];
+    const alivePieces: Piece[] = [];
 
     // Pawn at the very top vertex (0,0) - Fire pawns move North.
     // (0,0) is in bounds, but (-1,0), (0,-1) might be out.
@@ -111,12 +100,8 @@ describe("Piece movements", () => {
   });
 
   test("Rook movement", () => {
-    const rook = {
-      type: PIECE_TYPE.ROOK,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 0),
-      hasMoved: true,
-    };
+    const rook = new Piece(PIECE_TYPE.ROOK, FACTION.FIRE, new Hex(0, 0));
+    rook.hasMoved = true;
 
     const { moves } = getValidMoves(rook, mockCells, buildOccupied([]));
 
@@ -125,12 +110,8 @@ describe("Piece movements", () => {
   });
 
   test("Bishop movement", () => {
-    const bishop = {
-      type: PIECE_TYPE.BISHOP,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 0),
-      hasMoved: true,
-    };
+    const bishop = new Piece(PIECE_TYPE.BISHOP, FACTION.FIRE, new Hex(0, 0));
+    bishop.hasMoved = true;
 
     const { moves } = getValidMoves(bishop, mockCells, buildOccupied([]));
 
@@ -142,12 +123,8 @@ describe("Piece movements", () => {
   });
 
   test("Queen movement", () => {
-    const queen = {
-      type: PIECE_TYPE.QUEEN,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 0),
-      hasMoved: true,
-    };
+    const queen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 0));
+    queen.hasMoved = true;
 
     const { moves } = getValidMoves(queen, mockCells, buildOccupied([]));
 
@@ -156,12 +133,8 @@ describe("Piece movements", () => {
   });
 
   test("King movement", () => {
-    const king = {
-      type: PIECE_TYPE.KING,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 0),
-      hasMoved: true,
-    };
+    const king = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
+    king.hasMoved = true;
 
     const { moves } = getValidMoves(king, mockCells, buildOccupied([]));
 
@@ -185,7 +158,11 @@ describe("Piece movements", () => {
 
   test("Pawn with unknown faction falls back to empty arrays", () => {
     const boardCells = generateBoard();
-    const alienPawn = new Piece(PIECE_TYPE.PAWN, "alien", new Hex(0, 0));
+    const alienPawn = new Piece(
+      PIECE_TYPE.PAWN,
+      "alien" as Faction,
+      new Hex(0, 0),
+    );
     const { moves, attacks } = getValidMoves(
       alienPawn,
       boardCells,
@@ -196,13 +173,8 @@ describe("Piece movements", () => {
   });
 
   test("Pawn double-step is allowed on its first move when path is clear", () => {
-    const pawn = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 5),
-      hasMoved: false,
-      forwardDir: new Hex(0, -1), // Fire moves up
-    };
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    pawn.hasMoved = false;
     const { moves } = getValidMoves(pawn, mockCells, buildOccupied([]));
     // single step (0,4) and double step (0,3) both present
     expect(moves.some((m) => m.equals(new Hex(0, 4)))).toBe(true);
@@ -210,32 +182,18 @@ describe("Piece movements", () => {
   });
 
   test("Pawn double-step is blocked when the intermediate square is occupied", () => {
-    const pawn = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 5),
-      hasMoved: false,
-      forwardDir: new Hex(0, -1),
-    };
-    const blocker = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.WATER,
-      pos: new Hex(0, 4), // intermediate square
-      alive: true,
-    };
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    pawn.hasMoved = false;
+    const blocker = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 4)); // intermediate square
+    blocker.alive = true;
     const { moves } = getValidMoves(pawn, mockCells, buildOccupied([blocker]));
     // double step (0,3) must NOT be reachable; single (0,4) is blocked too
     expect(moves.some((m) => m.equals(new Hex(0, 3)))).toBe(false);
   });
 
   test("Pawn that has already moved does not get a double-step", () => {
-    const pawn = {
-      type: PIECE_TYPE.PAWN,
-      faction: FACTION.FIRE,
-      pos: new Hex(0, 5),
-      hasMoved: true,
-      forwardDir: new Hex(0, -1),
-    };
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    pawn.hasMoved = true;
     const { moves } = getValidMoves(pawn, mockCells, buildOccupied([]));
     expect(moves.some((m) => m.equals(new Hex(0, 3)))).toBe(false);
     expect(moves.some((m) => m.equals(new Hex(0, 4)))).toBe(true);

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * ai-worker.test.js - Tests for the AI Web Worker
  * Tests the worker message interface AND core AI functions (now exported for coverage)
@@ -8,6 +7,14 @@ import { Hex } from "../js/hex.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.ts";
 import { GAME_STATE } from "../js/game.ts";
+import {
+  IGame,
+  GameState,
+  Cell,
+  GameResult,
+  PieceType,
+  Faction,
+} from "../js/types.ts";
 
 // Import exported core functions from ai-worker.js
 import {
@@ -45,28 +52,28 @@ vi.mock("../js/opening-book.ts", () => ({
 }));
 
 // --- Helper: Create a proper game state object (like deserializeGame does) ---
-function createGameState(overrides = {}) {
+function createGameState(overrides: Partial<IGame> = {}): IGame {
   const cells = generateBoard();
 
   // Default pieces as Piece instances
-  const pieces = [
+  const pieces: Piece[] = [
     new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5)),
     new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 0)),
     new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(-2, 2)),
   ];
 
-  const game = {
+  const game: any = {
     pieces,
     currentFactionIdx: 0,
     currentFaction: FACTION.FIRE,
     state: GAME_STATE.SELECT_PIECE,
-    eliminatedFactions: new Set(),
+    eliminatedFactions: new Set<Faction>(),
     rpsEnabled: true,
     boardCells: cells,
-    _occupiedMap: new Map(),
+    _occupiedMap: new Map<string, Piece>(),
     capturedPieces: { fire: [], water: [], nature: [] },
-    moveHistory: [],
-    _positionHistory: new Map(),
+    moveHistory: [] as GameResult[],
+    _positionHistory: new Map<string, number>(),
     _halfmoveClock: 0,
   };
 
@@ -75,19 +82,20 @@ function createGameState(overrides = {}) {
     if (p.alive) game._occupiedMap.set(p.pos.key, p);
   }
 
-  const merged = { ...game, ...overrides };
+  const merged: any = { ...game, ...overrides };
 
   // If pieces were overridden, rebuild occupied map
   if (overrides.pieces) {
-    merged._occupiedMap = new Map();
+    merged._occupiedMap = new Map<string, Piece>();
     for (const p of merged.pieces) {
       if (p.alive) merged._occupiedMap.set(p.pos.key, p);
     }
   }
 
   // Add methods expected by ai-worker.js functions
-  merged.simulateMove = (piece, target) => simulateMove(merged, piece, target);
-  merged.undoMove = (undo) => {
+  merged.simulateMove = (piece: Piece, target: Hex) =>
+    simulateMove(merged as IGame, piece, target);
+  merged.undoMove = (undo: any) => {
     // Basic undo - restore piece position and state
     undo.piece.pos = undo.from;
     undo.piece.hasMoved = undo.pieceHasMoved;
@@ -99,18 +107,23 @@ function createGameState(overrides = {}) {
     }
     merged.currentFactionIdx = undo.prevFactionIdx;
     // Rebuild occupied map after undo
-    merged._occupiedMap = new Map();
+    merged._occupiedMap = new Map<string, Piece>();
     for (const p of merged.pieces) {
       if (p.alive) merged._occupiedMap.set(p.pos.key, p);
     }
   };
-  merged._rebuildOccupiedMap = () => rebuildOccupiedMap(merged);
+  merged._rebuildOccupiedMap = () => rebuildOccupiedMap(merged as IGame);
 
-  return merged;
+  return merged as IGame;
 }
 
 // Helper to create Piece instances for test overrides
-function createPiece(type, faction, q, r) {
+function createPiece(
+  type: PieceType,
+  faction: Faction,
+  q: number,
+  r: number,
+): Piece {
   return new Piece(type, faction, new Hex(q, r));
 }
 
@@ -151,7 +164,13 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("getDynamicPieceValue works for all piece types", () => {
-      for (const pieceType of ["pawn", "knight", "bishop", "rook", "queen"]) {
+      for (const pieceType of [
+        "pawn",
+        "knight",
+        "bishop",
+        "rook",
+        "queen",
+      ] as PieceType[]) {
         const val = getDynamicPieceValue(
           pieceType,
           FACTION.FIRE,
@@ -163,7 +182,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("getMaterialValue applies correct multipliers from perspective faction", () => {
-      const piece = { type: "pawn", faction: FACTION.NATURE };
+      const piece = { type: "pawn", faction: FACTION.NATURE } as Piece;
 
       // Fire perspective: Fire beats Nature = advantage -> multiplier 0.85 (enemy piece worth less)
       const firePerspective = getMaterialValue(piece, FACTION.FIRE);
@@ -178,7 +197,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(naturePerspective).toBe(PIECE_STRENGTH.pawn * 1.0);
 
       // King always high value
-      const kingPiece = { type: "king", faction: FACTION.WATER };
+      const kingPiece = { type: "king", faction: FACTION.WATER } as Piece;
       const kingVal = getMaterialValue(kingPiece, FACTION.FIRE);
       expect(kingVal).toBe(PIECE_STRENGTH.king * 100);
     });
@@ -263,7 +282,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       const fireKing = gameState.pieces.find(
         (p) => p.type === "king" && p.faction === FACTION.FIRE,
       );
-      const { moves, attacks } = getLegalMoves(gameState, fireKing);
+      const { moves, attacks } = getLegalMoves(gameState, fireKing!);
       // King should have some legal moves (not in check initially)
       expect(Array.isArray(moves)).toBe(true);
       expect(Array.isArray(attacks)).toBe(true);
@@ -281,11 +300,11 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
         currentFactionIdx: 0,
       });
       // Mark second piece as dead
-      gameState.pieces[1].alive = false;
+      gameState.pieces[1]!.alive = false;
       rebuildOccupiedMap(gameState);
 
-      expect(gameState._occupiedMap.size).toBe(1);
-      expect(gameState._occupiedMap.has("0,0")).toBe(true);
+      expect(gameState._occupiedMap!.size).toBe(1);
+      expect(gameState._occupiedMap!.has("0,0")).toBe(true);
     });
 
     test("simulateMove executes normal move correctly", () => {
@@ -297,11 +316,11 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
 
       const piece = gameState.pieces[0];
       const target = new Hex(0, 2);
-      const undo = simulateMove(gameState, piece, target);
+      const undo = simulateMove(gameState, piece!, target);
 
-      expect(piece.pos.q).toBe(0);
-      expect(piece.pos.r).toBe(2);
-      expect(piece.hasMoved).toBe(true);
+      expect(piece!.pos.q).toBe(0);
+      expect(piece!.pos.r).toBe(2);
+      expect(piece!.hasMoved).toBe(true);
       expect(undo.from.q).toBe(0);
       expect(undo.from.r).toBe(3);
       expect(undo.wasAttack).toBe(false);
@@ -322,7 +341,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
 
       const attacker = gameState.pieces.find(
         (p) => p.type === "queen" && p.faction === FACTION.FIRE,
-      );
+      )!;
       const target = new Hex(0, 0);
       const undo = simulateMove(gameState, attacker, target);
 
@@ -588,12 +607,22 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
   });
 
   describe("Worker Message Interface (onmessage handler)", () => {
+    // Loosely-typed view of the worker global so we can spy on postMessage
+    // and invoke onmessage without fighting the strict DOM/Worker typings.
+    const workerCtx = self as unknown as {
+      postMessage: ((msg: any) => void) | null;
+      onmessage: ((e: MessageEvent) => any) | null;
+    };
+
+    function runHandler(data: any, posted: any[]): void {
+      const originalPost = workerCtx.postMessage;
+      workerCtx.postMessage = (msg: any) => posted.push(msg);
+      workerCtx.onmessage!({ data } as MessageEvent);
+      workerCtx.postMessage = originalPost;
+    }
+
     test("'calculate' message runs the search and posts a result", () => {
-      // Spy on the worker's postMessage so we can assert what the
-      // handler sends back without relying on a real Worker scope.
-      const posted = [];
-      const originalPost = self.postMessage;
-      self.postMessage = (msg) => posted.push(msg);
+      const posted: any[] = [];
 
       const gameState = createGameState({
         pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
@@ -602,9 +631,10 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       });
 
       // The handler reads e.data.{type, gameState, faction, depth}
-      self.onmessage({
-        data: { type: "calculate", gameState, faction: FACTION.FIRE },
-      });
+      runHandler(
+        { type: "calculate", gameState, faction: FACTION.FIRE },
+        posted,
+      );
 
       // It must have posted a 'result' with a move object
       // (pieceId + targetQ/R + moveType), not an error.
@@ -615,39 +645,30 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(result.move).toHaveProperty("targetQ");
       expect(result.move).toHaveProperty("targetR");
       expect(result.move).toHaveProperty("moveType");
-
-      self.postMessage = originalPost;
     });
 
     test("'calculate' with no legal moves posts result move: null", () => {
-      const posted = [];
-      const originalPost = self.postMessage;
-      self.postMessage = (msg) => posted.push(msg);
+      const posted: any[] = [];
 
       const gameState = createGameState({ pieces: [] });
 
-      self.onmessage({
-        data: { type: "calculate", gameState, faction: FACTION.FIRE },
-      });
+      runHandler(
+        { type: "calculate", gameState, faction: FACTION.FIRE },
+        posted,
+      );
 
       const result = posted.find((m) => m.type === "result");
       expect(result).toBeDefined();
       expect(result.move).toBeNull();
-
-      self.postMessage = originalPost;
     });
 
     test("'setDepth' message updates the search depth without throwing", () => {
-      const posted = [];
-      const originalPost = self.postMessage;
-      self.postMessage = (msg) => posted.push(msg);
+      const posted: any[] = [];
 
       // Must not throw (the handler just calls setAIDepth).
       expect(() =>
-        self.onmessage({ data: { type: "setDepth", depth: 4 } }),
+        runHandler({ type: "setDepth", depth: 4 }, posted),
       ).not.toThrow();
-
-      self.postMessage = originalPost;
     });
   });
 });

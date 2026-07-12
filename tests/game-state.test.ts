@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * game-state.test.js - focused coverage for js/game.ts state-management
  * and lifecycle helpers that the higher-level flow tests don't isolate:
@@ -35,7 +34,7 @@ describe("GAME_STATE constants", () => {
 });
 
 describe("snapshot / restore / undo", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
   });
@@ -44,12 +43,12 @@ describe("snapshot / restore / undo", () => {
     const before = game.snapshot();
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     const startPos = new Hex(pawn.pos.q, pawn.pos.r);
 
     // Make a move and confirm the board changed
     game.handleCellClick(pawn.pos);
-    const target = game.validMoves[0];
+    const target = game.validMoves[0]!;
     game.handleCellClick(target);
     expect(pawn.pos.q).not.toBe(startPos.q);
 
@@ -64,14 +63,14 @@ describe("snapshot / restore / undo", () => {
     const snap = game.snapshot();
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     game.handleCellClick(pawn.pos);
-    const target = game.validMoves[0];
+    const target = game.validMoves[0]!;
     game.handleCellClick(target);
-    const restored = game.undo();
+    const restored = game.undo()!;
     expect(restored).not.toBeNull();
     expect(restored.moveHistoryLength).toBe(snap.moveHistoryLength);
-    expect(pawn.pos.q).toBe(snap.pieces.find((p) => p.id === pawn.id).pos.q);
+    expect(pawn.pos.q).toBe(snap.pieces.find((p) => p.id === pawn.id)!.pos.q);
   });
 
   test("undo() returns null when the stack is empty", () => {
@@ -81,9 +80,9 @@ describe("snapshot / restore / undo", () => {
   test("clearUndoStack empties the undo history", () => {
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     game.handleCellClick(pawn.pos);
-    game.handleCellClick(game.validMoves[0]);
+    game.handleCellClick(game.validMoves[0]!);
     expect(game.undo()).not.toBeNull();
     game.clearUndoStack();
     expect(game.undo()).toBeNull();
@@ -91,7 +90,7 @@ describe("snapshot / restore / undo", () => {
 });
 
 describe("undo() robustness", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
     game.rpsEnabled = true;
@@ -124,7 +123,7 @@ describe("undo() robustness", () => {
 });
 
 describe("completePromotion", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
   });
@@ -132,9 +131,9 @@ describe("completePromotion", () => {
   test("promotes a pending pawn to the chosen type and symbol", () => {
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     game.pendingPromotion = pawn;
-    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+    const result = game.completePromotion(PIECE_TYPE.QUEEN)!;
     expect(result).not.toBeNull();
     expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
     expect(pawn.symbol).toBe("♛");
@@ -158,9 +157,9 @@ describe("completePromotion", () => {
 
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     game.pendingPromotion = pawn;
-    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+    const result = game.completePromotion(PIECE_TYPE.QUEEN)!;
     expect(result.gameOver).toBe(true);
     expect(game.state).toBe(GAME_STATE.GAME_OVER);
     expect(result.winner_faction).toBe(FACTION.FIRE);
@@ -168,7 +167,7 @@ describe("completePromotion", () => {
 });
 
 describe("post-move checkmate eliminates the mated faction", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = new Game();
     game.init(generateBoard());
@@ -200,18 +199,18 @@ describe("post-move checkmate eliminates the mated faction", () => {
   test("a water move that leaves fire mated eliminates fire", () => {
     const waterPawn = game.pieces.find(
       (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     // Pick any legal water move (the rook already delivers mate).
     game.handleCellClick(waterPawn.pos);
-    const target = game.validMoves[0];
-    const result = game.handleCellClick(target);
+    const target = game.validMoves[0]!;
+    const result = game.handleCellClick(target)!;
 
     expect(result.checkmate).toBe(FACTION.FIRE);
     expect(result.elimination).toBe(FACTION.FIRE);
     expect(game.eliminatedFactions.has(FACTION.FIRE)).toBe(true);
     const fireKing = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     expect(fireKing.alive).toBe(false);
   });
 });
@@ -225,9 +224,9 @@ describe("_positionHash (repetition detection)", () => {
 
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     game.handleCellClick(pawn.pos);
-    game.handleCellClick(game.validMoves[0]);
+    game.handleCellClick(game.validMoves[0]!);
     expect(game._positionHash()).not.toBe(h1);
   });
 });
@@ -241,7 +240,7 @@ describe("board.getRPSResult neutral branch", () => {
 });
 
 describe("restore() robustness", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
   });
@@ -253,7 +252,7 @@ describe("restore() robustness", () => {
     const snap = game.snapshot();
     const victim = game.pieces.find(
       (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     // Record the victim as a captured piece of FIRE in the snapshot, then
     // delete the victim from the live board so restore cannot find it.
     snap.capturedPieces.fire.push(victim.id);
@@ -286,20 +285,20 @@ describe("restore() robustness", () => {
     expect(liveKings.length).toBe(snapKings.length);
     // Piece positions are equal but are distinct objects (deep copy).
     for (const sp of snap.pieces) {
-      const live = game.pieces.find((p) => p.id === sp.id);
+      const live = game.pieces.find((p) => p.id === sp.id)!;
       expect(live).toBeDefined();
       expect(`${live.pos.q},${live.pos.r}`).toBe(`${sp.pos.q},${sp.pos.r}`);
       expect(live.pos).not.toBe(sp.pos); // not the same reference
     }
     // Mutating the restored game does not corrupt the snapshot.
-    game.pieces[0].pos = new Hex(9, 9);
-    const spAfter = snap.pieces.find((p) => p.id === game.pieces[0].id);
+    game.pieces[0]!.pos = new Hex(9, 9);
+    const spAfter = snap.pieces.find((p) => p.id === game.pieces[0]!.id)!;
     expect(`${spAfter.pos.q},${spAfter.pos.r}`).not.toBe("9,9");
   });
 });
 
 describe("undo() restores an eliminated faction", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
     game.rpsEnabled = true;
@@ -329,30 +328,30 @@ describe("undo() restores an eliminated faction", () => {
 
     // Fire queen captures the Nature king (advantage -> defender dies).
     game.handleCellClick(new Hex(0, 0));
-    const result = game.handleCellClick(new Hex(0, 1));
+    const result = game.handleCellClick(new Hex(0, 1))!;
 
     expect(result.action).toBe("combat");
     expect(result.rpsResult).toBe("advantage");
     expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
     const natureKing = game.pieces.find(
       (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     expect(natureKing.alive).toBe(false);
     expect(game.state).not.toBe(GAME_STATE.GAME_OVER); // Water still alive
 
     // Undo: Nature must be fully revived and de-eliminated.
-    const restored = game.undo();
+    const restored = game.undo()!;
     expect(restored).not.toBeNull();
     expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(false);
     const revivedKing = game.pieces.find(
       (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     expect(revivedKing.alive).toBe(true);
     expect(game.currentFaction).toBe(FACTION.FIRE);
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
   });
 
-  function natureKing_alive(g) {
+  function natureKing_alive(g: Game) {
     const k = g.pieces.find(
       (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
     );
@@ -361,7 +360,7 @@ describe("undo() restores an eliminated faction", () => {
 });
 
 describe("undo() after a game-ending move", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = new Game();
     game.init(generateBoard());
@@ -387,19 +386,19 @@ describe("undo() after a game-ending move", () => {
   test("undo reverts a game-over move back to a playable state", () => {
     // Fire queen captures the Nature king -> only Fire remains -> GAME_OVER.
     game.handleCellClick(new Hex(0, 0));
-    const result = game.handleCellClick(new Hex(0, 1));
+    const result = game.handleCellClick(new Hex(0, 1))!;
     expect(result.gameOver).toBe(true);
     expect(game.state).toBe(GAME_STATE.GAME_OVER);
     expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(true);
 
     // Undo the game-ending move: the Nature king must be revived, Nature
     // de-eliminated, and the game playable again (NOT stuck at GAME_OVER).
-    const restored = game.undo();
+    const restored = game.undo()!;
     expect(restored).not.toBeNull();
     expect(game.eliminatedFactions.has(FACTION.NATURE)).toBe(false);
     const revivedKing = game.pieces.find(
       (p) => p.faction === FACTION.NATURE && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     expect(revivedKing.alive).toBe(true);
     expect(game.currentFaction).toBe(FACTION.FIRE);
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE); // playable again
@@ -407,7 +406,7 @@ describe("undo() after a game-ending move", () => {
 });
 
 describe("post-move stalemate eliminates the stalemated faction", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = new Game();
     game.init(generateBoard());
@@ -439,9 +438,9 @@ describe("post-move stalemate eliminates the stalemated faction", () => {
   });
 
   test("a fire move eliminates the stalemated water faction", () => {
-    game.handleCellClick(game.pieces[3].pos); // select fire pawn
-    const target = game.validMoves[0];
-    const result = game.handleCellClick(target);
+    game.handleCellClick(game.pieces[3]!.pos); // select fire pawn
+    const target = game.validMoves[0]!;
+    const result = game.handleCellClick(target)!;
 
     // The stalemate branch must fire: result.stalemate names WATER,
     // the faction is eliminated, and it is NOT game over (Fire+Nature live).
@@ -456,23 +455,23 @@ describe("post-move stalemate eliminates the stalemated faction", () => {
     // The undo path must restore a stalemate-eliminated faction too, not only
     // a king-capture elimination. Drive Water into stalemate, eliminate it,
     // then undo and assert Water is fully revived + de-eliminated.
-    game.handleCellClick(game.pieces[3].pos); // select fire pawn
-    const target = game.validMoves[0];
-    const result = game.handleCellClick(target);
+    game.handleCellClick(game.pieces[3]!.pos); // select fire pawn
+    const target = game.validMoves[0]!;
+    const result = game.handleCellClick(target)!;
     expect(result.elimination).toBe(FACTION.WATER);
     expect(game.eliminatedFactions.has(FACTION.WATER)).toBe(true);
 
     const waterKing = game.pieces.find(
       (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     expect(waterKing.alive).toBe(false);
 
-    const restored = game.undo();
+    const restored = game.undo()!;
     expect(restored).not.toBeNull();
     expect(game.eliminatedFactions.has(FACTION.WATER)).toBe(false);
     const revivedKing = game.pieces.find(
       (p) => p.faction === FACTION.WATER && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     expect(revivedKing.alive).toBe(true);
     // The fire pawn returns to its pre-move square and the turn is Fire again.
     expect(game.currentFaction).toBe(FACTION.FIRE);

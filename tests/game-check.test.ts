@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * game-check.test.js - Tests for TriSchach check/checkmate/stalemate logic
  * (js/game-check.ts). These are the rule functions that decide when a game
@@ -17,7 +16,7 @@ import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 
 describe("game-check: check detection", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     game = new Game();
@@ -25,7 +24,7 @@ describe("game-check: check detection", () => {
     game.rpsEnabled = false;
   });
 
-  function setPieces(pieces) {
+  function setPieces(pieces: Piece[]) {
     game.pieces = pieces;
     game._rebuildOccupiedMap();
   }
@@ -64,7 +63,7 @@ describe("game-check: check detection", () => {
 });
 
 describe("game-check: checkmate & stalemate", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     game = new Game();
@@ -72,7 +71,7 @@ describe("game-check: checkmate & stalemate", () => {
     game.rpsEnabled = false;
   });
 
-  function setPieces(pieces) {
+  function setPieces(pieces: Piece[]) {
     game.pieces = pieces;
     game._rebuildOccupiedMap();
   }
@@ -152,7 +151,7 @@ describe("game-check: checkmate & stalemate", () => {
 });
 
 describe("game-check: legal move filtering", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     game = new Game();
@@ -160,7 +159,7 @@ describe("game-check: legal move filtering", () => {
     game.rpsEnabled = false;
   });
 
-  function setPieces(pieces) {
+  function setPieces(pieces: Piece[]) {
     game.pieces = pieces;
     game._rebuildOccupiedMap();
   }
@@ -175,13 +174,13 @@ describe("game-check: legal move filtering", () => {
       new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
     ]);
     const rook = game.pieces.find(
-      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.ROOK,
+      (p: Piece) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.ROOK,
     );
-    const { moves } = getLegalMoves(game, rook);
+    const { moves } = getLegalMoves(game, rook!);
     // exactly one legal slide, and it stays between king and attacker
     expect(moves.length).toBe(1);
-    expect(moves[0].q).toBe(0);
-    expect(moves[0].r).toBe(2);
+    expect(moves[0]!.q).toBe(0);
+    expect(moves[0]!.r).toBe(2);
     // a move that would expose the king (past the attacker) is illegal
     const exposesKing = moves.some((m) => m.q === 0 && m.r > 2);
     expect(exposesKing).toBe(false);
@@ -194,10 +193,10 @@ describe("game-check: legal move filtering", () => {
       new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
     ]);
     const pawn = game.pieces.find(
-      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+      (p: Piece) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
     );
     // pawn at (0,1) pinned by rook on file -> no legal moves for the pawn
-    const { moves, attacks } = getLegalMoves(game, pawn);
+    const { moves, attacks } = getLegalMoves(game, pawn!);
     expect(moves.length + attacks.length).toBe(0);
   });
 
@@ -210,9 +209,9 @@ describe("game-check: legal move filtering", () => {
       new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(3, 0)),
     ]);
     const pawn = game.pieces.find(
-      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+      (p: Piece) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
     );
-    const { attacks } = getLegalMoves(game, pawn);
+    const { attacks } = getLegalMoves(game, pawn!);
     // any attack that leaves the king in check is filtered out
     expect(attacks.length).toBe(0);
   });
@@ -227,9 +226,9 @@ describe("game-check: legal move filtering", () => {
       new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
     ]);
     const king = game.pieces.find(
-      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
+      (p: Piece) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
     );
-    const { moves } = getLegalMoves(game, king);
+    const { moves } = getLegalMoves(game, king!);
     // (0,1) and (0,2) are attacked by the rook -> never legal king targets.
     const intoCheck = moves.some((m) => m.q === 0 && (m.r === 1 || m.r === 2));
     expect(intoCheck).toBe(false);
@@ -247,9 +246,9 @@ describe("game-check: legal move filtering", () => {
       new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
     ]);
     const king = game.pieces.find(
-      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
+      (p: Piece) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
     );
-    const { moves } = getLegalMoves(game, king);
+    const { moves } = getLegalMoves(game, king!);
     // Stepping to (1,0) leaves the rook's file -> must be a legal escape.
     expect(moves.some((m) => m.q === 1 && m.r === 0)).toBe(true);
   });

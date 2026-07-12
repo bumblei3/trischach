@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * puzzle.test.js - Tests for TriSchach Puzzle Mode logic (js/puzzle.ts)
  *
@@ -23,20 +22,25 @@ import {
   validatePuzzle,
   getDailyPuzzle,
 } from "../js/puzzle.ts";
+import { Game } from "../js/game.ts";
+import type { Puzzle } from "../js/puzzle.ts";
+import type { Piece, PieceType } from "../js/types.ts";
 
 // ─── Mock helpers ────────────────────────────────────────────────────────
 
-function makePiece(id, type, q, r) {
+function makePiece(id: string, type: PieceType, q: number, r: number): Piece {
   return {
     id,
     type: type,
     faction: FACTION.FIRE,
     pos: new Hex(q, r),
     symbol: type === "pawn" ? "P" : "Q",
+    alive: true,
+    hasMoved: false,
   };
 }
 
-function makePuzzle(overrides = {}) {
+function makePuzzle(overrides: Partial<Puzzle> = {}): Puzzle {
   return {
     id: "puzzle_test",
     fen: "Fp0,0#0",
@@ -164,7 +168,7 @@ describe("Puzzle state management", () => {
 
   test("makePuzzleMove marks correct first move and advances index", () => {
     loadPuzzle(makePuzzle());
-    const res = makePuzzleMove({}, "p1", new Hex(2, 2));
+    const res = makePuzzleMove({} as Game, "p1", new Hex(2, 2));
     expect(res.correct).toBe(true);
     expect(res.gameOver).toBe(false);
     expect(getPuzzleState().currentMoveIndex).toBe(1);
@@ -172,7 +176,7 @@ describe("Puzzle state management", () => {
 
   test("makePuzzleMove returns expectedMove on wrong move and flags failure", () => {
     loadPuzzle(makePuzzle());
-    const res = makePuzzleMove({}, "p1", new Hex(9, 9));
+    const res = makePuzzleMove({} as Game, "p1", new Hex(9, 9));
     expect(res.correct).toBe(false);
     expect(res.expectedMove?.pieceId).toBe("p1");
     expect(getPuzzleState().isFailed).toBe(true);
@@ -180,15 +184,15 @@ describe("Puzzle state management", () => {
 
   test("makePuzzleMove completes the puzzle on the final correct move", () => {
     loadPuzzle(makePuzzle());
-    makePuzzleMove({}, "p1", new Hex(2, 2));
-    const res = makePuzzleMove({}, "p2", new Hex(3, 3));
+    makePuzzleMove({} as Game, "p1", new Hex(2, 2));
+    const res = makePuzzleMove({} as Game, "p2", new Hex(3, 3));
     expect(res.correct).toBe(true);
     expect(res.gameOver).toBe(true);
     expect(getPuzzleState().isComplete).toBe(true);
   });
 
   test("makePuzzleMove is a no-op when no puzzle is loaded", () => {
-    const res = makePuzzleMove({}, "p1", new Hex(2, 2));
+    const res = makePuzzleMove({} as Game, "p1", new Hex(2, 2));
     expect(res).toEqual({ correct: false, gameOver: false });
   });
 
@@ -201,14 +205,14 @@ describe("Puzzle state management", () => {
 
   test("requestHint returns null when complete", () => {
     loadPuzzle(makePuzzle());
-    makePuzzleMove({}, "p1", new Hex(2, 2));
-    makePuzzleMove({}, "p2", new Hex(3, 3));
+    makePuzzleMove({} as Game, "p1", new Hex(2, 2));
+    makePuzzleMove({} as Game, "p2", new Hex(3, 3));
     expect(requestHint()).toBeNull();
   });
 
   test("resetPuzzle returns to move 0 without losing the puzzle", () => {
     loadPuzzle(makePuzzle());
-    makePuzzleMove({}, "p1", new Hex(2, 2));
+    makePuzzleMove({} as Game, "p1", new Hex(2, 2));
     resetPuzzle();
     const s = getPuzzleState();
     expect(s.currentMoveIndex).toBe(0);
@@ -236,8 +240,8 @@ describe("Puzzle persistence", () => {
     savePuzzles(puzzles);
     const loaded = loadPuzzles();
     expect(loaded.length).toBe(2);
-    expect(loaded[0].id).toBe("a");
-    expect(loaded[1].solution[0].san).toBe("Q0,0-2,2+");
+    expect(loaded[0]!.id).toBe("a");
+    expect(loaded[1]!.solution[0]!.san).toBe("Q0,0-2,2+");
   });
 
   test("loadPuzzles returns [] when nothing stored", () => {
@@ -254,11 +258,11 @@ describe("Puzzle persistence", () => {
     // so the innerHTML consumer (renderSolutionList) MUST escape it.
     const evilSAN = "<img src=x onerror=alert(1)>";
     const puzzle = makePuzzle({
-      solution: [{ ...makePuzzle().solution[0], san: evilSAN }],
+      solution: [{ ...makePuzzle().solution[0]!, san: evilSAN }],
     });
     savePuzzles([puzzle]);
     const loaded = loadPuzzles();
-    expect(loaded[0].solution[0].san).toBe(evilSAN);
+    expect(loaded[0]!.solution[0]!.san).toBe(evilSAN);
   });
 });
 
@@ -289,36 +293,36 @@ describe("puzzle stats persistence", () => {
     const puzzle = makePuzzle({
       id: "statpuzzle",
       solution: [
-        { ...makePuzzle().solution[0], pieceId: "p1" },
-        { ...makePuzzle().solution[1], pieceId: "p2" },
+        { ...makePuzzle().solution[0]!, pieceId: "p1" },
+        { ...makePuzzle().solution[1]!, pieceId: "p2" },
       ],
     });
     // updatePuzzleStats only persists when the puzzle already exists in storage
     savePuzzles([puzzle]);
     loadPuzzle(puzzle);
     // play the full solution
-    makePuzzleMove({}, "p1", new Hex(2, 2));
-    makePuzzleMove({}, "p2", new Hex(3, 3));
+    makePuzzleMove({} as Game, "p1", new Hex(2, 2));
+    makePuzzleMove({} as Game, "p2", new Hex(3, 3));
 
     // stats should have been persisted via updatePuzzleStats -> savePuzzles
     const stored = loadPuzzles();
     const found = stored.find((p) => p.id === "statpuzzle");
     expect(found).toBeDefined();
-    expect(found.stats).toBeDefined();
-    expect(found.stats.attempts).toBe(1);
-    expect(found.stats.solved).toBe(1);
+    expect(found!.stats).toBeDefined();
+    expect(found!.stats!.attempts).toBe(1);
+    expect(found!.stats!.solved).toBe(1);
   });
 
   test("failing a puzzle still records an attempt without a solve", () => {
     const puzzle = makePuzzle({ id: "failpuzzle" });
     savePuzzles([puzzle]);
     loadPuzzle(puzzle);
-    makePuzzleMove({}, "p1", new Hex(9, 9)); // wrong move
+    makePuzzleMove({} as Game, "p1", new Hex(9, 9)); // wrong move
 
     const stored = loadPuzzles();
     const found = stored.find((p) => p.id === "failpuzzle");
-    expect(found.stats.attempts).toBe(1);
-    expect(found.stats.solved).toBe(0);
+    expect(found!.stats!.attempts).toBe(1);
+    expect(found!.stats!.solved).toBe(0);
   });
 });
 
@@ -341,7 +345,7 @@ describe("getDailyPuzzle", () => {
   });
 
   test("serves a cached daily puzzle for the same date without regenerating", async () => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0]!;
     const cached = makePuzzle({ id: "cached-daily", difficulty: "medium" });
     localStorage.setItem("trischach-daily-puzzle-date", today);
     localStorage.setItem("trischach-daily-puzzle", JSON.stringify(cached));

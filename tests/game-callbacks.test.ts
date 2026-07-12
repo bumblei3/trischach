@@ -1,17 +1,16 @@
-// @ts-nocheck
 /**
  * game-callbacks.test.js — exercises the optional event callbacks on Game
  * (onUpdate / onGameOver / onElimination / onPromotion). These `if (cb)` guard
  * branches were uncovered, so they never ran in the suite before.
  */
 import { expect, test, describe, beforeEach, vi } from "vitest";
-import { Game, GAME_STATE } from "../js/game.ts";
+import { Game, GAME_STATE, GameResult } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 
 describe("Game event callbacks", () => {
-  let game;
+  let game: Game;
   let boardCells;
 
   beforeEach(() => {
@@ -42,7 +41,7 @@ describe("Game event callbacks", () => {
     game.onPromotion = onPromotion;
 
     game.handleCellClick(pawn.pos);
-    const result = game.handleCellClick(new Hex(0, 0));
+    const result = game.handleCellClick(new Hex(0, 0))!;
     expect(result.promotion).toBe(true);
     expect(onPromotion).toHaveBeenCalledTimes(1);
     expect(onPromotion).toHaveBeenCalledWith(pawn);
@@ -62,7 +61,7 @@ describe("Game event callbacks", () => {
     game._rebuildOccupiedMap();
 
     game.handleCellClick(firePawn.pos);
-    const result = game.handleCellClick(new Hex(0, 4));
+    const result = game.handleCellClick(new Hex(0, 4))!;
 
     expect(result.gameOver).toBe(true);
     expect(result.winner_faction).toBe(FACTION.FIRE);
@@ -84,7 +83,7 @@ describe("Game event callbacks", () => {
     game.onElimination = onElimination;
 
     game.handleCellClick(fireRook.pos);
-    const result = game.handleCellClick(enemyKing.pos);
+    const result = game.handleCellClick(enemyKing.pos)!;
 
     expect(result.action).toBe("combat");
     expect(result.elimination).toBe(FACTION.NATURE);
@@ -147,9 +146,9 @@ describe("Game event callbacks", () => {
       ["some-other-pos", 1],
     ]);
 
-    const play = (from, to) => {
+    const play = (from: Hex, to: Hex): GameResult => {
       game.handleCellClick(from);
-      return game.handleCellClick(to);
+      return game.handleCellClick(to)!;
     };
     play(new Hex(0, 0), new Hex(-2, 1)); // Fire out
     play(new Hex(0, 3), new Hex(-1, 2)); // Water out
@@ -191,7 +190,7 @@ describe("Game event callbacks", () => {
     game.onDraw = onDraw;
 
     game.handleCellClick(new Hex(0, 0));
-    const result = game.handleCellClick(new Hex(-2, 1));
+    const result = game.handleCellClick(new Hex(-2, 1))!;
 
     expect(result.action).toBe("move");
     expect(game.state).toBe(GAME_STATE.DRAW_50MOVE);

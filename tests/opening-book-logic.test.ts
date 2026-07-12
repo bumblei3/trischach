@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * opening-book-logic.test.js - focused coverage for js/opening-book.ts
  * helpers and book-lookup paths that the AI/UI tests don't isolate:
@@ -19,6 +18,7 @@ import {
   boardHash,
   parseMove,
 } from "../js/opening-book.ts";
+import type { IGame } from "../js/types.ts";
 
 function makeGame() {
   const game = new Game();
@@ -43,10 +43,11 @@ describe("opening book population + lookup", () => {
     const moves = getBookMoves(game);
     expect(moves).not.toBeNull();
     expect(Array.isArray(moves)).toBe(true);
-    expect(moves.length).toBeGreaterThan(0);
+    const sorted = moves!;
+    expect(sorted.length).toBeGreaterThan(0);
     // Sorted by weight descending
-    for (let i = 1; i < moves.length; i++) {
-      expect(moves[i].weight).toBeLessThanOrEqual(moves[i - 1].weight);
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i]!.weight).toBeLessThanOrEqual(sorted[i - 1]!.weight);
     }
   });
 
@@ -54,10 +55,11 @@ describe("opening book population + lookup", () => {
     const game = makeGame();
     const move = pickBookMove(game);
     expect(move).not.toBeNull();
-    expect(move.piece).toBeDefined();
-    expect(move.piece.alive).toBe(true);
-    expect(move.target).toBeDefined();
-    expect(typeof move.target.q).toBe("number");
+    const picked = move!;
+    expect(picked.piece).toBeDefined();
+    expect(picked.piece.alive).toBe(true);
+    expect(picked.target).toBeDefined();
+    expect(typeof picked.target.q).toBe("number");
   });
 
   test("a drastically altered position is not in book", () => {
@@ -92,7 +94,7 @@ describe("boardHash / parseMove branches", () => {
     const game = makeGame();
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === "pawn",
-    );
+    )!;
     expect(parseMove(game, `${pawn.id}->x,y`)).toBeNull();
   });
 
@@ -104,7 +106,7 @@ describe("boardHash / parseMove branches", () => {
       pieces: game.pieces,
       currentFaction: FACTION.WATER,
       currentFactionIdx: undefined,
-    };
+    } as unknown as IGame;
     const hash = boardHash(mini);
     // WATER is index 1 -> hash suffix must be #1
     expect(hash.endsWith("#1")).toBe(true);
@@ -117,7 +119,7 @@ describe("boardHash / parseMove branches", () => {
       pieces: game.pieces,
       currentFactionIdx: undefined,
       currentFaction: undefined,
-    };
+    } as unknown as IGame;
     expect(boardHash(mini).endsWith("#0")).toBe(true);
   });
 });
