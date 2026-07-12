@@ -41,8 +41,6 @@ export default defineConfig({
         "dist/**",
         "sw.js", // Service worker
         "scripts/**",
-        "auto-battle-learn.js",
-        "debug-line.js",
         "opening-book.compiled.json",
         "js/main.ts", // UI/event code (~100KB) — covered by E2E, not unit tests
         "js/sounds.ts", // Audio - hard to unit test
