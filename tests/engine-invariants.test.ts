@@ -199,4 +199,38 @@ describe("Engine invariants", () => {
     // the conservation path is still asserted above.
     void sawPromotion;
   });
+
+  test("every captured/eliminated piece is recorded in capturedPieces exactly once", () => {
+    // Regression guard: king-capture, disadvantage-death, and checkmate/
+    // stalemate elimination all flag whole factions dead. Each dead piece must
+    // land in capturedPieces exactly once (no silent drop, no duplicate).
+    for (const seed of [4, 7, 13, 21, 37]) {
+      playRandom(seed, (g) => {
+        const aliveIds = new Set(g.getAlivePieces().map((p) => p.id));
+        const capturedArr = Object.values(g.capturedPieces)
+          .flat()
+          .map((p) => p.id);
+        const capturedSet = new Set(capturedArr);
+
+        // No duplicate entries anywhere in capturedPieces.
+        expect(capturedArr.length).toBe(capturedSet.size);
+
+        // Every dead starting piece is recorded as captured.
+        for (const p of g.pieces) {
+          if (!p.alive) {
+            expect(
+              capturedSet.has(p.id),
+              `dead piece ${p.id} missing from capturedPieces`,
+            ).toBe(true);
+          }
+        }
+
+        // Every captured piece is actually dead (not still on the board).
+        for (const p of Object.values(g.capturedPieces).flat()) {
+          expect(p.alive).toBe(false);
+          expect(aliveIds.has(p.id)).toBe(false);
+        }
+      });
+    }
+  });
 });

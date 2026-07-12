@@ -328,9 +328,16 @@ export class Game {
       // Check for king elimination
       if (!result.loser!.alive && result.loser!.type === PIECE_TYPE.KING) {
         this.eliminatedFactions.add(result.loser!.faction);
-        // Kill all pieces of eliminated faction
+        // Kill all pieces of eliminated faction AND record them as captured by
+        // the winning faction, so capturedPieces stays complete.
+        const winnerFaction = result.winner!.faction;
         for (const p of this.pieces) {
-          if (p.faction === result.loser!.faction) p.alive = false;
+          // Only pieces still alive die now; the loser and any earlier
+          // captures are already flagged dead and recorded.
+          if (p.faction === result.loser!.faction && p.alive) {
+            p.alive = false;
+            this.capturedPieces[winnerFaction].push(p);
+          }
         }
         result.elimination = result.loser!.faction;
         if (this.onElimination) this.onElimination(result.loser!.faction);
@@ -407,8 +414,14 @@ export class Game {
           result.stalemate = checkedFaction;
         }
         this.eliminatedFactions.add(checkedFaction);
+        // Kill all pieces of the eliminated faction AND record them as
+        // captured by the winning faction, so capturedPieces stays complete.
         for (const p of this.pieces) {
-          if (p.faction === checkedFaction) p.alive = false;
+          // Only still-alive pieces die now; earlier captures already recorded.
+          if (p.faction === checkedFaction && p.alive) {
+            p.alive = false;
+            this.capturedPieces[this.currentFaction].push(p);
+          }
         }
         this._rebuildOccupiedMap();
         result.elimination = checkedFaction;
@@ -489,8 +502,15 @@ export class Game {
         if (defender.type === PIECE_TYPE.KING) {
           undo.eliminatedFaction = defender.faction;
           this.eliminatedFactions.add(defender.faction);
+          // Kill all pieces of eliminated faction AND record them as captured
+          // by the winning faction, so capturedPieces stays complete.
           for (const p of this.pieces) {
-            if (p.faction === defender.faction) p.alive = false;
+            // Only still-alive pieces die now; defender + earlier captures
+            // are already flagged dead and recorded.
+            if (p.faction === defender.faction && p.alive) {
+              p.alive = false;
+              this.capturedPieces[piece.faction].push(p);
+            }
           }
         }
       } else {
@@ -502,8 +522,15 @@ export class Game {
         if (piece.type === PIECE_TYPE.KING) {
           undo.eliminatedFaction = piece.faction;
           this.eliminatedFactions.add(piece.faction);
+          // Kill all pieces of eliminated faction AND record them as captured
+          // by the winning faction, so capturedPieces stays complete.
           for (const p of this.pieces) {
-            if (p.faction === piece.faction) p.alive = false;
+            // Only still-alive pieces die now; attacker + earlier captures
+            // are already flagged dead and recorded.
+            if (p.faction === piece.faction && p.alive) {
+              p.alive = false;
+              this.capturedPieces[defender.faction].push(p);
+            }
           }
         }
       }
@@ -536,7 +563,16 @@ export class Game {
     if (undo.eliminatedFaction) {
       this.eliminatedFactions.delete(undo.eliminatedFaction);
       for (const p of this.pieces) {
-        if (p.faction === undo.eliminatedFaction) p.alive = true;
+        if (p.faction === undo.eliminatedFaction) {
+          p.alive = true;
+          // Remove the piece from every faction's capturedPieces list, since
+          // elimination recorded all of them as captured.
+          for (const fac of Object.keys(this.capturedPieces) as Faction[]) {
+            const capList = this.capturedPieces[fac];
+            const idx = capList.indexOf(p);
+            if (idx !== -1) capList.splice(idx, 1);
+          }
+        }
       }
     }
 
