@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * replay.test.js - Tests for TriSchach Game Replay/Export System (TSPN format)
  */
@@ -174,7 +173,7 @@ describe("Replay: Serialization Helpers", () => {
 });
 
 describe("Replay: formatMove", () => {
-  let mockGame;
+  let mockGame: any;
 
   beforeEach(() => {
     mockGame = createMockGame();
@@ -544,11 +543,11 @@ describe("Replay: parseTSPN", () => {
 
     // Sample has 3 moves in line 1, 2 in line 2 = 5 total
     expect(moves.length).toBe(5);
-    expect(moves[0].faction).toBe("fire");
-    expect(moves[1].faction).toBe("water");
-    expect(moves[2].faction).toBe("nature");
-    expect(moves[3].faction).toBe("fire");
-    expect(moves[4].faction).toBe("water");
+    expect(moves[0]!.faction).toBe("fire");
+    expect(moves[1]!.faction).toBe("water");
+    expect(moves[2]!.faction).toBe("nature");
+    expect(moves[3]!.faction).toBe("fire");
+    expect(moves[4]!.faction).toBe("water");
   });
 
   test("includes raw move text", () => {
@@ -582,9 +581,9 @@ describe("Replay: parseMoveText", () => {
     const moves = parseMoveText(text);
 
     expect(moves.length).toBe(3);
-    expect(moves[0].faction).toBe("fire");
-    expect(moves[1].faction).toBe("water");
-    expect(moves[2].faction).toBe("nature");
+    expect(moves[0]!.faction).toBe("fire");
+    expect(moves[1]!.faction).toBe("water");
+    expect(moves[2]!.faction).toBe("nature");
   });
 
   test("removes move numbers", () => {
@@ -709,7 +708,7 @@ describe("Replay: parseMoveToken", () => {
   test("handles all piece types", () => {
     for (const piece of ["Pawn", "Knight", "Bishop", "Rook", "Queen", "King"]) {
       const move = parseMoveToken(`fire_${piece}_0,0`);
-      expect(move.pieceName.toLowerCase()).toBe(piece.toLowerCase());
+      expect(move.pieceName!.toLowerCase()).toBe(piece.toLowerCase());
     }
   });
 
@@ -729,7 +728,8 @@ describe("Replay: parseMoveToken", () => {
 });
 
 describe("Replay: ReplayController", () => {
-  let mockGame, moveHistory;
+  let mockGame: any;
+  let moveHistory: any;
 
   beforeEach(() => {
     mockGame = createMockGame({
@@ -1069,7 +1069,7 @@ describe("Replay: Export/Import Helpers", () => {
     await copyGameToClipboard(game);
 
     expect(writeText).toHaveBeenCalledTimes(1);
-    const written = writeText.mock.calls[0][0];
+    const written = writeText.mock.calls[0]![0];
     // The written content must be the TSPN produced by serializeGame
     expect(written).toBe(serializeGame(game));
     // And it must round-trip back into the same number of moves
@@ -1089,7 +1089,7 @@ describe("Replay: Export/Import Helpers", () => {
     const mockReader = {
       onload: null,
       onerror: null,
-      readAsText: vi.fn(function () {
+      readAsText: vi.fn(function (this: any) {
         this.onload({ target: { result: tspnContent } });
       }),
     };
@@ -1099,7 +1099,7 @@ describe("Replay: Export/Import Helpers", () => {
       vi.fn(() => mockReader),
     );
 
-    const result = await loadGameFromFile(mockFile);
+    const result = await loadGameFromFile(mockFile as unknown as File);
     expect(result.headers.Event).toBe("Test");
     expect(result.moves.length).toBe(1);
 
@@ -1170,9 +1170,9 @@ describe("Replay: Round-trip Serialization", () => {
 
     // Verify all 3 moves are preserved with correct factions
     expect(parsed.moves.length).toBeGreaterThanOrEqual(3);
-    expect(parsed.moves[0].faction).toBe("fire");
-    expect(parsed.moves[1].faction).toBe("water");
-    expect(parsed.moves[2].faction).toBe("nature");
+    expect(parsed.moves[0]!.faction).toBe("fire");
+    expect(parsed.moves[1]!.faction).toBe("water");
+    expect(parsed.moves[2]!.faction).toBe("nature");
   });
 
   test("preserves RPS setting in headers", () => {

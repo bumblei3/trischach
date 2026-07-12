@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * lib-logic.test.js - focused coverage for small, deterministic helper
  * functions in the TriSchach engine that the broader game/AI tests don't
@@ -17,9 +16,12 @@ import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
+import { IGame } from "../js/types.ts";
 import { boardHash, parseMove } from "../js/opening-book.ts";
 import { deserializeGame } from "../js/ai.ts";
 import { isCheckmateInternal, isStalemateInternal } from "../js/game-check.ts";
+
+type DeserializedGame = IGame & { getPieces(): Piece[] };
 
 function makeGame() {
   const game = new Game();
@@ -43,10 +45,10 @@ describe("boardHash (opening-book)", () => {
     // Drop currentFactionIdx so the resolver uses currentFaction instead.
     const probe = {
       pieces: game.pieces,
-      getAlivePieces: () => game.pieces.filter((p) => p.alive),
+      getAlivePieces: () => game.pieces.filter((p: Piece) => p.alive),
       currentFaction: game.currentFaction,
       currentFactionIdx: undefined,
-    };
+    } as unknown as IGame;
     const hash = boardHash(probe);
     const expectedIdx = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE].indexOf(
       game.currentFaction,
@@ -59,27 +61,27 @@ describe("boardHash (opening-book)", () => {
     const probe = {
       pieces: game.pieces,
       currentFactionIdx: game.currentFactionIdx,
-    };
+    } as unknown as IGame;
     // Should not throw and should still produce a hash with a faction suffix.
     expect(boardHash(probe)).toContain("#");
   });
 });
 
 describe("parseMove (opening-book)", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
   });
 
   test("parses a valid 'pieceId->q,r' move string", () => {
     const pawn = game.pieces.find(
-      (p) => p.type === PIECE_TYPE.PAWN && p.faction === FACTION.FIRE,
+      (p: Piece) => p.type === PIECE_TYPE.PAWN && p.faction === FACTION.FIRE,
     );
-    const parsed = parseMove(game, `${pawn.id}->2,2`);
+    const parsed = parseMove(game, `${pawn!.id}->2,2`);
     expect(parsed).not.toBeNull();
-    expect(parsed.piece.id).toBe(pawn.id);
-    expect(parsed.target.q).toBe(2);
-    expect(parsed.target.r).toBe(2);
+    expect(parsed!.piece.id).toBe(pawn!.id);
+    expect(parsed!.target.q).toBe(2);
+    expect(parsed!.target.r).toBe(2);
   });
 
   test("returns null when the piece id is unknown", () => {
@@ -88,9 +90,9 @@ describe("parseMove (opening-book)", () => {
 
   test("returns null when target coordinates are not numbers", () => {
     const pawn = game.pieces.find(
-      (p) => p.type === PIECE_TYPE.PAWN && p.faction === FACTION.FIRE,
+      (p: Piece) => p.type === PIECE_TYPE.PAWN && p.faction === FACTION.FIRE,
     );
-    expect(parseMove(game, `${pawn.id}->x,y`)).toBeNull();
+    expect(parseMove(game, `${pawn!.id}->x,y`)).toBeNull();
   });
 });
 
@@ -126,12 +128,12 @@ describe("deserializeGame (ai)", () => {
       _halfmoveClock: 0,
     };
 
-    const game = deserializeGame(state);
+    const game = deserializeGame(state) as unknown as DeserializedGame;
     expect(game.pieces.length).toBe(2);
     expect(game.getAlivePieces().length).toBe(1);
     expect(game.getPieces().length).toBe(2);
     // boardCells is rebuilt from generateBoard() (66 hex cells)
-    expect(game.boardCells.size).toBe(66);
+    expect(game.boardCells!.size).toBe(66);
     expect(game.eliminatedFactions.has("nature")).toBe(true);
   });
 
@@ -155,23 +157,23 @@ describe("deserializeGame (ai)", () => {
       rpsEnabled: false,
       capturedPieces: [],
     };
-    const game = deserializeGame(state);
+    const game = deserializeGame(state) as unknown as DeserializedGame;
     expect(game._halfmoveClock).toBe(0);
     expect(game.currentFactionIdx).toBe(1);
   });
 });
 
 describe("game-check early-return branches", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = new Game();
     game.init(generateBoard());
     game.rpsEnabled = false;
   });
 
-  function setPieces(pieces) {
-    game.pieces = pieces;
-    game._rebuildOccupiedMap();
+  function setPieces(pieces: Piece[]) {
+    game!.pieces = pieces;
+    game!._rebuildOccupiedMap();
   }
 
   test("isCheckmateInternal is false when the king is not in check", () => {

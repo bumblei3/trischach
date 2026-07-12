@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe } from "vitest";
 import {
   Hex,
@@ -161,8 +160,8 @@ describe("Hex helpers", () => {
     const direction = new Hex(1, 0);
     const line = hexLine(origin, direction, 3);
     expect(line.length).toBe(3);
-    expect(line[0].equals(new Hex(1, 0))).toBe(true);
-    expect(line[1].equals(new Hex(2, 0))).toBe(true);
-    expect(line[2].equals(new Hex(3, 0))).toBe(true);
+    expect(line[0]!.equals(new Hex(1, 0))).toBe(true);
+    expect(line[1]!.equals(new Hex(2, 0))).toBe(true);
+    expect(line[2]!.equals(new Hex(3, 0))).toBe(true);
   });
 });

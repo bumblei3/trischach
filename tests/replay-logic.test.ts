@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * replay-logic.test.js - focused coverage for the TSPN replay/export
  * subsystem in js/replay.ts that the broader UI tests don't exercise:
@@ -15,6 +14,7 @@ import { generateBoard, FACTION } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 import { GAME_STATE } from "../js/game.ts";
+import { GameResult } from "../js/types.ts";
 import {
   serializeGame,
   parseTSPN,
@@ -40,16 +40,16 @@ function makeEmptyGame() {
 
 // Move-history entries in the SHAPE serializeGame/formatMove expect:
 //   move.piece = { faction, type, ... } ; move.to = { q, r } ; move.action
-function makeMoves() {
+function makeMoves(): GameResult[] {
   return [
     {
-      piece: { faction: "fire", type: "pawn" },
-      to: { q: 1, r: 1 },
+      piece: { faction: "fire", type: "pawn" } as GameResult["piece"],
+      to: new Hex(1, 1),
       action: "move",
     },
     {
-      piece: { faction: "water", type: "king" },
-      to: { q: 2, r: 2 },
+      piece: { faction: "water", type: "king" } as GameResult["piece"],
+      to: new Hex(2, 2),
       action: "move",
     },
   ];
@@ -104,8 +104,8 @@ describe("serializeGame / parseTSPN round-trip", () => {
     expect(parsed.headers.Event).toBe("Casual Game");
     expect(parsed.headers.RPS).toBe("on");
     expect(parsed.moves.length).toBe(2);
-    expect(parsed.moves[0].faction).toBe("fire");
-    expect(parsed.moves[1].faction).toBe("water");
+    expect(parsed.moves[0]!.faction).toBe("fire");
+    expect(parsed.moves[1]!.faction).toBe("water");
   });
 
   test("parseTSPN handles a header-less / move-less string", () => {
@@ -134,9 +134,9 @@ describe("serializeGame / parseTSPN round-trip", () => {
   test("parseMoveText parses the real faction_PieceType_q,r format", () => {
     const moves = parseMoveText("1. fire_Pawn_0,1 2. water_King_2,2");
     expect(moves.length).toBe(2);
-    expect(moves[0].faction).toBe("fire");
-    expect(moves[0].pieceName).toBe("pawn");
-    expect(moves[1].faction).toBe("water");
+    expect(moves[0]!.faction).toBe("fire");
+    expect(moves[0]!.pieceName).toBe("pawn");
+    expect(moves[1]!.faction).toBe("water");
   });
 
   test("parseMoveText returns [] for empty input", () => {
@@ -173,15 +173,15 @@ describe("cloneGameState", () => {
     const clone = cloneGameState(game);
     expect(clone.pieces.length).toBe(2);
     // Mutating the clone must not affect the original
-    clone.pieces[0].alive = false;
+    clone.pieces[0]!.alive = false;
     clone.eliminatedFactions = ["water"];
-    expect(game.pieces[0].alive).toBe(true);
+    expect(game.pieces[0]!.alive).toBe(true);
     expect(Array.from(game.eliminatedFactions)).toEqual([]);
   });
 });
 
 describe("ReplayController navigation bounds", () => {
-  let controller;
+  let controller: ReplayController;
   beforeEach(() => {
     // Empty history -> canGoForward is false, getCurrentState returns the
     // single precomputed initial state (states[0]).
@@ -223,7 +223,7 @@ describe("ReplayController navigation bounds", () => {
 });
 
 describe("ReplayController TSPN export", () => {
-  let controller;
+  let controller: ReplayController;
   beforeEach(() => {
     // Empty history avoids precomputeStates replay; exportTSPN serializes
     // the initial game state, which is what we want to assert here.
@@ -246,21 +246,28 @@ describe("ReplayController TSPN export", () => {
 });
 
 describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFromFile", () => {
-  let clickSpy;
-  let writeTextSpy;
+  let clickSpy: ReturnType<typeof vi.fn>;
+  let writeTextSpy: ReturnType<typeof vi.fn>;
+  let urlMock: {
+    createObjectURL: ReturnType<typeof vi.fn>;
+    revokeObjectURL: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     clickSpy = vi.fn();
     const mockAnchor = {
       click: clickSpy,
-      set href(_v) {},
-      set download(_v) {},
+      set href(_v: string) {},
+      set download(_v: string) {},
     };
-    vi.spyOn(document, "createElement").mockReturnValue(mockAnchor);
-    globalThis.URL = {
+    vi.spyOn(document, "createElement").mockReturnValue(
+      mockAnchor as unknown as HTMLElement,
+    );
+    urlMock = {
       createObjectURL: vi.fn(() => "blob:mock"),
       revokeObjectURL: vi.fn(),
     };
+    (globalThis as unknown as { URL: typeof urlMock }).URL = urlMock;
     writeTextSpy = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: writeTextSpy },
@@ -272,9 +279,9 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     const game = makeEmptyGame();
     game.moveHistory = makeMoves();
     downloadGame(game, "test.tspn");
-    expect(globalThis.URL.createObjectURL).toHaveBeenCalled();
+    expect(urlMock.createObjectURL).toHaveBeenCalled();
     expect(clickSpy).toHaveBeenCalled();
-    expect(globalThis.URL.revokeObjectURL).toHaveBeenCalled();
+    expect(urlMock.revokeObjectURL).toHaveBeenCalled();
   });
 
   test("copyGameToClipboard writes the serialized TSPN", async () => {
@@ -282,7 +289,7 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     game.moveHistory = makeMoves();
     await copyGameToClipboard(game);
     expect(writeTextSpy).toHaveBeenCalledOnce();
-    const written = writeTextSpy.mock.calls[0][0];
+    const written = writeTextSpy.mock.calls[0]![0];
     expect(written).toContain('[Variant "TriSchach"]');
   });
 
@@ -300,7 +307,7 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     const tspn = serializeGame(game);
 
     const fakeReader = {
-      readAsText: vi.fn(function (_file) {
+      readAsText: vi.fn(function (this: any, _file: unknown) {
         // Simulate async load
         queueMicrotask(() => this.onload({ target: { result: tspn } }));
       }),
@@ -309,7 +316,7 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
       return fakeReader;
     });
 
-    const parsed = await loadGameFromFile({});
+    const parsed = await loadGameFromFile({} as unknown as File);
     expect(parsed.moves.length).toBe(2);
     vi.unstubAllGlobals();
   });
@@ -351,7 +358,7 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     // Parse back: exactly ONE move, and it carries the elimination marker.
     const parsed = parseTSPN(tspn);
     expect(parsed.moves.length).toBe(1);
-    expect(parsed.moves[0].elimination).toBe("nature");
+    expect(parsed.moves[0]!.elimination).toBe("nature");
   });
 
   test("serialize -> reconstruct round-trip replays a saved game (real game)", () => {
@@ -368,9 +375,11 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     const firePawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
     );
+    if (!firePawn) throw new Error("firePawn not found");
     const startKey = firePawn.pos.key;
     game.handleCellClick(firePawn.pos);
     const target = game.validMoves[0];
+    if (!target) throw new Error("target not found");
     game.handleCellClick(target);
     expect(firePawn.pos.key).toBe(target.key);
 
@@ -387,13 +396,15 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     // The reconstructed game replayed the move: the pawn left its start square
     // and now sits on the recorded target square. NOTE: cloneGameState returns
     // pos as a plain {q,r} object (no .key), so compare q/r explicitly.
-    const replayedPawn = finalState.pieces.find((p) => p.id === firePawn.id);
+    const replayedPawn = finalState.pieces.find(
+      (p: Piece) => p.id === firePawn.id,
+    );
     expect(`${replayedPawn.pos.q},${replayedPawn.pos.r}`).toBe(
       `${target.q},${target.r}`,
     );
     // The start square is now empty (pawn moved away).
     const occupant = finalState.pieces.find(
-      (p) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
+      (p: Piece) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
     );
     expect(occupant?.id === firePawn.id).toBe(false);
   });

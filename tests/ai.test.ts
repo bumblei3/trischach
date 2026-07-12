@@ -1,7 +1,7 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { calculateBestMove, setAIDepth } from "../js/ai.ts";
 import { Game } from "../js/game.ts";
+import { AIAction } from "../js/types.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
@@ -11,7 +11,7 @@ import { Hex } from "../js/hex.ts";
 setAIDepth(2);
 
 describe("AI Decision Making (Minimax)", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     game = new Game();
@@ -35,7 +35,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [firePawn, naturePawn];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
 
     expect(action).not.toBeNull();
     expect(action.type).toBe("attack");
@@ -49,7 +49,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [firePawn, waterPawn];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
 
     expect(action).not.toBeNull();
     expect(action.type).toBe("move");
@@ -65,7 +65,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [fireKnight];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
 
     expect(action).not.toBeNull();
     expect(action.type).toBe("move");
@@ -92,7 +92,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [fireKing];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
 
     expect(action).not.toBeNull();
     expect(action.type).toBe("move");
@@ -111,7 +111,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [fireQueen, n1, n2];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
     expect(action.type).toBe("attack");
 
     Math.random = originalRandom;
@@ -122,7 +122,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [firePawn];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
     expect(action.type).toBe("move");
   });
 
@@ -132,7 +132,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [firePawn];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
     // No enemies = no attacks, should move
     expect(action).not.toBeNull();
     expect(action.type).toBe("move");
@@ -151,7 +151,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [fireQueen, natureKing];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
     expect(action).not.toBeNull();
     expect(action.type).toBe("attack");
     expect(action.target.equals(new Hex(0, 0))).toBe(true);
@@ -169,7 +169,7 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [fireKing, waterQueen];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
     expect(action).not.toBeNull();
     expect(action.piece).toBe(fireKing);
     // Should move away from Water Queen
@@ -199,11 +199,11 @@ describe("AI Decision Making (Minimax)", () => {
     game.pieces = [fireRook, naturePawn, natureQueen, natureKing, fireKing];
     game._rebuildOccupiedMap();
 
-    const action = calculateBestMove(game, FACTION.FIRE);
+    const action = calculateBestMove(game, FACTION.FIRE) as AIAction;
     expect(action).not.toBeNull();
     expect(action.type).toBe("attack");
     // Should capture the Queen (higher value) not the Pawn
-    const target = game.getPieceAt(action.target);
+    const target = game.getPieceAt(action.target)!;
     expect(target.type).toBe(PIECE_TYPE.QUEEN);
   });
 

@@ -1,13 +1,13 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game, GAME_STATE, PROMOTION_CHOICES } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
+import type { Cell } from "../js/types.ts";
 
 describe("Game rules: direct unit tests", () => {
-  let game;
-  let boardCells;
+  let game: Game;
+  let boardCells: Map<string, Cell>;
 
   beforeEach(() => {
     game = new Game();
@@ -42,23 +42,22 @@ describe("Game rules: direct unit tests", () => {
 
     test("transforms pawn into chosen type and records result", () => {
       const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
-      pawn.symbol = "♟";
       game.pendingPromotion = pawn;
 
       const result = game.completePromotion(PIECE_TYPE.QUEEN);
       expect(result).not.toBeNull();
       expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
       expect(pawn.symbol).toBe("♛");
-      expect(result.action).toBe("promotion");
-      expect(result.type).toBe(PIECE_TYPE.QUEEN);
-      expect(result.notation).toContain("♟→♛");
+      expect(result!.action).toBe("promotion");
+      expect(result!.type).toBe(PIECE_TYPE.QUEEN);
+      expect(result!.notation).toContain("♟→♛");
       // Turn advances after promotion
       expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
       expect(game.pendingPromotion).toBeNull();
     });
 
     test("all promotion choices produce the correct symbol", () => {
-      const symbolFor = {
+      const symbolFor: Record<string, string> = {
         [PIECE_TYPE.QUEEN]: "♛",
         [PIECE_TYPE.ROOK]: "♜",
         [PIECE_TYPE.BISHOP]: "♝",
@@ -80,8 +79,8 @@ describe("Game rules: direct unit tests", () => {
       game.pendingPromotion = pawn;
 
       const result = game.completePromotion(PIECE_TYPE.QUEEN);
-      expect(result.gameOver).toBe(true);
-      expect(result.winner_faction).toBe(FACTION.FIRE);
+      expect(result!.gameOver).toBe(true);
+      expect(result!.winner_faction).toBe(FACTION.FIRE);
       expect(game.state).toBe(GAME_STATE.GAME_OVER);
     });
   });
@@ -93,7 +92,7 @@ describe("Game rules: direct unit tests", () => {
         (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
       );
       expect(pawn).toBeDefined();
-      const { moves, attacks } = game.getLegalMoves(pawn);
+      const { moves, attacks } = game.getLegalMoves(pawn!);
       expect(Array.isArray(moves)).toBe(true);
       expect(Array.isArray(attacks)).toBe(true);
       // Every legal move must be a Hex with a key
@@ -200,7 +199,7 @@ describe("Game rules: direct unit tests", () => {
 
       // Mutate the live game, then restore
       const before = game.getAlivePieces().length;
-      game.pieces[0].alive = false;
+      game.pieces[0]!.alive = false;
       game.currentFactionIdx = 2;
       game.eliminatedFactions.add(FACTION.WATER);
       game.restore(snap);
@@ -218,30 +217,29 @@ describe("Game rules: direct unit tests", () => {
       const pawn = game.pieces.find(
         (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
       );
-      const moves = game.getLegalMoves(pawn).moves;
+      const moves = game.getLegalMoves(pawn!).moves;
       expect(moves.length).toBeGreaterThan(0);
 
       // Push a snapshot manually (mirrors what handleCellClick does before a move)
-      game._undoStack.push(game.snapshot());
-      const target = moves[0];
-      const fromKey = pawn.pos.key;
+      (game as any)._undoStack.push(game.snapshot());
+      const target = moves[0]!;
+      const fromKey = pawn!.pos.key;
       // Perform the move directly on the piece
-      pawn.pos = new Hex(target.q, target.r);
+      pawn!.pos = new Hex(target.q, target.r);
       game._rebuildOccupiedMap();
 
       const restored = game.undo();
       expect(restored).not.toBeNull();
-      expect(restored.currentFactionIdx).toBe(snapBefore.currentFactionIdx);
-      expect(game.getPieceAt(new Hex(...fromKey.split(",").map(Number)))).toBe(
-        pawn,
-      );
+      expect(restored!.currentFactionIdx).toBe(snapBefore.currentFactionIdx);
+      const [fromQ, fromR] = fromKey.split(",").map(Number) as [number, number];
+      expect(game.getPieceAt(new Hex(fromQ, fromR))).toBe(pawn);
     });
 
     test("clearUndoStack empties the history", () => {
-      game._undoStack.push(game.snapshot());
-      expect(game._undoStack.length).toBe(1);
+      (game as any)._undoStack.push(game.snapshot());
+      expect((game as any)._undoStack.length).toBe(1);
       game.clearUndoStack();
-      expect(game._undoStack.length).toBe(0);
+      expect((game as any)._undoStack.length).toBe(0);
       expect(game.undo()).toBeNull();
     });
   });

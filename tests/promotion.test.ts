@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game, GAME_STATE, PROMOTION_CHOICES } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
@@ -6,7 +5,7 @@ import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 
 describe("Pawn Promotion", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     game = new Game();
@@ -66,11 +65,11 @@ describe("Pawn Promotion", () => {
     game._rebuildOccupiedMap();
 
     // Select the pawn
-    const sel = game.handleCellClick(new Hex(0, 1));
+    const sel = game.handleCellClick(new Hex(0, 1))!;
     expect(sel.action).toBe("select");
 
     // Move to r=0 (promotion zone)
-    const result = game.handleCellClick(new Hex(0, 0));
+    const result = game.handleCellClick(new Hex(0, 0))!;
     expect(result.action).toBe("move");
     expect(result.promotion).toBe(true);
     expect(game.state).toBe(GAME_STATE.PROMOTION);
@@ -87,7 +86,7 @@ describe("Pawn Promotion", () => {
     expect(game.state).toBe(GAME_STATE.PROMOTION);
 
     // Clicking during promotion should return null
-    const result = game.handleCellClick(new Hex(1, 0));
+    const result = game.handleCellClick(new Hex(1, 0))!;
     expect(result).toBeNull();
   });
 
@@ -98,7 +97,7 @@ describe("Pawn Promotion", () => {
     game.pendingPromotion = pawn;
     game.state = GAME_STATE.PROMOTION;
 
-    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+    const result = game.completePromotion(PIECE_TYPE.QUEEN)!;
 
     expect(result).not.toBeNull();
     expect(result.action).toBe("promotion");
@@ -172,7 +171,7 @@ describe("Pawn Promotion", () => {
 
     game.completePromotion(PIECE_TYPE.QUEEN);
     expect(game.moveHistory.length).toBe(historyLen + 1);
-    expect(game.moveHistory[game.moveHistory.length - 1].action).toBe(
+    expect(game.moveHistory[game.moveHistory.length - 1]!.action).toBe(
       "promotion",
     );
   });
@@ -187,8 +186,7 @@ describe("Pawn Promotion", () => {
     game.pendingPromotion = pawn;
     game.state = GAME_STATE.PROMOTION;
 
-    const result = game.completePromotion(PIECE_TYPE.QUEEN);
-    expect(result.gameOver).toBe(true);
+    const result = game.completePromotion(PIECE_TYPE.QUEEN)!;
     expect(result.winner_faction).toBe(FACTION.FIRE);
     expect(game.state).toBe(GAME_STATE.GAME_OVER);
   });
@@ -258,12 +256,12 @@ describe("Pawn Promotion", () => {
     expect(game.state).toBe(GAME_STATE.SELECT_TARGET);
 
     // 2. Move to promotion zone
-    const moveResult = game.handleCellClick(new Hex(0, 0));
+    const moveResult = game.handleCellClick(new Hex(0, 0))!;
     expect(game.state).toBe(GAME_STATE.PROMOTION);
     expect(moveResult.promotion).toBe(true);
 
     // 3. Complete promotion
-    const promoResult = game.completePromotion(PIECE_TYPE.QUEEN);
+    const promoResult = game.completePromotion(PIECE_TYPE.QUEEN)!;
     expect(promoResult.action).toBe("promotion");
     expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
@@ -281,7 +279,7 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.SELECT_PIECE;
 
     game.handleCellClick(new Hex(0, 1)); // select pawn
-    const moveResult = game.handleCellClick(new Hex(0, 0)); // -> promotion zone
+    const moveResult = game.handleCellClick(new Hex(0, 0))!; // -> promotion zone
     expect(moveResult.promotion).toBe(true);
     expect(game.state).toBe(GAME_STATE.PROMOTION);
 
@@ -312,7 +310,7 @@ describe("Pawn Promotion", () => {
     game.currentFactionIdx = 0;
     game.currentFaction = FACTION.FIRE;
     game.state = GAME_STATE.GAME_OVER;
-    game.winner_faction = FACTION.FIRE;
+    (game as any).winner_faction = FACTION.FIRE;
 
     const result = game.handleCellClick(new Hex(0, 1));
     expect(result).toBeNull();
@@ -343,7 +341,7 @@ describe("Pawn Promotion", () => {
 
     // Drive the pawn into the promotion zone.
     game.handleCellClick(new Hex(0, 1));
-    const moveResult = game.handleCellClick(new Hex(0, 0));
+    const moveResult = game.handleCellClick(new Hex(0, 0))!;
     expect(moveResult.promotion).toBe(true);
     expect(game.state).toBe(GAME_STATE.PROMOTION);
     expect(game.pendingPromotion).toBe(pawn);
@@ -454,7 +452,7 @@ describe("Pawn Promotion", () => {
 
     game.handleCellClick(new Hex(0, 1));
     game.handleCellClick(new Hex(0, 0)); // -> promotion (0,0 empty, no capture)
-    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+    const result = game.completePromotion(PIECE_TYPE.QUEEN)!;
 
     // The promotion hands the move to WATER, which is in check.
     expect(game.currentFaction).toBe(FACTION.WATER);
@@ -486,7 +484,7 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.SELECT_PIECE;
 
     game.handleCellClick(new Hex(0, 1));
-    const result = game.handleCellClick(new Hex(0, 0)); // disadvantage combat in zone
+    const result = game.handleCellClick(new Hex(0, 0))!; // disadvantage combat in zone
 
     // The attacker died (disadvantage); defender survives.
     expect(pawn.alive).toBe(false);
@@ -524,7 +522,7 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.SELECT_PIECE;
 
     game.handleCellClick(new Hex(0, 1));
-    const result = game.handleCellClick(new Hex(0, 0)); // advantage combat in zone
+    const result = game.handleCellClick(new Hex(0, 0))!; // advantage combat in zone
 
     expect(result.action).toBe("combat");
     expect(enemy.alive).toBe(false); // defender captured

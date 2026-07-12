@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game, GAME_STATE } from "../js/game.ts";
 import { legalMoveCheck } from "../js/game-check.ts";
@@ -7,7 +6,7 @@ import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 
 describe("Check Detection", () => {
-  let game;
+  let game: Game;
   let boardCells;
 
   beforeEach(() => {
@@ -119,7 +118,7 @@ describe("Check Detection", () => {
 });
 
 describe("Checkmate Detection", () => {
-  let game;
+  let game: Game;
   let boardCells;
 
   beforeEach(() => {
@@ -217,7 +216,7 @@ describe("Checkmate Detection", () => {
 });
 
 describe("Check Resolution in Game Flow", () => {
-  let game;
+  let game: Game;
   let boardCells;
 
   beforeEach(() => {
@@ -265,8 +264,8 @@ describe("Check Resolution in Game Flow", () => {
     const result = game.handleCellClick(new Hex(0, 2)); // attempt pinned move
 
     // The move is illegal: handleCellClick must reject it (not execute).
-    expect(result.action).not.toBe("move");
-    expect(result.action).not.toBe("combat");
+    expect(result!.action).not.toBe("move");
+    expect(result!.action).not.toBe("combat");
     // The pawn did NOT move — it is still on (0,1), king still safe.
     expect(firePawn.pos.equals(new Hex(0, 1))).toBe(true);
     expect(game.isKingInCheck(FACTION.FIRE)).toBe(false);
@@ -293,9 +292,9 @@ describe("Check Resolution in Game Flow", () => {
     game.handleCellClick(fireQueen.pos);
     const result = game.handleCellClick(new Hex(0, 1));
 
-    expect(result.action).toBe("move");
+    expect(result!.action).toBe("move");
     // After fire's move, water is next and water king should be in check
-    expect(result.inCheck).toBe(true);
+    expect(result!.inCheck).toBe(true);
   });
 
   test("checkmate eliminates the mated faction", () => {

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 
 // Test the AI modules directly (not through main.js UI)
@@ -29,7 +28,7 @@ import { Hex } from "../js/hex.ts";
 import { getLegalMoves } from "../js/ai-core.ts";
 
 describe("AI Core: Dynamic Piece Values (RPS-aware)", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -78,7 +77,7 @@ describe("AI Core: Dynamic Piece Values (RPS-aware)", () => {
 });
 
 describe("AI Core: Adaptive Time Management", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -89,6 +88,7 @@ describe("AI Core: Adaptive Time Management", () => {
   test("calculateBestMove returns valid action in opening", () => {
     const action = calculateBestMove(game, FACTION.FIRE);
     expect(action).toBeDefined();
+    if (!action) throw new Error("expected a move");
     expect(action).toHaveProperty("piece");
     expect(action).toHaveProperty("target");
     expect(action.piece.faction).toBe(FACTION.FIRE);
@@ -98,28 +98,31 @@ describe("AI Core: Adaptive Time Management", () => {
     // Test Fire
     let action = calculateBestMove(game, FACTION.FIRE);
     expect(action).toBeDefined();
+    if (!action) throw new Error("expected a move");
     expect(action.piece.faction).toBe(FACTION.FIRE);
 
     // Simulate Fire move
     game.handleCellClick(action.piece.pos);
     const result = game.handleCellClick(action.target);
 
-    if (result.promotion) {
+    if (result?.promotion) {
       game.completePromotion("queen");
     }
 
     // Test Water
     action = calculateBestMove(game, FACTION.WATER);
     expect(action).toBeDefined();
+    if (!action) throw new Error("expected a move");
     expect(action.piece.faction).toBe(FACTION.WATER);
 
     // Test Nature
     game.handleCellClick(action.piece.pos);
     const result2 = game.handleCellClick(action.target);
-    if (result2.promotion) game.completePromotion("queen");
+    if (result2?.promotion) game.completePromotion("queen");
 
     action = calculateBestMove(game, FACTION.NATURE);
     expect(action).toBeDefined();
+    if (!action) throw new Error("expected a move");
     expect(action.piece.faction).toBe(FACTION.NATURE);
   });
 
@@ -132,7 +135,7 @@ describe("AI Core: Adaptive Time Management", () => {
 });
 
 describe("AI Core: Move Quality", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -145,7 +148,7 @@ describe("AI Core: Move Quality", () => {
     const action = calculateBestMove(game, FACTION.FIRE);
 
     // AI should not choose disadvantage captures unless forced
-    if (action && action.type === "combat") {
+    if (action && action.type === "attack") {
       expect(action.rps).not.toBe("disadvantage");
     }
   });
@@ -160,6 +163,7 @@ describe("AI Core: Move Quality", () => {
     // This is hard to set up deterministically, so we just verify the move is legal
     const action = calculateBestMove(testGame, FACTION.FIRE);
     expect(action).toBeDefined();
+    if (!action) throw new Error("expected a move");
 
     // Verify the move is actually legal
     const { moves, attacks } = testGame.getLegalMoves(action.piece);
@@ -170,7 +174,7 @@ describe("AI Core: Move Quality", () => {
 });
 
 describe("Game Replay: TSPN Serialization", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -185,8 +189,8 @@ describe("Game Replay: TSPN Serialization", () => {
       if (!action) break;
       game.handleCellClick(action.piece.pos);
       const result = game.handleCellClick(action.target);
-      if (result.promotion) game.completePromotion("queen");
-      if (result.gameOver) break;
+      if (result?.promotion) game.completePromotion("queen");
+      if (result?.gameOver) break;
     }
 
     const tspn = serializeGame(game);
@@ -236,7 +240,7 @@ describe("Game Replay: TSPN Serialization", () => {
       testGame.handleCellClick(firePawn.pos);
       const result = testGame.handleCellClick(waterPawn.pos);
 
-      if (result.action === "combat") {
+      if (result && result.action === "combat") {
         const tspn = serializeGame(testGame);
         // Should contain RPS indicator
         expect(tspn).toMatch(/[<>]/);
@@ -273,7 +277,7 @@ describe("Game Replay: TSPN Serialization", () => {
 });
 
 describe("Auto-Battle Integration", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -292,11 +296,11 @@ describe("Auto-Battle Integration", () => {
       game.handleCellClick(action.piece.pos);
       const result = game.handleCellClick(action.target);
 
-      if (result.promotion) {
+      if (result?.promotion) {
         game.completePromotion("queen");
       }
 
-      if (result.gameOver) break;
+      if (result?.gameOver) break;
       moves++;
     }
 
@@ -342,6 +346,7 @@ describe("Auto-Battle Integration", () => {
     // Fire vs Water = DISADVANTAGE for Fire
     testGame.handleCellClick(fireQueen.pos);
     const result = testGame.handleCellClick(waterPawn.pos);
+    if (!result) throw new Error("expected combat result");
 
     expect(result.action).toBe("combat");
     expect(result.rpsResult).toBe("disadvantage"); // Fire vs Water = disadvantage
@@ -407,13 +412,14 @@ describe("Edge Cases", () => {
     testGame.pieces = [
       testGame.pieces.find(
         (p) => p.faction === FACTION.FIRE && p.type === "king",
-      ),
+      )!,
     ];
     testGame._rebuildOccupiedMap();
 
     const action = calculateBestMove(testGame, FACTION.FIRE);
     // King can move
     expect(action).toBeDefined();
+    if (!action) throw new Error("expected a move");
   });
 
   test("Dynamic piece values work with RPS relationships", () => {
@@ -441,7 +447,7 @@ describe("Edge Cases", () => {
 });
 
 describe("AI Core: Pondering", () => {
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -529,7 +535,7 @@ describe("AI Core: legal move generation excludes self-check", () => {
   // game.ts / game-check.ts variants. This guards against the AI ever
   // "choosing" a suicidal move during search. Mirror of game-check.test.js
   // "pinned piece" invariant, but driven through the engine path.
-  let game;
+  let game: Game;
 
   beforeEach(() => {
     const cells = generateBoard();
@@ -552,7 +558,7 @@ describe("AI Core: legal move generation excludes self-check", () => {
 
     const pawn = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
-    );
+    )!;
     const { attacks } = getLegalMoves(game, pawn);
     // any attack that leaves the king in check is filtered out by the engine
     expect(attacks.length).toBe(0);
@@ -571,7 +577,7 @@ describe("AI Core: legal move generation excludes self-check", () => {
 
     const king = game.pieces.find(
       (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
-    );
+    )!;
     const { moves } = getLegalMoves(game, king);
     const intoCheck = moves.some((m) => m.q === 0 && (m.r === 1 || m.r === 2));
     expect(intoCheck).toBe(false);

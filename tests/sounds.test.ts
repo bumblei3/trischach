@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { expect, test, describe, vi, beforeEach } from "vitest";
 import { sounds } from "../js/sounds.ts";
 
@@ -32,15 +31,15 @@ describe("Sound System", () => {
     }));
 
     // Reset sounds state
-    sounds.ctx = null;
-    sounds.enabled = true;
+    (sounds as any).ctx = null;
+    (sounds as any).enabled = true;
   });
 
   test("toggle enables/disables sounds", () => {
     sounds.toggle(true);
-    expect(sounds.enabled).toBe(true);
+    expect((sounds as any).enabled).toBe(true);
     sounds.toggle(false);
-    expect(sounds.enabled).toBe(false);
+    expect((sounds as any).enabled).toBe(false);
   });
 
   test("playSelect creates sound nodes", () => {
@@ -81,7 +80,7 @@ describe("Sound System", () => {
       resume: mockResume,
     }));
 
-    sounds.ctx = null; // force re-init
+    (sounds as any).ctx = null; // force re-init
     sounds.playSelect();
     expect(mockResume).toHaveBeenCalled();
   });
@@ -137,8 +136,8 @@ describe("Sound System", () => {
 
   test("disabled sound manager does not create an AudioContext", () => {
     sounds.toggle(false);
-    expect(sounds.enabled).toBe(false);
-    globalThis.AudioContext.mockClear();
+    expect((sounds as any).enabled).toBe(false);
+    (globalThis.AudioContext as any).mockClear();
     sounds.playMove();
     sounds.playSelect();
     expect(globalThis.AudioContext).not.toHaveBeenCalled();

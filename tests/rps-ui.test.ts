@@ -1,13 +1,13 @@
-// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game } from "../js/game.ts";
 import { FACTION, generateBoard, getRPSResult } from "../js/board.ts";
 import { Piece, PIECE_TYPE } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
+import type { Cell } from "../js/types.ts";
 
 describe("RPS Attack Categorization", () => {
-  let game;
-  let boardCells;
+  let game: Game;
+  let boardCells: Map<string, Cell>;
 
   beforeEach(() => {
     game = new Game();
@@ -42,19 +42,19 @@ describe("RPS Attack Categorization", () => {
     ];
     game._rebuildOccupiedMap();
 
-    const result = game.handleCellClick(fireQueen.pos);
+    const result = game.handleCellClick(fireQueen.pos)!;
 
     expect(result.action).toBe("select");
-    expect(result.rpsAttacks).not.toBeNull();
-    expect(result.rpsAttacks.advantage.length).toBeGreaterThan(0);
-    expect(result.rpsAttacks.disadvantage.length).toBeGreaterThan(0);
+    expect(result.rpsAttacks!).not.toBeNull();
+    expect(result.rpsAttacks!.advantage.length).toBeGreaterThan(0);
+    expect(result.rpsAttacks!.disadvantage.length).toBeGreaterThan(0);
     // Nature is advantage for Fire
     expect(
-      result.rpsAttacks.advantage.some((h) => h.equals(new Hex(1, 0))),
+      result.rpsAttacks!.advantage.some((h) => h.equals(new Hex(1, 0))),
     ).toBe(true);
     // Water is disadvantage for Fire
     expect(
-      result.rpsAttacks.disadvantage.some((h) => h.equals(new Hex(-1, 1))),
+      result.rpsAttacks!.disadvantage.some((h) => h.equals(new Hex(-1, 1))),
     ).toBe(true);
   });
 
@@ -77,10 +77,10 @@ describe("RPS Attack Categorization", () => {
     game.pieces = [fireQueen, naturePawn, fireKing, natureKing, waterKing];
     game._rebuildOccupiedMap();
 
-    const result = game.handleCellClick(fireQueen.pos);
+    const result = game.handleCellClick(fireQueen.pos)!;
 
     expect(result.action).toBe("select");
-    expect(result.rpsAttacks).toBeNull();
+    expect(result.rpsAttacks!).toBeNull();
   });
 
   test("rpsAttacks is null when no attacks possible", () => {
@@ -127,13 +127,13 @@ describe("RPS Attack Categorization", () => {
     ];
     game._rebuildOccupiedMap();
 
-    const result = game.handleCellClick(fireQueen.pos);
+    const result = game.handleCellClick(fireQueen.pos)!;
 
     // All paths blocked = no attacks
-    expect(result.attacks.length).toBe(0);
-    expect(result.rpsAttacks.advantage.length).toBe(0);
-    expect(result.rpsAttacks.disadvantage.length).toBe(0);
-    expect(result.rpsAttacks.neutral.length).toBe(0);
+    expect(result.attacks!.length).toBe(0);
+    expect(result.rpsAttacks!.advantage.length).toBe(0);
+    expect(result.rpsAttacks!.disadvantage.length).toBe(0);
+    expect(result.rpsAttacks!.neutral.length).toBe(0);
   });
 
   test("rpsAttacks correctly categorizes multiple enemies", () => {
@@ -162,13 +162,15 @@ describe("RPS Attack Categorization", () => {
     ];
     game._rebuildOccupiedMap();
 
-    const result = game.handleCellClick(fireQueen.pos);
+    const result = game.handleCellClick(fireQueen.pos)!;
 
-    expect(result.rpsAttacks.advantage.length).toBe(1);
-    expect(result.rpsAttacks.advantage[0].equals(new Hex(1, 0))).toBe(true);
-    expect(result.rpsAttacks.disadvantage.length).toBe(1);
-    expect(result.rpsAttacks.disadvantage[0].equals(new Hex(-1, 1))).toBe(true);
-    expect(result.rpsAttacks.neutral.length).toBe(0);
+    expect(result.rpsAttacks!.advantage.length).toBe(1);
+    expect(result.rpsAttacks!.advantage[0]!.equals(new Hex(1, 0))).toBe(true);
+    expect(result.rpsAttacks!.disadvantage.length).toBe(1);
+    expect(result.rpsAttacks!.disadvantage[0]!.equals(new Hex(-1, 1))).toBe(
+      true,
+    );
+    expect(result.rpsAttacks!.neutral.length).toBe(0);
   });
 
   test("getRPSResult is consistent with categorizeAttacks", () => {

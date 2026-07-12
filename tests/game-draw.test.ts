@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * game-draw.test.js - focused coverage for js/game.ts draw detection and
  * pawn promotion that the higher-level flow tests don't isolate:
@@ -21,7 +20,7 @@ function makeGame() {
 }
 
 describe("_updateDrawState", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
   });
@@ -90,7 +89,7 @@ describe("_updateDrawState", () => {
 });
 
 describe("isPromotion", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
   });
@@ -113,7 +112,7 @@ describe("isPromotion", () => {
 });
 
 describe("RPS attack categorization invariant", () => {
-  let game;
+  let game: Game;
   beforeEach(() => {
     game = makeGame();
     // RPS-only categorization is exercised when rpsEnabled is true.
@@ -145,14 +144,14 @@ describe("RPS attack categorization invariant", () => {
     game.currentFaction = FACTION.FIRE;
     game.state = GAME_STATE.SELECT_PIECE;
 
-    const result = game.handleCellClick(center);
+    const result = game.handleCellClick(center)!;
     expect(result.action).toBe("select");
     // Surrounded only by friendly pieces -> no attack targets at all.
-    expect(result.attacks.length).toBe(0);
+    expect(result.attacks!.length).toBe(0);
     expect(result.rpsAttacks).not.toBeNull();
-    expect(result.rpsAttacks.neutral.length).toBe(0);
-    expect(result.rpsAttacks.advantage.length).toBe(0);
-    expect(result.rpsAttacks.disadvantage.length).toBe(0);
+    expect(result.rpsAttacks!.neutral.length).toBe(0);
+    expect(result.rpsAttacks!.advantage.length).toBe(0);
+    expect(result.rpsAttacks!.disadvantage.length).toBe(0);
   });
 
   test("categorizeAttacks assigns enemy targets to advantage/disadvantage (not neutral)", () => {
@@ -171,11 +170,11 @@ describe("RPS attack categorization invariant", () => {
     game.currentFaction = FACTION.FIRE;
     game.state = GAME_STATE.SELECT_PIECE;
 
-    const result = game.handleCellClick(fireQueen.pos);
+    const result = game.handleCellClick(fireQueen.pos)!;
     expect(
-      result.rpsAttacks.advantage.some((h) => h.equals(new Hex(1, 0))),
+      result.rpsAttacks!.advantage.some((h) => h.equals(new Hex(1, 0))),
     ).toBe(true);
-    expect(result.rpsAttacks.neutral.length).toBe(0);
+    expect(result.rpsAttacks!.neutral.length).toBe(0);
   });
 });
 
@@ -223,7 +222,7 @@ describe("Threefold repetition over the full handleCellClick flow", () => {
 
     // 4 plies that commute both knights out and back to the start square.
     // Fire: (0,0) -> (-2,1) -> (0,0); Water: (0,3) -> (-1,2) -> (0,3).
-    const play = (from, to) => {
+    const play = (from: Hex, to: Hex) => {
       game.handleCellClick(from);
       return game.handleCellClick(to);
     };
@@ -235,7 +234,7 @@ describe("Threefold repetition over the full handleCellClick flow", () => {
 
     // The 3rd occurrence of the starting position triggers the draw.
     expect(game.state).toBe(GAME_STATE.DRAW_REPETITION);
-    expect(last.draw).toBe(true);
+    expect(last!.draw).toBe(true);
     expect(game._positionHistory.get(startHash)).toBe(3);
   });
 });
@@ -284,7 +283,7 @@ describe("Threefold repetition over a promotion (regression for draw-state fix)"
 
     const result = game.completePromotion(PIECE_TYPE.QUEEN);
     expect(game.state).toBe(GAME_STATE.DRAW_REPETITION);
-    expect(result.draw).toBe(true);
+    expect(result!.draw).toBe(true);
     expect(game._positionHistory.get(postHash)).toBe(3);
   });
 });
@@ -325,10 +324,10 @@ describe("50-move rule over the full handleCellClick flow", () => {
     game.handleCellClick(new Hex(0, 0));
     const result = game.handleCellClick(new Hex(-2, 1));
 
-    expect(result.action).toBe("move");
+    expect(result!.action).toBe("move");
     expect(game._halfmoveClock).toBe(100);
     expect(game.state).toBe(GAME_STATE.DRAW_50MOVE);
-    expect(result.draw).toBe(true);
+    expect(result!.draw).toBe(true);
   });
 
   test("a capture resets the half-move clock and prevents the 50-move draw", () => {
@@ -356,9 +355,9 @@ describe("50-move rule over the full handleCellClick flow", () => {
     game.handleCellClick(new Hex(0, 2));
     const result = game.handleCellClick(new Hex(0, 1)); // capture water pawn
 
-    expect(result.action).toBe("combat");
+    expect(result!.action).toBe("combat");
     expect(game._halfmoveClock).toBe(0); // reset on capture
     expect(game.state).not.toBe(GAME_STATE.DRAW_50MOVE);
-    expect(result.draw).toBeFalsy();
+    expect(result!.draw).toBeFalsy();
   });
 });
