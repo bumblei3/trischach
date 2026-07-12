@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-07-12
+
+### Changed
+
+- **Skintest-Abdeckung vervollständigt.** `tests/skins.test.ts` deckt jetzt die
+  Persistenz-Pfade ab (`saveSkinId`/`loadSkinId` Round-Trip über `localStorage`
+  plus Fallback auf die Default-ID bei unbekannter ID). `js/skins.ts` erreicht
+  100% Statements/Functions. Keine Funktionsänderung, nur Test-Qualität.
+
 ## [1.2.4] - 2026-07-12
 
 ### Changed
