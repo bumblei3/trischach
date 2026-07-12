@@ -345,7 +345,15 @@ export class Game {
     this._rebuildOccupiedMap();
 
     // Check for pawn promotion
-    if (this.isPromotion(this.selectedPiece!, hex)) {
+    // Only a pawn that SURVIVED the move and actually reached the target
+    // square can promote. On a disadvantage combat the attacker dies on its
+    // origin square (never reaching `hex`), so it must NOT be promoted — an
+    // isPromotion check on the (now dead) selectedPiece would otherwise leave
+    // a zombie "promoted" corpse in PROMOTION state.
+    if (
+      this.selectedPiece!.alive &&
+      this.isPromotion(this.selectedPiece!, hex)
+    ) {
       this.pendingPromotion = this.selectedPiece!;
       this.state = GAME_STATE.PROMOTION;
       result.promotion = true;
