@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across thirteen iterations (565 → 591 passing unit
+- Test-suite hardening across iterations (565 → 606 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
@@ -69,6 +69,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     escape square.
   - **handleCellClick is a no-op after the game ends** (`tests/promotion.test.js`):
     clicks in `GAME_OVER` / draw states return `null` and leave state untouched.
+  - **handleCellClick is a no-op while awaiting promotion choice**
+    (`tests/promotion.test.js`): after a pawn reaches the promotion zone the
+    engine enters `PROMOTION` and waits for `completePromotion()`; a board click
+    in that window returns `null`, leaves state in `PROMOTION`, keeps
+    `pendingPromotion` set, and does not move or promote the pawn — so the UI
+    cannot sneak a second half-move in before the piece is chosen.
   - **RPS disadvantage kills the attacker** (`tests/game.test.js`,
     `tests/promotion.test.js`): through both `handleCellClick` and
     `simulateMove`, a disadvantaged attacker dies and the defender survives
@@ -101,6 +107,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      previously set `piece.pos` to a plain object and crashed the post-move
      check detection (`getValidMoves` → `piece.pos.add is not a function`).
      `Hex` is now imported in `replay.ts`.
+- **Promotion never advanced draw state** (`js/game.ts`): the two-phase
+  promotion flow (`_selectTarget` early-return + `completePromotion`)
+  never called `_updateDrawState`, so a promoted position was (a) invisible to
+  the threefold-repetition counter and (b) left the 50-move clock frozen
+  instead of resetting it like every other pawn move. `completePromotion` now
+  records the post-promotion position (clock reset to 0) once the piece is
+  committed — guarding a genuine draw-rule bug, not just a test gap.
+
+### Tests
+
+- Test-suite hardening across iterations (565 → 606 passing unit
+  tests, no skips, `tsc --noEmit` clean):
+  - **completePromotion resets the 50-move clock** (`tests/promotion.test.js`):
+    a promotion completes with `_halfmoveClock === 0`, matching the pawn-move
+    reset rule (regression guard for the frozen-clock bug).
+  - **completePromotion records the post-promotion position for repetition**
+    (`tests/promotion.test.js`): the promoted position enters `_positionHistory`
+    so threefold repetition can fire on promotion-bearing loops.
+  - **handleCellClick is a no-op while awaiting promotion choice**
+    (`tests/promotion.test.js`): a board click in `PROMOTION` state returns
+    `null`, leaves state in `PROMOTION`, keeps `pendingPromotion` set, and does
+    not move or promote the pawn.
 
 ### Docs
 

@@ -25,6 +25,7 @@ import {
 } from "../js/replay.ts";
 import { PIECE_TYPE, Piece } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
+import { getLegalMoves } from "../js/ai-core.ts";
 
 describe("AI Core: Dynamic Piece Values (RPS-aware)", () => {
   let game;
@@ -518,5 +519,63 @@ describe("AI Core: Pondering", () => {
     expect(PonderState).toHaveProperty("aborted");
     expect(PonderState).toHaveProperty("killerMoves");
     expect(PonderState).toHaveProperty("historyTable");
+  });
+});
+
+describe("AI Core: legal move generation excludes self-check", () => {
+  // The engine's own getLegalMoves (ai-core.ts, used by calculateBestMove)
+  // must also reject moves that leave its own king in check -- not just the
+  // game.ts / game-check.ts variants. This guards against the AI ever
+  // "choosing" a suicidal move during search. Mirror of game-check.test.js
+  // "pinned piece" invariant, but driven through the engine path.
+  let game;
+
+  beforeEach(() => {
+    const cells = generateBoard();
+    game = new Game();
+    game.init(cells);
+    game.rpsEnabled = true;
+  });
+
+  test("getLegalMoves drops an attack that would expose the own king", () => {
+    // Fire king at (0,0); a fire pawn at (1,0) could attack a water piece at
+    // (2,0), but doing so exposes the king to a water rook on the same rank.
+    game.pieces = [
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(1, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(3, 0)),
+    ];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+
+    const pawn = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.PAWN,
+    );
+    const { attacks } = getLegalMoves(game, pawn);
+    // any attack that leaves the king in check is filtered out by the engine
+    expect(attacks.length).toBe(0);
+  });
+
+  test("getLegalMoves forbids a king move into a square under attack", () => {
+    // Fire king at (0,0); a water rook on (0,3) controls the entire r-axis.
+    // The king may NOT step to (0,1) or (0,2) even though empty.
+    game.pieces = [
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 3)),
+    ];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+
+    const king = game.pieces.find(
+      (p) => p.faction === FACTION.FIRE && p.type === PIECE_TYPE.KING,
+    );
+    const { moves } = getLegalMoves(game, king);
+    const intoCheck = moves.some((m) => m.q === 0 && (m.r === 1 || m.r === 2));
+    expect(intoCheck).toBe(false);
+    // The king must have at least one escape off the rook's axis.
+    expect(moves.length).toBeGreaterThan(0);
+    expect(moves.every((m) => !(m.q === 0 && m.r > 0))).toBe(true);
   });
 });
