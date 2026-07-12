@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Null-Move-Pruning verwirft am Wurzelknoten keinen Zug mehr.** Bei offenem
+  Suchfenster (`beta = Infinity`, z. B. der Root-Aufruf mit ±Infinity-Bounds)
+  konnte der Null-Move-Refutations-Zweig ab Tiefe 3 `{ score: Infinity,
+  action: null }` zurückgeben — also einen unendlichen Score ohne Zug — und so
+  den besten Zug an der Wurzel stillschweigend verlieren. Null-Move-Pruning ist
+  nur innerhalb eines begrenzten Fensters korrekt; ein zusätzlicher
+  `Number.isFinite(beta)`-Guard stellt das sicher. Abgesichert durch einen
+  depth-3-Regressionstest (offenes Fenster liefert echten Taktik-Schlagzug).
+
 ### Added
 
 - **`beginSearch(timeBudgetMs?)` in der Engine** (`js/ai-core.ts`): richtet einen

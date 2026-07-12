@@ -1671,12 +1671,18 @@ export function minimax(
   }
 
   // ─── Null-Move Pruning (R=2) ───────────────────────────────────────
-  // Only when: depth >= 3, not in check, current faction has > 1 piece
+  // Only when: depth >= 3, not in check, current faction has > 1 piece, AND
+  // the search window has a finite beta. With an open window (beta = Infinity,
+  // e.g. the root call with ±Infinity bounds) the null-move refutation branch
+  // below would return { score: beta, action: null } — i.e. score = Infinity
+  // and NO move — silently losing the best move at the root. Null-move pruning
+  // is only sound inside a bounded window, so require a finite beta.
   const inCheck = isKingdomCheck(game, currentFaction);
   const myPieces = game.pieces.filter(
     (p) => p.faction === currentFaction && p.alive,
   );
-  const canNullMove = depth >= 3 && !inCheck && myPieces.length > 1;
+  const canNullMove =
+    depth >= 3 && !inCheck && myPieces.length > 1 && Number.isFinite(beta);
 
   if (canNullMove) {
     // Save current faction index, switch to next faction (pass turn)

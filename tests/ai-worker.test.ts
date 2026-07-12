@@ -627,6 +627,43 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(result.score).toBeGreaterThan(0);
     });
 
+    test("minimax returns a real move at depth 3 with an open window (null-move guard)", () => {
+      // Regression guard: with an open search window (beta = Infinity) at
+      // depth >= 3, null-move pruning used to fire and return
+      // { score: Infinity, action: null } — silently discarding the best move
+      // at the root. The finite-beta guard on null-move pruning must keep the
+      // winning queen capture as a real action.
+      const gameState = createGameState({
+        pieces: [
+          createPiece("queen", FACTION.FIRE, 0, 1),
+          createPiece("pawn", FACTION.FIRE, 2, 2),
+          createPiece("queen", FACTION.NATURE, 0, 0),
+          createPiece("king", FACTION.FIRE, 3, 3),
+          createPiece("king", FACTION.NATURE, -3, -3),
+          createPiece("pawn", FACTION.NATURE, -2, -2),
+        ],
+        currentFaction: FACTION.FIRE,
+        currentFactionIdx: 0,
+        rpsEnabled: true,
+        eliminatedFactions: new Set([FACTION.WATER]),
+      });
+
+      beginSearch(2000);
+      const result = minimax(
+        gameState,
+        3,
+        -Infinity,
+        Infinity,
+        FACTION.FIRE,
+        FACTION.FIRE,
+      );
+      expect(result.action).not.toBeNull();
+      expect(Number.isFinite(result.score)).toBe(true);
+      expect(result.action?.type).toBe("attack");
+      expect(result.action?.piece.type).toBe("queen");
+      expect(result.action?.target.equals(new Hex(0, 0))).toBe(true);
+    });
+
     test("minimax prefers a stronger position over a weaker one", () => {
       // Same side to move; the position with an extra friendly queen must
       // evaluate higher than the one without it. This asserts real search
