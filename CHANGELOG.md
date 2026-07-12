@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across iterations (565 → 609 passing unit
+- Test-suite hardening across iterations (565 → 611 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
@@ -117,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- Test-suite hardening across iterations (565 → 609 passing unit
+- Test-suite hardening across iterations (565 → 611 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **completePromotion resets the 50-move clock** (`tests/promotion.test.js`):
     a promotion completes with `_halfmoveClock === 0`, matching the pawn-move
@@ -139,6 +139,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     advantage capture (defender dies) each fully revert via `undoMove` —
     no stale `capturedPieces` entry leaks, protecting the AI search from
     corrupted material state across make/unmake.
+  - **onDraw fires for both draw outcomes**
+    (`tests/game-callbacks.test.js`): the `onDraw` callback (the only
+    remaining uncovered callback branch) is asserted to fire with
+    `"repetition"` on a threefold-repetition draw and with `"50move"` when
+    the 50-move rule triggers — closing the gap where `if (this.onDraw)`
+    in `_updateDrawState` never ran in the suite.
 
 ### Docs
 
