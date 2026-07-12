@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across iterations (565 → 614 passing unit
+- Test-suite hardening across iterations (565 → 615 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
@@ -130,10 +130,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       "promoted" corpse (a dead piece transformed to a queen, stuck in
       PROMOTION). The check now also requires `selectedPiece.alive`, so only a
       pawn that actually reaches the target square can promote.
+  - **app boot broke: mid-file `import` in `js/main.ts` blanked the board**
+    (`js/main.ts`): the E2E test hooks added `import` statements _after_ the
+    top-level `const renderer = new Game()` initialization code. ES modules
+    forbid imports outside the top of a file, so the production `main.js`
+    failed to parse, `init()` never ran, and the `#board-svg` stayed empty —
+    the board "disappeared". Moved the imports to the top of the module and
+    the `window.*` test hooks (which use those symbols) below the
+    initialization. `Piece` is now imported once from `./pieces.ts` (it is a
+    type-only re-export from `./game.ts`). Recovery verified by a new board
+    smoke E2E test (see below).
 
-    ### Tests
+  ### Tests
 
-- Test-suite hardening across iterations (565 → 614 passing unit
+- Test-suite hardening across iterations (565 → 615 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **completePromotion resets the 50-move clock** (`tests/promotion.test.js`):
     a promotion completes with `_halfmoveClock === 0`, matching the pawn-move
@@ -171,6 +181,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     origin) must NOT promote the dead pawn (no zombie `PROMOTION` state; the
     round-25 fix), while an _advantage_ duel (attacker reaches the target)
     still promotes the surviving pawn.
+  - **board renders after app boot (smoke)** (`tests-e2e/_board-smoke.spec.ts`):
+    a new E2E smoke test asserts the `#board-svg` paints 20+ pieces with no
+    page errors after load. Regression guard for the blank-board boot failure
+    caused by the mid-file `import` in `js/main.ts` (would otherwise ship a
+    non-rendering app to GitHub Pages undetected).
 
 ### Docs
 

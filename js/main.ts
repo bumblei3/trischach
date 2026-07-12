@@ -9,13 +9,7 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
-import {
-  Game,
-  GAME_STATE,
-  PROMOTION_CHOICES,
-  GameResult,
-  Piece,
-} from "./game.ts";
+import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
   calculateBestMove,
   evaluateBoard,
@@ -59,6 +53,7 @@ import {
   PuzzleState,
 } from "./puzzle.ts";
 import { Hex } from "./hex.ts";
+import { Piece, PIECE_TYPE } from "./pieces.ts";
 
 // ─── Global Type Augmentation ────────────────────────────────────────
 
@@ -203,15 +198,12 @@ const game = new Game();
 
 // Expose engine constructors/values for E2E tests that script edge-case
 // positions (e.g. building a real Piece to drive promotion). Reads only.
-import { Piece as _Piece, PIECE_TYPE as _PIECE_TYPE } from "./pieces.ts";
-import { FACTION as _FACTION } from "./board.ts";
-import { Hex as _Hex } from "./hex.ts";
-(window as any).__trischachTestPiece = _Piece;
+(window as any).__trischachTestPiece = Piece;
 (window as any).__trischachTestTypes = {
-  PIECE_TYPE: _PIECE_TYPE,
-  FACTION: _FACTION,
+  PIECE_TYPE,
+  FACTION,
 };
-(window as any).__trischachTestHex = _Hex;
+(window as any).__trischachTestHex = Hex;
 
 // ─── AI Worker ──────────────────────────────────────────────────────
 
