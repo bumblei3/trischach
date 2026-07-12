@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-07-12
+
+### Changed
+
+- **Test-Härtung abgeschlossen.** Letzte schwache Struktur-Assertions durch
+  deterministische Verhaltens-Assertionen ersetzt (`tests/puzzle-state.test.ts`,
+  `tests/ai-worker.test.ts`): der Daily-Puzzle-Cache wird bei erfolgreicher
+  Generierung deterministisch für heute geschrieben; `quiesce` liefert am
+  Tiefenlimit exakt `evaluateBoard(game, maximizingFaction)`. Keine
+  Funktionsänderung, nur Test-Qualität.
+
 ## [1.2.3] - 2026-07-12
 
 ### Added
