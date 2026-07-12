@@ -101,8 +101,16 @@ describe("AI Simulation (Integration)", () => {
 
     // Returns within a hard ceiling (1000ms) regardless of search speed.
     expect(elapsed).toBeLessThan(1000);
-    // Either a legal action or null (no move available) — never an undefined
-    // hang / throw.
-    expect(action === null || typeof action === "object").toBe(true);
+    // From the opening position with a positive time limit there is always a
+    // legal move — a tiny budget must still yield a real, legal action for the
+    // moving faction (never null / undefined / a hang).
+    expect(action).not.toBeNull();
+    if (!action) throw new Error("expected a move under the tiny time budget");
+    expect(action.piece.faction).toBe(game.currentFaction);
+    const { moves, attacks } = game.getLegalMoves(action.piece);
+    const legal =
+      moves.some((m) => m.equals(action.target)) ||
+      attacks.some((a) => a.equals(action.target));
+    expect(legal).toBe(true);
   });
 });

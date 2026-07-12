@@ -494,15 +494,25 @@ describe("AI Core: Pondering", () => {
     expect(isPondering()).toBe(false);
   }, 5000);
 
-  test("getPonderMove returns the current best move without stopping", () => {
+  test("getPonderMove returns the current best move without stopping", async () => {
     startPondering(game, FACTION.FIRE);
-    // getPonderMove should return null initially (search hasn't completed yet)
-    // but after a short time it should have a move
+    // Give the background search a moment to complete at least depth 1, then
+    // the ponder move must be a real, legal FIRE action — and pondering must
+    // still be running (getPonderMove peeks without stopping).
+    await new Promise((r) => setTimeout(r, 200));
     const move = getPonderMove();
-    // Initially may be null, that's OK - just verify it returns something or null
-    expect(move === null || (move && move.piece && move.target)).toBe(true);
+    expect(move).not.toBeNull();
+    if (move) {
+      expect(move.piece.faction).toBe(FACTION.FIRE);
+      const { moves, attacks } = game.getLegalMoves(move.piece);
+      const legal =
+        moves.some((m) => m.equals(move.target)) ||
+        attacks.some((a) => a.equals(move.target));
+      expect(legal).toBe(true);
+    }
+    expect(isPondering()).toBe(true);
     stopPondering(); // Cleanup
-  });
+  }, 5000);
 
   test("second startPondering call stops previous pondering", () => {
     startPondering(game, FACTION.FIRE);
