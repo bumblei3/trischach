@@ -132,7 +132,7 @@ npx tsc --noEmit
 npm run lint
 ```
 
-- **591 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped)
+- **627 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped)
 - **20 E2E Tests** ✅ (Playwright Chromium)
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors)

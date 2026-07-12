@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Engine-Invariant-Suites** (`tests/engine-invariants.test.ts`): neue
+  Regressions-Suiten, die AI-Zug-Legitimität (die Engine wählt ausschließlich
+  legale Züge), die 50-Zug-Regel/Halbzug-Uhr und die Piece-Identität über echte
+  Partieverläufe absichern.
+
 ### Fixed
 
 - **`capturedPieces` now records every eliminated piece.** When a king was
