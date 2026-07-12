@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across thirteen iterations (565 → 591 passing unit
+- Test-suite hardening across iterations (565 → 604 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
@@ -69,6 +69,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     escape square.
   - **handleCellClick is a no-op after the game ends** (`tests/promotion.test.js`):
     clicks in `GAME_OVER` / draw states return `null` and leave state untouched.
+  - **handleCellClick is a no-op while awaiting promotion choice**
+    (`tests/promotion.test.js`): after a pawn reaches the promotion zone the
+    engine enters `PROMOTION` and waits for `completePromotion()`; a board click
+    in that window returns `null`, leaves state in `PROMOTION`, keeps
+    `pendingPromotion` set, and does not move or promote the pawn — so the UI
+    cannot sneak a second half-move in before the piece is chosen.
   - **RPS disadvantage kills the attacker** (`tests/game.test.js`,
     `tests/promotion.test.js`): through both `handleCellClick` and
     `simulateMove`, a disadvantaged attacker dies and the defender survives

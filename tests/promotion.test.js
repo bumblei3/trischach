@@ -326,4 +326,34 @@ describe("Pawn Promotion", () => {
     expect(result2).toBeNull();
     expect(game.state).toBe(GAME_STATE.DRAW_REPETITION);
   });
+
+  test("handleCellClick is a no-op while waiting for promotion choice", () => {
+    // After a pawn reaches the promotion zone the engine enters PROMOTION
+    // state and waits for completePromotion(). Any board click in that window
+    // must be a no-op (return null, state unchanged) so the UI cannot sneak a
+    // second move in before the player picks a promotion piece.
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    game.pieces = [pawn, fireKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    // Drive the pawn into the promotion zone.
+    game.handleCellClick(new Hex(0, 1));
+    const moveResult = game.handleCellClick(new Hex(0, 0));
+    expect(moveResult.promotion).toBe(true);
+    expect(game.state).toBe(GAME_STATE.PROMOTION);
+    expect(game.pendingPromotion).toBe(pawn);
+
+    // A click on the board while PROMOTION is pending must do nothing.
+    const clickResult = game.handleCellClick(new Hex(-5, 5)); // the king's cell
+    expect(clickResult).toBeNull();
+    expect(game.state).toBe(GAME_STATE.PROMOTION); // still awaiting choice
+    expect(game.pendingPromotion).toBe(pawn); // promotion not cancelled
+    // The pawn stays on the promotion square, unmoved by the stray click.
+    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
+    expect(pawn.type).toBe(PIECE_TYPE.PAWN); // not yet promoted
+  });
 });
