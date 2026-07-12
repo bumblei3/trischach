@@ -29,6 +29,7 @@ import {
   evaluateEndgame,
   evaluateBoard,
   minimax,
+  beginSearch,
   quiesce,
   iterativeDeepening,
   greedyBestMove,
@@ -586,6 +587,44 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(typeof result.score).toBe("number");
       expect(isFinite(result.score)).toBe(true);
       // action can be null if no legal moves
+    });
+
+    test("beginSearch enables minimax to find a tactical capture deterministically", () => {
+      // Regression guard for the search-state coupling discovered while
+      // hardening the suite: a bare minimax() call inherits stale module
+      // globals (deadline in the past) and returns the timeout branch with a
+      // null action. beginSearch() installs a fresh, valid search window so a
+      // single minimax() call is deterministic. FIRE queen next to a NATURE
+      // queen it beats — depth-2 search must return that winning capture.
+      const gameState = createGameState({
+        pieces: [
+          createPiece("queen", FACTION.FIRE, 0, 1),
+          createPiece("pawn", FACTION.FIRE, 2, 2),
+          createPiece("queen", FACTION.NATURE, 0, 0),
+          createPiece("king", FACTION.FIRE, 3, 3),
+          createPiece("king", FACTION.NATURE, -3, -3),
+          createPiece("pawn", FACTION.NATURE, -2, -2),
+        ],
+        currentFaction: FACTION.FIRE,
+        currentFactionIdx: 0,
+        rpsEnabled: true,
+        eliminatedFactions: new Set([FACTION.WATER]),
+      });
+
+      beginSearch(2000);
+      const result = minimax(
+        gameState,
+        2,
+        -Infinity,
+        Infinity,
+        FACTION.FIRE,
+        FACTION.FIRE,
+      );
+      expect(result.action).not.toBeNull();
+      expect(result.action?.type).toBe("attack");
+      expect(result.action?.piece.type).toBe("queen");
+      expect(result.action?.target.equals(new Hex(0, 0))).toBe(true);
+      expect(result.score).toBeGreaterThan(0);
     });
 
     test("minimax prefers a stronger position over a weaker one", () => {

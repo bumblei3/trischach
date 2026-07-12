@@ -1582,6 +1582,28 @@ let searchStart = 0;
 export let nodesSearched = 0;
 
 /**
+ * Prepare a fresh search: set a valid time window and clear all search-local
+ * state (transposition table, killer moves, history heuristic, node counter).
+ *
+ * The module-level search globals (`searchStart` / `searchDeadline`) are only
+ * initialised by the high-level entry points (`iterativeDeepening`,
+ * `startPondering`). A bare `minimax` call therefore inherits stale globals —
+ * typically a deadline in the past — and immediately returns the timeout
+ * branch (`action: null`). Tests and any caller wanting a single deterministic
+ * `minimax` search must call `beginSearch()` first.
+ *
+ * @param timeBudgetMs - Time window for this search (capped at MAX_SEARCH_MS).
+ */
+export function beginSearch(timeBudgetMs = MAX_SEARCH_MS): void {
+  searchStart = Date.now();
+  searchDeadline = searchStart + Math.min(timeBudgetMs, MAX_SEARCH_MS);
+  nodesSearched = 0;
+  ttClear();
+  for (const k of Object.keys(killerMoves)) delete killerMoves[k];
+  for (const k of Object.keys(historyTable)) delete historyTable[k];
+}
+
+/**
  * Alpha-beta minimax search with iterative deepening support
  * @param game - The game state (will be mutated during search)
  * @param depth - Search depth remaining

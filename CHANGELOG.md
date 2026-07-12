@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`beginSearch(timeBudgetMs?)` in der Engine** (`js/ai-core.ts`): richtet einen
+  frischen, deterministischen Suchlauf ein (setzt `searchStart`/`searchDeadline`,
+  leert Transposition-Table, Killer-Moves, History-Heuristik und Node-Zähler).
+  Ein direkter `minimax`-Aufruf erbte bisher veraltete Modul-Globals (Deadline in
+  der Vergangenheit) und lief sofort in den Timeout-Zweig (`action: null`).
+  `beginSearch()` macht Einzel-Suchen — insbesondere in Tests — reproduzierbar.
+  Re-exportiert über `ai-worker.ts`. Neuer Regressions-Test sichert, dass
+  `minimax` damit einen Taktik-Schlagzug deterministisch findet.
+
 ## [1.2.2] - 2026-07-12
 
 ### Added
