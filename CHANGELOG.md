@@ -5,9 +5,32 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-07-12
 
 ### Added
+
+- E2E subpath regression spec (`tests-e2e/_live-site.spec.ts`): serves the
+  built `dist/` under a `/trischach/` subpath from a local static server and
+  asserts the board renders (135 pieces) with no unacceptable 404s. Catches the
+  exact GitHub Pages base-path regression that left a blank board on deploy.
+
+### Changed
+
+- Removed 7 dead codegen scripts (`generate-opening-book.js`,
+  `generate-deep-opening-book.js`, `generate-validated-book.js`,
+  `generate-ai-lines.js`, `generate-puzzles.js`, `auto-battle-learn.js`,
+  `debug-line.js`): all imported `./js/*.js`, which no longer exist after the
+  TypeScript migration, so none of them loaded. The JSON artifacts they
+  produced remain committed.
+
+### Fixed
+
+- **Deployed site loaded a blank board** (`vite.config.ts`): the relative
+  `base: "./"` fix for serving under the `/trischach/` GitHub Pages subpath was
+  applied during #24 but never committed — a fresh clone would silently drop it
+  and reintroduce the blank-board-on-deploy regression. Now persisted.
+
+### Tests
 
 - Test-suite hardening across iterations (565 → 615 passing unit
   tests, no skips, `tsc --noEmit` clean):
@@ -253,7 +276,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial stable release: TriSchach (3-faction RPS chess variant) with
   Auto-Battle, opening book, puzzles, replay and PWA/offline support.
 
-[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/bumblei3/trischach/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/bumblei3/trischach/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/bumblei3/trischach/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/bumblei3/trischach/releases/tag/v1.0.0
