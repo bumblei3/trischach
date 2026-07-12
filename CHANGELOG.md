@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TypeScript migration, so none of them loaded. The JSON artifacts they
   produced remain committed.
 
+- **Unit tests are now strictly type-checked TypeScript** (supersedes the
+  `@ts-nocheck` approach from #29): all 30 `tests/*.test.ts` files were ported
+  to real strict typing — `MockGame` and test fixtures are now typed, `OPENING_BOOK`
+  has a typed `BookVariation` alias (with optional `wins`/`draws`/`losses`/
+  `visits` learning stats), and `noUncheckedIndexedAccess` / strict-null errors
+  are resolved with precise assertions instead of blanket suppression. `tsc
+--noEmit` now reports **0 errors** across the whole repo (app + tests).
+
 ### Fixed
 
 - **Deployed site loaded a blank board** (`vite.config.ts`): the relative
@@ -32,77 +40,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Tests
 
-- Test-suite hardening across iterations (565 → 615 passing unit
+- Test-suite hardening across iterations (565 → 614 passing unit
   tests, no skips, `tsc --noEmit` clean):
-  - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
+  - **Threefold-repetition invariant** (`tests/game-draw.test.ts`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
     _consecutive_ occurrences of the same position hash — an intervening
     different position must not advance the original hash's counter.
-  - **RPS attack-categorization invariant** (`tests/game-draw.test.js`):
+  - **RPS attack-categorization invariant** (`tests/game-draw.test.ts`):
     `categorizeAttacks` is verified to never classify a same-faction (neutral)
     target. When a piece is fully surrounded by friendly pieces the attack set
     is empty and the `neutral` bucket stays empty; enemy targets land in
     `advantage`/`disadvantage`, never `neutral`.
-  - **Undo after faction elimination** (`tests/game-state.test.js`): capturing
+  - **Undo after faction elimination** (`tests/game-state.test.ts`): capturing
     the enemy king eliminates the faction; `undo()` now fully reverts it —
     `eliminatedFactions` is cleared and the eliminated king is revived. Guards
     the historically corruption-prone `eliminatedFactions` + killed-pieces
     restore path.
-  - **King-less faction is never checkmate/stalemate** (`tests/game-check.test.js`):
+  - **King-less faction is never checkmate/stalemate** (`tests/game-check.test.ts`):
     `isCheckmateInternal`/`isStalemateInternal` are asserted to return `false`
     when the faction has no living king (already eliminated).
-  - **nextTurn skips two eliminated factions** (`tests/game.test.js`): with
+  - **nextTurn skips two eliminated factions** (`tests/game.test.ts`): with
     Water AND Nature eliminated, a Fire move wraps the turn back onto Fire
     itself (the historically infinite-loop-prone 2-eliminated `_nextTurn` case).
-  - **TSPN elimination round-trip** (`tests/replay-logic.test.js`): a real game
+  - **TSPN elimination round-trip** (`tests/replay-logic.test.ts`): a real game
     driven to a faction elimination serializes `[nature eliminated]` and
     `parseTSPN` round-trips it as exactly one move carrying `elimination`.
-  - **Replay round-trip replays a saved game** (`tests/replay-logic.test.js`):
+  - **Replay round-trip replays a saved game** (`tests/replay-logic.test.ts`):
     a TSPN loaded via `parseTSPN` (which carries only faction/pieceName/target,
     no source square) is now replayed to the final position by
     `reconstructGameFromTSPN` + `ReplayController`. Guards the previously silent
     replay abort (and the `piece.pos`-becomes-a-plain-object crash).
-  - **Game over when only one faction remains** (`tests/game.test.js`): capturing
+  - **Game over when only one faction remains** (`tests/game.test.ts`): capturing
     the last enemy king drives `aliveAfter.length <= 1` to `GAME_OVER` with the
     surviving faction declared `winner_faction` (game.ts:398-403).
-  - **Checkmate eliminates the mated faction** (`tests/game.test.js`): a real
+  - **Checkmate eliminates the mated faction** (`tests/game.test.ts`): a real
     checkmating move (back-rank mate) eliminates the mated faction, mirroring the
     stalemate-elimination rule — verified through the full `handleCellClick` flow.
-  - **snapshot()/restore() round-trips without aliasing** (`tests/game-state.test.js`):
+  - **snapshot()/restore() round-trips without aliasing** (`tests/game-state.test.ts`):
     `game.snapshot()` → `game.restore(snap)` reproduces the exact state and is a
     true deep copy (mutating the restored game does not leak back into the
     snapshot). Protects the undo/AI snapshot path.
-  - **AI search honors a tight time limit** (`tests/integration.test.js`):
+  - **AI search honors a tight time limit** (`tests/integration.test.ts`):
     `calculateBestMove` returns well within a hard ceiling (regression guard for
     the 1.1.1 CI hang) even with an artificially low `MAX_SEARCH_MS`.
-  - **Undo reverts a stalemate elimination** (`tests/game-state.test.js`):
+  - **Undo reverts a stalemate elimination** (`tests/game-state.test.ts`):
     the undo path restores a stalemate-eliminated faction (not only a
     king-capture elimination).
-  - **Threefold repetition over the full handleCellClick flow** (`tests/game-draw.test.js`):
+  - **Threefold repetition over the full handleCellClick flow** (`tests/game-draw.test.ts`):
     a 4-ply knight-commutation that returns to the same position with the same
     side-to-move triggers `DRAW_REPETITION` end-to-end (not just the isolated
     `_updateDrawState` unit).
-  - **Undo reverts a promotion** (`tests/promotion.test.js`): a promoted pawn is
+  - **Undo reverts a promotion** (`tests/promotion.test.ts`): a promoted pawn is
     demoted back to a pawn (and returned to its pre-promo square) by `undo()`.
-  - **Pinned piece cannot move** (`tests/check.test.js`): a pinned pawn that
+  - **Pinned piece cannot move** (`tests/check.test.ts`): a pinned pawn that
     would expose its own king to check is rejected by `handleCellClick` (the
     pawn stays put, turn does not advance).
-  - **King may not move into check / may escape check** (`tests/game-check.test.js`):
+  - **King may not move into check / may escape check** (`tests/game-check.test.ts`):
     `getLegalMoves` excludes king squares under attack and keeps the legal
     escape square.
-  - **handleCellClick is a no-op after the game ends** (`tests/promotion.test.js`):
+  - **handleCellClick is a no-op after the game ends** (`tests/promotion.test.ts`):
     clicks in `GAME_OVER` / draw states return `null` and leave state untouched.
   - **handleCellClick is a no-op while awaiting promotion choice**
-    (`tests/promotion.test.js`): after a pawn reaches the promotion zone the
+    (`tests/promotion.test.ts`): after a pawn reaches the promotion zone the
     engine enters `PROMOTION` and waits for `completePromotion()`; a board click
     in that window returns `null`, leaves state in `PROMOTION`, keeps
     `pendingPromotion` set, and does not move or promote the pawn — so the UI
     cannot sneak a second half-move in before the piece is chosen.
-  - **RPS disadvantage kills the attacker** (`tests/game.test.js`,
-    `tests/promotion.test.js`): through both `handleCellClick` and
+  - **RPS disadvantage kills the attacker** (`tests/game.test.ts`,
+    `tests/promotion.test.ts`): through both `handleCellClick` and
     `simulateMove`, a disadvantaged attacker dies and the defender survives
     (symmetric counterpart to the advantage case).
-  - **50-move rule over the full handleCellClick flow** (`tests/game-draw.test.js`):
+  - **50-move rule over the full handleCellClick flow** (`tests/game-draw.test.ts`):
     a quiet move reaching 100 half-moves ends in `DRAW_50MOVE`, while a capture
     resets the clock to 0 and prevents the draw — both verified end-to-end.
 
@@ -166,40 +174,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   ### Tests
 
-- Test-suite hardening across iterations (565 → 615 passing unit
+- Test-suite hardening across iterations (565 → 614 passing unit
   tests, no skips, `tsc --noEmit` clean):
-  - **completePromotion resets the 50-move clock** (`tests/promotion.test.js`):
+  - **completePromotion resets the 50-move clock** (`tests/promotion.test.ts`):
     a promotion completes with `_halfmoveClock === 0`, matching the pawn-move
     reset rule (regression guard for the frozen-clock bug).
   - **completePromotion records the post-promotion position for repetition**
-    (`tests/promotion.test.js`): the promoted position enters `_positionHistory`
+    (`tests/promotion.test.ts`): the promoted position enters `_positionHistory`
     so threefold repetition can fire on promotion-bearing loops.
   - **handleCellClick is a no-op while awaiting promotion choice**
-    (`tests/promotion.test.js`): a board click in `PROMOTION` state returns
+    (`tests/promotion.test.ts`): a board click in `PROMOTION` state returns
     `null`, leaves state in `PROMOTION`, keeps `pendingPromotion` set, and does
     not move or promote the pawn.
   - **Threefold repetition over a promotion (end-to-end)**
-    (`tests/game-draw.test.js`): seeding the post-promotion position twice and
+    (`tests/game-draw.test.ts`): seeding the post-promotion position twice and
     then completing a promotion into it a third time ends the game as
     `DRAW_REPETITION` — full-flow regression guard for the round-21
     draw-state fix (previously the promoted position was never recorded).
   - **simulateMove/undoMove round-trip (AI search integrity)**
-    (`tests/game.test.js`): a disadvantage capture (attacker dies) and an
+    (`tests/game.test.ts`): a disadvantage capture (attacker dies) and an
     advantage capture (defender dies) each fully revert via `undoMove` —
     no stale `capturedPieces` entry leaks, protecting the AI search from
     corrupted material state across make/unmake.
   - **onDraw fires for both draw outcomes**
-    (`tests/game-callbacks.test.js`): the `onDraw` callback (the only
+    (`tests/game-callbacks.test.ts`): the `onDraw` callback (the only
     remaining uncovered callback branch) is asserted to fire with
     `"repetition"` on a threefold-repetition draw and with `"50move"` when
     the 50-move rule triggers — closing the gap where `if (this.onDraw)`
     in `_updateDrawState` never ran in the suite.
   - **completePromotion reports inCheck for the following faction**
-    (`tests/promotion.test.js`): after a promotion that leaves the now-to-move
+    (`tests/promotion.test.ts`): after a promotion that leaves the now-to-move
     faction in check, `result.inCheck` is `true` (regression guard for the
     round-24 fix where a promotion returned `inCheck === undefined`).
   - **promotion by capture respects RPS survival**
-    (`tests/promotion.test.js`): two new invariants around a pawn capturing
+    (`tests/promotion.test.ts`): two new invariants around a pawn capturing
     into the promotion zone — a _disadvantage_ duel (attacker dies on its
     origin) must NOT promote the dead pawn (no zombie `PROMOTION` state; the
     round-25 fix), while an _advantage_ duel (attacker reaches the target)

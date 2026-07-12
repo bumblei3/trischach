@@ -561,7 +561,12 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
     (evt as any).clientY = 34;
     el.dispatchEvent(evt);
     expect(onPieceLongPress).toHaveBeenCalledTimes(1);
-    const arg = (onPieceLongPress.mock.calls[0] as unknown as any[])[1];
+    const arg = (
+      onPieceLongPress.mock.calls[0] as unknown as [
+        unknown,
+        { clientX: number; clientY: number },
+      ]
+    )[1];
     expect(arg).toEqual({ clientX: 12, clientY: 34 });
   });
 
