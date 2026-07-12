@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-07-12
+
+### Changed
+
+- **Unit tests are now strictly type-checked TypeScript** (supersedes the
+  `@ts-nocheck` approach from #29): all 30 `tests/*.test.ts` files were ported
+  to real strict typing — `MockGame` and test fixtures are now typed, `OPENING_BOOK`
+  has a typed `BookVariation` alias (with optional `wins`/`draws`/`losses`/
+  `visits` learning stats), and `noUncheckedIndexedAccess` / strict-null errors
+  are resolved with precise assertions instead of blanket suppression. `tsc
+--noEmit` now reports **0 errors** across the whole repo (app + tests).
+- CHANGELOG: TS-Portierung (#30) nachgetragen; veraltete `.test.js` Referenzen
+  zu `.test.ts` korrigiert; Test-Zahl auf tatsächliche 614 korrigiert.
+
+### Added
+
+- **Hard invariant test suites** (`tests/game-invariants.test.ts`): 8 tests
+  drive real random self-play games and assert board consistency after every
+  ply — no two pieces share a hex, `_occupiedMap` never drifts from `pieces`,
+  `isKingInCheck` is consistent with an actual attacking piece, and
+  `capturedPieces` accounts for every dead origin piece. Catches engine
+  desync/illegal-state bugs that the smoke-level feature suites miss.
+
 ## [1.2.0] - 2026-07-12
 
 ### Added
