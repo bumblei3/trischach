@@ -5,7 +5,11 @@ import fs from "fs";
 import path from "path";
 
 const assets = [
-  { src: "index.html", dest: "dist/index.html" },
+  // NOTE: index.html is intentionally NOT copied here. Vite already builds it
+  // into dist/index.html with the correct hashed/module-rewritten script tag
+  // (src="js/main.ts" -> /main.js). Copying the raw repo index.html over the
+  // Vite output would overwrite that rewrite and break the deployed app
+  // (browser would fetch js/main.ts, which 404s in production).
   { src: "manifest.json", dest: "dist/manifest.json" },
   { src: "sw.js", dest: "dist/sw.js" },
   { src: "css", dest: "dist/css", isDir: true },
