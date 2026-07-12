@@ -154,22 +154,40 @@ describe("AI Core: Move Quality", () => {
   });
 
   test("AI prefers winning captures (SEE > 0)", () => {
-    // Create a position with a clear winning capture
+    // Deterministic tactical position: FIRE queen adjacent to a NATURE queen
+    // it beats (fire > nature), with extra pawns so the endgame king-activity
+    // term does not dominate. Through the real entry point (calculateBestMove
+    // sets up the search deadline correctly, unlike a raw minimax call) the AI
+    // must grab the winning queen capture rather than a quiet king move.
     const cells = generateBoard();
     const testGame = new Game();
     testGame.init(cells);
+    testGame.pieces = [
+      new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 1)),
+      new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(3, 3)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(2, 2)),
+      new Piece(PIECE_TYPE.QUEEN, FACTION.NATURE, new Hex(0, 0)),
+      new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(-3, -3)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(-2, -2)),
+    ];
+    testGame.eliminatedFactions = new Set([FACTION.WATER]);
+    testGame._rebuildOccupiedMap();
 
-    // Give Fire a Queen that can capture an enemy pawn with advantage
-    // This is hard to set up deterministically, so we just verify the move is legal
     const action = calculateBestMove(testGame, FACTION.FIRE);
     expect(action).toBeDefined();
     if (!action) throw new Error("expected a move");
 
-    // Verify the move is actually legal
+    // The move must be legal for the chosen piece.
     const { moves, attacks } = testGame.getLegalMoves(action.piece);
     const isLegalMove = moves.some((m) => m.equals(action.target));
     const isLegalAttack = attacks.some((a) => a.equals(action.target));
     expect(isLegalMove || isLegalAttack).toBe(true);
+
+    // And it must be the winning queen capture — not a quiet move.
+    expect(action.type).toBe("attack");
+    expect(action.piece.type).toBe(PIECE_TYPE.QUEEN);
+    expect(action.target.equals(new Hex(0, 0))).toBe(true);
+    expect(action.rps).toBe("advantage");
   });
 });
 
