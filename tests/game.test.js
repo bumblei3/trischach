@@ -666,3 +666,86 @@ describe("Game Over: last faction standing", () => {
     expect(g.state).toBe(GAME_STATE.SELECT_TARGET);
   });
 });
+
+describe("simulateMove/undoMove round-trip (AI search integrity)", () => {
+  let game;
+  beforeEach(() => {
+    game = new Game();
+    game.init(generateBoard());
+    game.pieces = [];
+    game._rebuildOccupiedMap();
+    game.rpsEnabled = true;
+  });
+
+  test("disadvantage capture: attacker dies and undo fully restores it", () => {
+    // Fire is at a disadvantage vs Water (Fire loses to Water in RPS). When a
+    // Fire piece captures a Water piece under disadvantage, the ATTACKER dies.
+    // simulateMove must (a) kill the attacker, (b) record it in
+    // capturedPieces[defender.faction], and undoMove must reverse BOTH — no
+    // stale captured entry left behind, since the AI relies on this exact
+    // symmetry for a corruption-free search.
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    game.pieces = [firePawn, waterPawn, fireKing, waterKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+
+    const undo = game.simulateMove(firePawn, new Hex(0, 1));
+
+    // Post-simulate: attacker dead, defender survives, captured by Water.
+    expect(firePawn.alive).toBe(false);
+    expect(waterPawn.alive).toBe(true);
+    expect(undo.attackerDied).toBe(true);
+    expect(undo.defenderWasKilled).toBe(false);
+    expect(game.capturedPieces[FACTION.WATER].includes(firePawn)).toBe(true);
+
+    game.undoMove(undo);
+
+    // Post-undo: attacker revived on its original square, turn restored, and
+    // the captured entry is gone (no leak that would corrupt later search).
+    expect(firePawn.alive).toBe(true);
+    expect(firePawn.pos.equals(new Hex(0, 2))).toBe(true);
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+    expect(game.capturedPieces[FACTION.WATER].includes(firePawn)).toBe(false);
+    expect(game.capturedPieces[FACTION.WATER].length).toBe(0);
+  });
+
+  test("advantage capture: defender dies and undo fully restores it", () => {
+    // Fire beats Nature (advantage): the defender dies. Simulate + undo must
+    // restore the defender to its square and remove it from the attacker's
+    // captured list — the mirror of the disadvantage case.
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
+    const naturePawn = new Piece(
+      PIECE_TYPE.PAWN,
+      FACTION.NATURE,
+      new Hex(0, 1),
+    );
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(5, 5),
+    );
+    game.pieces = [firePawn, naturePawn, fireKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+
+    const undo = game.simulateMove(firePawn, new Hex(0, 1));
+
+    expect(naturePawn.alive).toBe(false); // defender dies
+    expect(firePawn.alive).toBe(true); // attacker survives
+    expect(undo.defenderWasKilled).toBe(true);
+    expect(game.capturedPieces[FACTION.FIRE].includes(naturePawn)).toBe(true);
+
+    game.undoMove(undo);
+
+    expect(naturePawn.alive).toBe(true);
+    expect(naturePawn.pos.equals(new Hex(0, 1))).toBe(true);
+    expect(game.capturedPieces[FACTION.FIRE].includes(naturePawn)).toBe(false);
+    expect(game.capturedPieces[FACTION.FIRE].length).toBe(0);
+  });
+});
