@@ -7,12 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-07-12
+
 ### Added
 
 - **Engine-Invariant-Suites** (`tests/engine-invariants.test.ts`): neue
   Regressions-Suiten, die AI-Zug-Legitimität (die Engine wählt ausschließlich
   legale Züge), die 50-Zug-Regel/Halbzug-Uhr und die Piece-Identität über echte
   Partieverläufe absichern.
+
+### Changed
+
+- **Test-Suite von Struktur- auf Verhaltens-Assertions gehärtet.** Mehrere
+  AI-Tests prüften bisher nur die Rückgabe-Shape (`typeof score === "number"`,
+  `toBeDefined()`, `action === null || typeof === "object"`) statt echtes
+  Verhalten. Ersetzt durch aussagekräftige Invarianten:
+  - `evaluateEndgame`: King-Aktivität (Zentrum > Rand), Promotion-Druck,
+    RPS-Vorteil im 2-vs-1 (advantage > disadvantage), Elimination-Nähe.
+  - `minimax`: Score-Ordering (reichere Stellung > ärmere);
+    `iterativeDeepening`: Rückgabe ist legaler Zug der ziehenden Fraktion,
+    `null` bei fraktionslosem Zustand.
+  - `AI prefers winning captures`: deterministischer Taktik-Test über den
+    echten Entry-Point `calculateBestMove` (Damengewinn statt nur Legalität).
+  - Zeitlimit-/Ponder-Tests: legale Aktion statt "null oder object".
 
 ### Fixed
 
