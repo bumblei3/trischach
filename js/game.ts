@@ -220,6 +220,11 @@ export class Game {
     this._nextTurn();
     this.selectedPiece = null;
     this.state = GAME_STATE.SELECT_PIECE;
+    // Report whether the now-to-move faction is in check (mirrors the
+    // post-move `result.inCheck` set in _selectTarget). Without this, a
+    // promotion returned `inCheck: undefined` even when the following
+    // faction was in check — inconsistent with every other move result.
+    result.inCheck = this.isKingInCheck(this.currentFaction);
     if (this.onUpdate) this.onUpdate();
     return result;
   }
@@ -340,7 +345,15 @@ export class Game {
     this._rebuildOccupiedMap();
 
     // Check for pawn promotion
-    if (this.isPromotion(this.selectedPiece!, hex)) {
+    // Only a pawn that SURVIVED the move and actually reached the target
+    // square can promote. On a disadvantage combat the attacker dies on its
+    // origin square (never reaching `hex`), so it must NOT be promoted — an
+    // isPromotion check on the (now dead) selectedPiece would otherwise leave
+    // a zombie "promoted" corpse in PROMOTION state.
+    if (
+      this.selectedPiece!.alive &&
+      this.isPromotion(this.selectedPiece!, hex)
+    ) {
       this.pendingPromotion = this.selectedPiece!;
       this.state = GAME_STATE.PROMOTION;
       result.promotion = true;

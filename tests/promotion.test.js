@@ -425,4 +425,117 @@ describe("Pawn Promotion", () => {
     expect(game._positionHistory.has(recordedHash)).toBe(true);
     expect(game._positionHistory.get(recordedHash)).toBe(1);
   });
+
+  test("completePromotion reports inCheck for the following faction", () => {
+    // completePromotion must set result.inCheck to whether the now-to-move
+    // faction is in check — mirroring the post-move inCheck set in
+    // _selectTarget. Before the fix a promotion returned inCheck === undefined
+    // even when the following faction was in check, so the UI/AI could not
+    // tell that the opponent was left in check by the promoted piece.
+    // RPS disabled so the pawn's move to (0,0) is a quiet promotion (no capture).
+    game.rpsEnabled = false;
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const rook = new Piece(PIECE_TYPE.ROOK, FACTION.FIRE, new Hex(2, -2)); // attacks (2,0)
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(2, 0));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(5, 5),
+    );
+    game.pieces = [pawn, rook, waterKing, fireKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    expect(game.isKingInCheck(FACTION.WATER)).toBe(true); // rook pins the king
+
+    game.handleCellClick(new Hex(0, 1));
+    game.handleCellClick(new Hex(0, 0)); // -> promotion (0,0 empty, no capture)
+    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+
+    // The promotion hands the move to WATER, which is in check.
+    expect(game.currentFaction).toBe(FACTION.WATER);
+    expect(game.isKingInCheck(FACTION.WATER)).toBe(true);
+    expect(result.inCheck).toBe(true);
+  });
+
+  test("disadvantage combat into promotion zone does NOT promote the dead pawn", () => {
+    // A pawn that captures into the promotion zone but LOSES the RPS duel
+    // (disadvantage) dies on its origin square and never reaches the target.
+    // It must NOT be promoted: that would leave a zombie "promoted" corpse
+    // (dead piece transformed to a queen, stuck in PROMOTION state). Regression
+    // guard for the round-25 fix (isPromotion now also requires the pawn to
+    // survive the move).
+    game.rpsEnabled = true; // Fire vs Water is a disadvantage for Fire
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 0)); // on promo edge (r<=0)
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(5, 5),
+    );
+    game.pieces = [pawn, enemy, fireKing, waterKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    game.handleCellClick(new Hex(0, 1));
+    const result = game.handleCellClick(new Hex(0, 0)); // disadvantage combat in zone
+
+    // The attacker died (disadvantage); defender survives.
+    expect(pawn.alive).toBe(false);
+    expect(enemy.alive).toBe(true);
+    // No promotion: state advances normally, no pending promotion, no zombie.
+    // (result.promotion is only set on a real promotion; undefined otherwise.)
+    expect(result.promotion ?? false).toBe(false);
+    expect(game.state).not.toBe(GAME_STATE.PROMOTION);
+    expect(game.pendingPromotion).toBeNull();
+    expect(pawn.type).toBe(PIECE_TYPE.PAWN); // not transformed into a queen
+    // completePromotion must be a no-op now (nothing pending).
+    expect(game.completePromotion(PIECE_TYPE.QUEEN)).toBeNull();
+  });
+
+  test("advantage combat into promotion zone promotes the surviving pawn", () => {
+    // When the capturing pawn WINS the RPS duel (advantage), it reaches the
+    // target square in the promotion zone and must promote — the defender is
+    // captured and the pawn transforms. Regression guard that the survival
+    // check in the round-25 fix still allows legitimate promotions by capture.
+    // Fire can move (0,1) -> (0,0) and Fire beats Nature (advantage).
+    game.rpsEnabled = true;
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 0)); // on promo edge (r<=0)
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(5, -5),
+    );
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, 5));
+    game.pieces = [pawn, enemy, fireKing, natureKing, waterKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    game.handleCellClick(new Hex(0, 1));
+    const result = game.handleCellClick(new Hex(0, 0)); // advantage combat in zone
+
+    expect(result.action).toBe("combat");
+    expect(enemy.alive).toBe(false); // defender captured
+    expect(pawn.alive).toBe(true); // attacker survives
+    expect(result.promotion).toBe(true); // pawn reached zone -> promote
+    expect(game.state).toBe(GAME_STATE.PROMOTION);
+    expect(game.pendingPromotion).toBe(pawn);
+
+    // Completing the promotion transforms the surviving pawn.
+    const pres = game.completePromotion(PIECE_TYPE.QUEEN);
+    expect(pres).not.toBeNull();
+    expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
+    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
+  });
 });

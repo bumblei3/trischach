@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Test-suite hardening across iterations (565 → 611 passing unit
+- Test-suite hardening across iterations (565 → 614 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **Threefold-repetition invariant** (`tests/game-draw.test.js`): the
     `_updateDrawState` repeat counter is now asserted to require THREE
@@ -114,10 +114,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of resetting it like every other pawn move. `completePromotion` now
   records the post-promotion position (clock reset to 0) once the piece is
   committed — guarding a genuine draw-rule bug, not just a test gap.
+  - **completePromotion omitted `result.inCheck`** (`js/game.ts`): a promotion
+    returned `result.inCheck === undefined` even when the now-to-move faction
+    was left in check, whereas every other move result sets `inCheck` (game.ts
+    `_selectTarget` does `result.inCheck = isKingInCheck(currentFaction)` after
+    `_nextTurn`). `completePromotion` now mirrors that, so the UI/AI can see that
+    the opponent was left in check by the promoted piece — a genuine
+    inconsistency, not just a test gap.
+    - **disadvantage combat into the promotion zone promoted a dead pawn**
+      (`js/game.ts`): `_selectTarget` ran the `isPromotion` check on the
+      selected pawn _after_ a combat resolved, without verifying the pawn
+      survived. On a disadvantage RPS duel the attacker dies on its origin
+      square (never reaching the target), yet the engine still set
+      `pendingPromotion` and entered `PROMOTION` state — leaving a zombie
+      "promoted" corpse (a dead piece transformed to a queen, stuck in
+      PROMOTION). The check now also requires `selectedPiece.alive`, so only a
+      pawn that actually reaches the target square can promote.
 
-### Tests
+    ### Tests
 
-- Test-suite hardening across iterations (565 → 611 passing unit
+- Test-suite hardening across iterations (565 → 614 passing unit
   tests, no skips, `tsc --noEmit` clean):
   - **completePromotion resets the 50-move clock** (`tests/promotion.test.js`):
     a promotion completes with `_halfmoveClock === 0`, matching the pawn-move
@@ -145,6 +161,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `"repetition"` on a threefold-repetition draw and with `"50move"` when
     the 50-move rule triggers — closing the gap where `if (this.onDraw)`
     in `_updateDrawState` never ran in the suite.
+  - **completePromotion reports inCheck for the following faction**
+    (`tests/promotion.test.js`): after a promotion that leaves the now-to-move
+    faction in check, `result.inCheck` is `true` (regression guard for the
+    round-24 fix where a promotion returned `inCheck === undefined`).
+  - **promotion by capture respects RPS survival**
+    (`tests/promotion.test.js`): two new invariants around a pawn capturing
+    into the promotion zone — a _disadvantage_ duel (attacker dies on its
+    origin) must NOT promote the dead pawn (no zombie `PROMOTION` state; the
+    round-25 fix), while an _advantage_ duel (attacker reaches the target)
+    still promotes the surviving pawn.
 
 ### Docs
 
