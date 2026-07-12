@@ -6,6 +6,7 @@ import {
   applySkin,
   getSkin,
   loadSkinId,
+  saveSkinId,
 } from "../js/skins.ts";
 
 describe("Skins module", () => {
@@ -60,6 +61,36 @@ describe("Skins module", () => {
     expect(loadSkinId()).toBe(DEFAULT_SKIN_ID);
     if (saved !== undefined && saved !== null) {
       (globalThis as any).localStorage?.setItem("trischach-skin", saved);
+    }
+  });
+
+  test("saveSkinId persists the resolved id and loadSkinId round-trips", () => {
+    const saved = localStorage.getItem("trischach-skin");
+    try {
+      saveSkinId("schwarz-rot-gold");
+      expect(localStorage.getItem("trischach-skin")).toBe("schwarz-rot-gold");
+      // loadSkinId must read back the persisted, valid id.
+      expect(loadSkinId()).toBe("schwarz-rot-gold");
+    } finally {
+      if (saved !== null && saved !== undefined) {
+        localStorage.setItem("trischach-skin", saved);
+      } else {
+        localStorage.removeItem("trischach-skin");
+      }
+    }
+  });
+
+  test("saveSkinId falls back to default id for an unknown skin", () => {
+    const saved = localStorage.getItem("trischach-skin");
+    try {
+      saveSkinId("does-not-exist");
+      expect(localStorage.getItem("trischach-skin")).toBe(DEFAULT_SKIN_ID);
+    } finally {
+      if (saved !== null && saved !== undefined) {
+        localStorage.setItem("trischach-skin", saved);
+      } else {
+        localStorage.removeItem("trischach-skin");
+      }
     }
   });
 });
