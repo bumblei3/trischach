@@ -47,9 +47,13 @@ export default defineConfig({
     // vite.config entry did not emit index.html. The dev server serves
     // index.html (and js/main.ts via on-the-fly TS transform) directly, so the
     // suite is robust regardless of build config.
-    command: "npx vite --port 4173 --strictPort --host",
+    command: "npx vite --port 4173 --host",
     url: "http://localhost:4173",
-    reuseExistingServer: !process.env.CI,
+    // Always start a fresh server. A leftover (possibly broken) server on
+    // 4173 from an aborted run would otherwise be silently reused
+    // (reuseExistingServer:true) and make every test hang on the never-loading
+    // app. --strictPort makes a port clash fail loudly instead of shadowing.
+    reuseExistingServer: false,
     timeout: 120000,
   },
 });
