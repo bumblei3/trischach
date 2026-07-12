@@ -9,12 +9,7 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
-import {
-  applySkin,
-  loadSkinId,
-  saveSkinId,
-  SKINS,
-} from "./skins.ts";
+import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
   calculateBestMove,
