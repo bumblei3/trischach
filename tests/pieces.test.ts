@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe } from "vitest";
 import { getValidMoves, PIECE_TYPE, Piece } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";

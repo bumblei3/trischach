@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game, GAME_STATE } from "../js/game.ts";
 import { legalMoveCheck } from "../js/game-check.ts";

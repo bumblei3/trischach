@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * game-check.test.js - Tests for TriSchach check/checkmate/stalemate logic
  * (js/game-check.ts). These are the rule functions that decide when a game

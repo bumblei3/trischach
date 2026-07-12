@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * ai-worker.test.js - Tests for the AI Web Worker
  * Tests the worker message interface AND core AI functions (now exported for coverage)

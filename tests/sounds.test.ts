@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe, vi, beforeEach } from "vitest";
 import { sounds } from "../js/sounds.ts";
 

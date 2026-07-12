@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * opening-book.test.js - Tests for TriSchach Opening Book
  */

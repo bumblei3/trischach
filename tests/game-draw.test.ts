@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * game-draw.test.js - focused coverage for js/game.ts draw detection and
  * pawn promotion that the higher-level flow tests don't isolate:

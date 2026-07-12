@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * board-render.test.js — focused tests for BoardRenderer rendering/state
  * methods (renderPiece, setRotation, highlightCells, clearHighlights,

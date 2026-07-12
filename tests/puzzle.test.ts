@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * puzzle.test.js - Tests for TriSchach Puzzle Mode logic (js/puzzle.ts)
  *

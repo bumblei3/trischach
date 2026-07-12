@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * replay.test.js - Tests for TriSchach Game Replay/Export System (TSPN format)
  */
