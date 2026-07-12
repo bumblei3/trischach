@@ -230,9 +230,16 @@ describe("getDailyPuzzle caching", () => {
 
   test("regenerates when no cached puzzle exists for today", async () => {
     // No date key set -> falls through to generateDailyPuzzle (AI search).
-    // This is the slow path; we only assert it resolves to a puzzle or null
-    // without throwing, and that a date key gets written.
+    // generateDailyPuzzle only writes the date key after a puzzle was
+    // actually produced (puzzle.ts:664-666); if generation yields nothing it
+    // returns null without caching. So: the call must resolve without
+    // throwing, the result is a puzzle (string id) or null, and whenever a
+    // puzzle is returned the cache was written for today.
+    const today = new Date().toISOString().split("T")[0]!;
     const result = await getDailyPuzzle();
     expect(result === null || typeof result.id === "string").toBe(true);
+    if (result !== null) {
+      expect(localStorage.getItem("trischach-daily-puzzle-date")).toBe(today);
+    }
   });
 });
