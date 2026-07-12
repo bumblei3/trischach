@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has a typed `BookVariation` alias (with optional `wins`/`draws`/`losses`/
   `visits` learning stats), and `noUncheckedIndexedAccess` / strict-null errors
   are resolved with precise assertions instead of blanket suppression. `tsc
-  --noEmit` now reports **0 errors** across the whole repo (app + tests).
+--noEmit` now reports **0 errors** across the whole repo (app + tests).
 - CHANGELOG: TS-Portierung (#30) nachgetragen; veraltete `.test.js` Referenzen
   zu `.test.ts` korrigiert; Test-Zahl auf tatsächliche 614 korrigiert.
 
