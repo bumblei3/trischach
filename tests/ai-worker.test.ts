@@ -588,6 +588,47 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       // action can be null if no legal moves
     });
 
+    test("minimax prefers a stronger position over a weaker one", () => {
+      // Same side to move; the position with an extra friendly queen must
+      // evaluate higher than the one without it. This asserts real search
+      // behaviour (score ordering) rather than just the result shape.
+      const rich = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("queen", FACTION.FIRE, 1, 1),
+          createPiece("king", FACTION.WATER, 4, 4),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.NATURE]),
+      });
+      const poor = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("king", FACTION.WATER, 4, 4),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.NATURE]),
+      });
+
+      const richScore = minimax(
+        rich,
+        1,
+        -Infinity,
+        Infinity,
+        FACTION.FIRE,
+        FACTION.FIRE,
+      ).score;
+      const poorScore = minimax(
+        poor,
+        1,
+        -Infinity,
+        Infinity,
+        FACTION.FIRE,
+        FACTION.FIRE,
+      ).score;
+      expect(richScore).toBeGreaterThan(poorScore);
+    });
+
     test("quiesce returns stand-pat score at depth limit", () => {
       const gameState = createGameState();
       const result = quiesce(
@@ -602,18 +643,43 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(typeof result.score).toBe("number");
     });
 
-    test("iterativeDeepening returns an action or null", () => {
+    test("iterativeDeepening returns a legal action for the moving faction", () => {
       const gameState = createGameState({
-        pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
+        pieces: [
+          createPiece("rook", FACTION.FIRE, 0, 1),
+          createPiece("pawn", FACTION.NATURE, 0, 0),
+          createPiece("king", FACTION.FIRE, 3, 3),
+          createPiece("king", FACTION.NATURE, -3, -3),
+        ],
         currentFaction: FACTION.FIRE,
         currentFactionIdx: 0,
+        rpsEnabled: true,
+        eliminatedFactions: new Set([FACTION.WATER]),
       });
 
       const action = iterativeDeepening(gameState, FACTION.FIRE);
-      // Can be null if no legal moves, or an action object
-      expect(action === null || (action && typeof action === "object")).toBe(
-        true,
+      expect(action).not.toBeNull();
+      // The chosen action must belong to a FIRE piece and be one of the
+      // legally generated actions for that position.
+      expect(action?.piece.faction).toBe(FACTION.FIRE);
+      const legal = getAllActions(gameState, FACTION.FIRE);
+      const isLegal = legal.some(
+        (a) =>
+          a.piece.id === action?.piece.id &&
+          a.target.equals(action.target) &&
+          a.type === action.type,
       );
+      expect(isLegal).toBe(true);
+    });
+
+    test("iterativeDeepening returns null when the faction has no pieces", () => {
+      const gameState = createGameState({
+        pieces: [createPiece("king", FACTION.WATER, 0, 0)],
+        currentFaction: FACTION.FIRE,
+        currentFactionIdx: 0,
+      });
+      const action = iterativeDeepening(gameState, FACTION.FIRE);
+      expect(action).toBeNull();
     });
   });
 
