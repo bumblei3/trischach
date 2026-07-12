@@ -365,7 +365,11 @@ describe("Pawn Promotion", () => {
     const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
-    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 7));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 7),
+    );
     game.pieces = [pawn, fireKing, waterKing, natureKing];
     game._rebuildOccupiedMap();
     game.currentFactionIdx = 0;
@@ -391,7 +395,11 @@ describe("Pawn Promotion", () => {
     const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
-    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 7));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(0, 7),
+    );
     game.pieces = [pawn, fireKing, waterKing, natureKing];
     game._rebuildOccupiedMap();
     game.currentFactionIdx = 0;
