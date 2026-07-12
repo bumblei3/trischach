@@ -15,6 +15,7 @@
 **Objective:** Eine Funktion, die für eine Teilmenge der Root-Züge den besten Score (mit zugehörigem Zug) sucht — analog zu einem einzelnen `iterativeDeepening`-Schritt, aber nur für vorgegebene Züge.
 
 **Files:**
+
 - Modify: `js/ai-core.ts` (nach `iterativeDeepening`, ~Zeile 2072)
 - Test: `tests/parallel-search.test.ts` (neu)
 
@@ -124,6 +125,7 @@ git commit -m "feat: searchRootSubset für Root-Move-Splitting (Parallel Search)
 **Objective:** Eine Funktion, die die Root-Züge auf N Worker aufteilt, pro Worker `searchRootSubset` (via Worker-Message `type: "searchSubset"`) ausführt und das beste Ergebnis aggregiert. Fällt auf Single-Thread zurück, wenn keine Worker verfügbar.
 
 **Files:**
+
 - Modify: `js/ai-worker.ts` (neuer Message-Type `searchSubset` im `onmessage`, ~Zeile 129)
 - Modify: `js/main.ts` (neue Funktion `calculateBestMoveParallel`, Worker-Pool-Handling)
 - Test: `tests/parallel-search.test.ts`
@@ -203,6 +205,7 @@ git commit -m "feat: calculateBestMoveParallel (Root-Move-Splitting, Single-Thre
 **Objective:** Der Worker versteht `type: "searchSubset"` und führt `searchRootSubset` für die übertragenen Züge aus, meldet `{type:"subsetResult", best}`.
 
 **Files:**
+
 - Modify: `js/ai-worker.ts:129` (im `onmessage`-Handler)
 - Modify: `js/main.ts` (neuer Message-Type im `onmessage` der Worker-Antwort)
 
@@ -274,6 +277,7 @@ git commit -m "feat: Worker-Handler für searchSubset (Parallel Search)"
 **Objective:** `calculateBestMoveWorker` nutzt bei Verfügbarkeit des Worker-Pools `calculateBestMoveParallel` (verteilt über echte Worker), sonst Single-Thread-Fallback. Optional über eine Setting umschaltbar.
 
 **Files:**
+
 - Modify: `js/main.ts` (Funktion `calculateBestMoveWorker`, ~Zeile 272)
 - Modify: `index.html` (optional: Setting-Checkbox "Parallel Search")
 - Modify: `tests/parallel-search.test.ts`
@@ -301,13 +305,22 @@ Expected: FAIL — `calculateBestMoveWorker` nutzt noch nicht `calculateBestMove
 In `js/main.ts` `calculateBestMoveWorker`:
 
 ```ts
-function calculateBestMoveWorker(game: Game, faction: string): Promise<WorkerMove | null> {
+function calculateBestMoveWorker(
+  game: Game,
+  faction: string,
+): Promise<WorkerMove | null> {
   return new Promise((resolve) => {
     if (!aiWorker || !workerReady) {
       // Single-thread fallback (incl. parallel root-splitting on main thread)
       const move = calculateBestMoveParallel(game, faction as any, 2);
       if (move) {
-        resolve({ pieceId: move.piece.id, targetQ: move.target.q, targetR: move.target.r, moveType: move.type, rps: move.rps as string });
+        resolve({
+          pieceId: move.piece.id,
+          targetQ: move.target.q,
+          targetR: move.target.r,
+          moveType: move.type,
+          rps: move.rps as string,
+        });
       } else {
         resolve(null);
       }
@@ -340,6 +353,7 @@ git commit -m "feat: calculateBestMoveWorker nutzt calculateBestMoveParallel (Fa
 **Objective:** Statt des Single-Thread-Fallbacks im Worker-Pfad echte N-Worker verteilen: pro Root-Gruppe ein Worker, `searchSubset`-Message, Aggregation der `subsetResult`-Antworten, Auswahl des besten Zugs.
 
 **Files:**
+
 - Modify: `js/main.ts` (Worker-Pool-Logik in `calculateBestMoveWorker`)
 - Test: `tests/parallel-search.test.ts` (Integration über e2e, da Worker im Unit-Test nicht verfügbar)
 
@@ -366,6 +380,7 @@ git commit -m "feat: echte N-Worker-Aufteilung für Parallel Search"
 **Objective:** Dokumentation der neuen Funktion.
 
 **Files:**
+
 - Modify: `CHANGELOG.md` (Unreleased → [1.2.6] / Feature-Eintrag)
 - Modify: `package.json` (Version bump auf 1.2.6, Patch da rein interne Such-Optimierung ohne Regeländerung)
 
@@ -375,6 +390,7 @@ git commit -m "feat: echte N-Worker-Aufteilung für Parallel Search"
 ## [Unreleased]
 
 ### Added
+
 - **Parallel Search (Root-Move-Splitting).** `calculateBestMoveParallel()` teilt die
   legalen Root-Züge auf N Worker auf (reiner postMessage-Pfad, kein SharedArrayBuffer —
   deploy-sicher auf GitHub Pages). Jeder Worker sucht seinen Zug-Teil isoliert via

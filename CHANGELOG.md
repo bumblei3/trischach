@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.5] - 2026-07-12
+## [1.2.6] - 2026-07-12
+
+### Added
+
+- **Parallel Search (Root-Move-Splitting).** `calculateBestMoveParallel()` teilt
+  die legalen Root-Züge auf N Web-Worker auf (reiner `postMessage`-Pfad, kein
+  `SharedArrayBuffer` — deploy-sicher auf GitHub Pages ohne COOP/COEP-Header).
+  Jeder Worker sucht seinen Zug-Teil isoliert via `beginSearch()` und meldet den
+  besten Score; der Main-Thread wählt den Gesamtbesten. Bei nicht verfügbarem
+  Worker-Pool wird auf Single-Thread (`iterativeDeepening`) zurückgefahren.
+  Keine Regel-/Verhaltensänderung, nur Suchgeschwindigkeit/-tiefe.
 
 ### Changed
 

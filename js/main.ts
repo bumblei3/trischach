@@ -13,8 +13,11 @@ import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
   calculateBestMove,
+  calculateBestMoveParallel,
   evaluateBoard,
   setAIDepth,
+  getAIDepth,
+  getAllActions,
   setAIPersonality,
   getAIPersonalities,
   buildOpeningBook,
@@ -239,9 +242,30 @@ let aiWorker: Worker | null = null;
 let workerReady = false;
 let pendingWorkerCallback: ((move: WorkerMove | null) => void) | null = null;
 
+// Worker pool for parallel root-move search. A single worker is kept for
+// pondering/legacy; the pool is used for the split search. Sized to the
+// hardware concurrency (capped) so we don't oversubscribe the machine.
+const PARALLEL_WORKERS = Math.max(
+  1,
+  Math.min(
+    4,
+    typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 2 : 2,
+  ),
+);
+let workerPool: Worker[] = [];
+
+function spawnWorker(): Worker {
+  const w = new Worker("./ai-worker.js", { type: "module" });
+  w.onerror = (err: ErrorEvent) => {
+    console.warn("AI Worker error, falling back to main thread:", err);
+  };
+  w.postMessage({ type: "initBook" });
+  return w;
+}
+
 function initAIWorker(): void {
   try {
-    aiWorker = new Worker("./ai-worker.js", { type: "module" });
+    aiWorker = spawnWorker();
     aiWorker.onmessage = (e: MessageEvent) => {
       const { type, move, depth, score, nodes } = e.data;
       if (type === "result" && pendingWorkerCallback) {
@@ -263,9 +287,16 @@ function initAIWorker(): void {
       aiWorker = null;
     };
     aiWorker.postMessage({ type: "initBook" });
+
+    // Build the parallel search pool (separate workers so pondering on the
+    // legacy worker is never disturbed).
+    for (let i = 0; i < PARALLEL_WORKERS; i++) {
+      workerPool.push(spawnWorker());
+    }
   } catch (e) {
     console.warn("Web Worker not supported, using main thread AI");
     aiWorker = null;
+    workerPool = [];
   }
 }
 
@@ -275,7 +306,9 @@ function calculateBestMoveWorker(
 ): Promise<WorkerMove | null> {
   return new Promise((resolve) => {
     if (!aiWorker || !workerReady) {
-      const move = calculateBestMove(game, faction as any);
+      // Single-thread fallback — use parallel root-splitting on the main thread
+      // (degrades gracefully to iterativeDeepening for tiny positions).
+      const move = calculateBestMoveParallel(game, faction as any, 2);
       if (move) {
         resolve({
           pieceId: move.piece.id,
@@ -289,6 +322,67 @@ function calculateBestMoveWorker(
       }
       return;
     }
+
+    // Real parallel search: split root moves across the worker pool.
+    if (workerPool.length >= 2) {
+      const gameState = serializeGameForWorker(game);
+      const allActions = getAllActions(game, faction as any);
+      if (allActions.length === 0) {
+        resolve(null);
+        return;
+      }
+      if (allActions.length === 1) {
+        // Degenerate case — let the legacy worker do a full search.
+        pendingWorkerCallback = resolve;
+        aiWorker!.postMessage({ type: "calculate", gameState, faction });
+        return;
+      }
+
+      const n = Math.min(workerPool.length, allActions.length);
+      const groups: { pieceId: string; targetQ: number; targetR: number }[][] =
+        Array.from({ length: n }, () => []);
+      allActions.forEach((a, i) => {
+        groups[i % n]!.push({
+          pieceId: a.piece.id,
+          targetQ: a.target.q,
+          targetR: a.target.r,
+        });
+      });
+
+      let pending = n;
+      let bestScore = -Infinity;
+      let bestMove: WorkerMove | null = null;
+
+      workerPool.slice(0, n).forEach((worker, idx) => {
+        worker.onmessage = (e: MessageEvent) => {
+          if (e.data.type === "subsetResult") {
+            const { score, move } = e.data;
+            if (move && score > bestScore) {
+              bestScore = score;
+              bestMove = {
+                pieceId: move.pieceId,
+                targetQ: move.targetQ,
+                targetR: move.targetR,
+                moveType: move.moveType,
+                rps: move.rps,
+              };
+            }
+            pending--;
+            if (pending === 0) resolve(bestMove);
+          }
+        };
+        worker.postMessage({
+          type: "searchSubset",
+          gameState,
+          faction,
+          depth: getAIDepth(),
+          subset: groups[idx],
+        });
+      });
+      return;
+    }
+
+    // Legacy single-worker path (pool unavailable).
     pendingWorkerCallback = resolve;
     const gameState = serializeGameForWorker(game);
     aiWorker!.postMessage({ type: "calculate", gameState, faction });
