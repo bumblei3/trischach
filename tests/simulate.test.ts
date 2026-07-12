@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { Game } from "../js/game.ts";
 import { FACTION, generateBoard } from "../js/board.ts";

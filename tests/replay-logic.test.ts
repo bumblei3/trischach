@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * replay-logic.test.js - focused coverage for the TSPN replay/export
  * subsystem in js/replay.ts that the broader UI tests don't exercise:

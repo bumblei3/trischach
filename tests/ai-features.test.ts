@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 
 // Test the AI modules directly (not through main.js UI)

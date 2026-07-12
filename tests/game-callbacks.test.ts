@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * game-callbacks.test.js — exercises the optional event callbacks on Game
  * (onUpdate / onGameOver / onElimination / onPromotion). These `if (cb)` guard

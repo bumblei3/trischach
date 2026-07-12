@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * lib-logic.test.js - focused coverage for small, deterministic helper
  * functions in the TriSchach engine that the broader game/AI tests don't

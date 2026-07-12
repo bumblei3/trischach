@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * opening-book-logic.test.js - focused coverage for js/opening-book.ts
  * helpers and book-lookup paths that the AI/UI tests don't isolate:

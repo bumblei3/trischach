@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * replay-format.test.js — focused unit tests for the pure formatting/parsing
  * helpers in js/replay.ts that previously had uncovered branches:

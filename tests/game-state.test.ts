@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * game-state.test.js - focused coverage for js/game.ts state-management
  * and lifecycle helpers that the higher-level flow tests don't isolate:

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * puzzle-state.test.js - focused coverage for the previously-untested
  * parts of TriSchach Puzzle Mode (js/puzzle.ts):

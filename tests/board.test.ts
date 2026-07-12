@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe, beforeEach, vi } from "vitest";
 import {
   generateBoard,

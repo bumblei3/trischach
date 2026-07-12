@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * board-structure.test.js - invariant checks for generateBoard().
  *

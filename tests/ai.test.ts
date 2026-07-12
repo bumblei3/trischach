@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { expect, test, describe, beforeEach } from "vitest";
 import { calculateBestMove, setAIDepth } from "../js/ai.ts";
 import { Game } from "../js/game.ts";
