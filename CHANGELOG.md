@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.6] - 2026-07-12
+## [1.3.0] - 2026-07-13
+
+### Added
+
+- **JS-NNUE Evaluation.** Neuronales Netz (660→128→32→1, reines JS, kein WASM)
+  als optionale Alternative zur Handcrafted-Eval. Aktivierbar über die neue
+  Setting-Checkbox "Neuronale Eval (NNUE)". Das Netz wurde per Knowledge
+  Distillation aus der bestehenden Eval trainiert (Self-Play-Trainer unter
+  `scripts/train-nnue.ts`) und die Gewichte liegen als
+  `public/js/weights/nnue-weights.json`. Deploy-sicher auf GitHub Pages (kein
+  SharedArrayBuffer/WASM). Standardmäßig aus (classic Eval), um Regressionen
+  auszuschließen.
 
 ### Added
 

@@ -50,6 +50,8 @@ import {
   calculateBestMoveParallel,
   setAIDepth,
   getAIDepth,
+  setNNUEEnabled,
+  loadNNUEWeights,
   setAITimeLimit,
   setAIPersonality,
   getAIPersonalities,
@@ -147,6 +149,8 @@ export {
   calculateBestMoveParallel,
   setAIDepth,
   getAIDepth,
+  setNNUEEnabled,
+  loadNNUEWeights,
   setAITimeLimit,
   // Pondering
   startPondering,
