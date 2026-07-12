@@ -9,6 +9,12 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
+import {
+  applySkin,
+  loadSkinId,
+  saveSkinId,
+  SKINS,
+} from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
   calculateBestMove,
@@ -3049,6 +3055,37 @@ function initEventListeners(): void {
 
   // Load dark mode preference on startup
   loadDarkModePreference();
+
+  // ─── Skin (faction colours) ──────────────────────────────────────
+  const skinSelect = document.getElementById(
+    "skin-select",
+  ) as HTMLSelectElement | null;
+
+  function refreshPieceColours(): void {
+    // Re-render every piece so inline colour styles (from FACTION_COLORS)
+    // pick up the new skin. Redraw both the main board and, if active, the
+    // puzzle board.
+    for (const p of game.getAlivePieces()) renderer.renderPiece(p);
+    updateUI();
+  }
+
+  function applyAndRenderSkin(id: string): void {
+    applySkin(id);
+    refreshPieceColours();
+  }
+
+  if (skinSelect) {
+    skinSelect.addEventListener("change", () => {
+      const id = SKINS[skinSelect.value] ? skinSelect.value : "default";
+      saveSkinId(id);
+      applyAndRenderSkin(id);
+    });
+  }
+
+  // Apply persisted skin on startup and sync the selector.
+  const initialSkin = loadSkinId();
+  if (skinSelect) skinSelect.value = initialSkin;
+  applyAndRenderSkin(initialSkin);
 
   // We can also just load once when initEventListeners runs
   loadOpeningBookStats();
