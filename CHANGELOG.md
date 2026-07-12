@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Farb-Skins für das Brett.** Neues Modul `js/skins.ts` mit einem
+  `applySkin()`-Mechanismus, der die drei Fraktionen umfärbt — über CSS
+  Custom Properties (`--fire`/`--water`/`--nature`) **und** das JS-seitige
+  `FACTION_COLORS` (für Status-/Kampf-/Promotion-Overlays), damit nichts
+  inkonsistent bleibt. Fraktionsnamen und RPS-Logik bleiben unverändert, nur
+  die Farben wechseln. Neu: Skin **🇩🇪 Schwarz-Rot-Gold** (Feuer → Rot,
+  Wasser → Schwarz, Natur → Gold) neben dem klassischen Elemente-Skin.
+  Auswahl in den Einstellungen (Reiter Allgemein → „Skin (Farben)"), persistiert
+  in `localStorage` und sofort ohne Reload wirksam. CSS-Fallback-Block
+  `[data-skin="schwarz-rot-gold"]` färbt auch Zonen/Piece-Hintergründe. Neuer
+  Unit-Test `tests/skins.test.ts` (6 Tests) sichert Farbzuweisung + Restore.
+
 ### Fixed
 
 - **Null-Move-Pruning verwirft am Wurzelknoten keinen Zug mehr.** Bei offenem

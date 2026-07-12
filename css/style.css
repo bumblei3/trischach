@@ -73,6 +73,51 @@
   --btn-primary-hover: var(--water2);
 }
 
+/* ─── Skin: Schwarz-Rot-Gold (🇩🇪) ────────────────────────────────
+   Re-colours the three factions to the German flag palette. Faction names
+   and RPS logic are unchanged — only colours. These declarations act as a
+   first-paint fallback; skins.ts also sets the same custom properties via
+   JS so the switch is instant without a reload. */
+[data-skin="schwarz-rot-gold"] {
+  --fire: #e30613;
+  --fire2: #ff3b3b;
+  --water: #4b5563;
+  --water2: #9ca3af;
+  --nature: #f5c518;
+  --nature2: #ffd84d;
+}
+/* Zone fills are hard-coded (not variable-driven), so tint them per skin. */
+[data-skin="schwarz-rot-gold"] .zone-start_fire {
+  fill: #2e0508;
+  stroke: #7a0a12;
+}
+[data-skin="schwarz-rot-gold"] .zone-start_water {
+  fill: #14171c;
+  stroke: #3a4048;
+}
+[data-skin="schwarz-rot-gold"] .zone-start_nature {
+  fill: #2a2205;
+  stroke: #7a6410;
+}
+[data-skin="schwarz-rot-gold"] .zone-start_fire:hover {
+  fill: #400a10;
+}
+[data-skin="schwarz-rot-gold"] .zone-start_water:hover {
+  fill: #1f242c;
+}
+[data-skin="schwarz-rot-gold"] .zone-start_nature:hover {
+  fill: #40350a;
+}
+[data-skin="schwarz-rot-gold"] .piece-fire .piece-bg {
+  fill: #2e0508;
+}
+[data-skin="schwarz-rot-gold"] .piece-water .piece-bg {
+  fill: #14171c;
+}
+[data-skin="schwarz-rot-gold"] .piece-nature .piece-bg {
+  fill: #2a2205;
+}
+
 body {
   font-family: "Outfit", sans-serif;
   background: var(--bg);
