@@ -206,6 +206,17 @@ export class Game {
       return result;
     }
 
+    // Record the post-promotion position for draw detection. A promotion is a
+    // pawn move, so the 50-move clock resets to 0; the new position (with the
+    // promoted piece) enters the repetition history. Done here — not in
+    // _selectTarget — because this is the final committed position and avoids
+    // double-counting the half-move clock across the two-phase promotion flow.
+    const isDraw = this._updateDrawState(false, true);
+    if (isDraw) {
+      result.draw = true;
+      return result;
+    }
+
     this._nextTurn();
     this.selectedPiece = null;
     this.state = GAME_STATE.SELECT_PIECE;

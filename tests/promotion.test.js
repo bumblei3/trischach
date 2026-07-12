@@ -356,4 +356,65 @@ describe("Pawn Promotion", () => {
     expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
     expect(pawn.type).toBe(PIECE_TYPE.PAWN); // not yet promoted
   });
+
+  test("completePromotion resets the 50-move clock (pawn move)", () => {
+    // A promotion is a pawn move, so the 50-move (half-move) clock must reset
+    // to 0 on completion — guarding a bug where completePromotion never called
+    // _updateDrawState and thus left the clock frozen (e.g. at 99), silently
+    // preventing the draw-rule reset that every pawn move triggers.
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 7));
+    game.pieces = [pawn, fireKing, waterKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+    game._halfmoveClock = 99; // just below the 100 draw limit
+
+    game.handleCellClick(new Hex(0, 1));
+    game.handleCellClick(new Hex(0, 0)); // -> promotion zone (transient)
+    expect(game._halfmoveClock).toBe(99); // unchanged until completed
+
+    game.completePromotion(PIECE_TYPE.QUEEN);
+    expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
+    expect(game._halfmoveClock).toBe(0); // reset: promotion counts as pawn move
+  });
+
+  test("completePromotion records the post-promotion position for repetition", () => {
+    // The promoted position must enter _positionHistory so threefold repetition
+    // can fire on promotion-bearing loops. Guards a bug where the two-phase
+    // promotion flow (_selectTarget early-return + completePromotion) never
+    // called _updateDrawState, so promoted positions were invisible to the
+    // repetition counter.
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
+    const natureKing = new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(0, 7));
+    game.pieces = [pawn, fireKing, waterKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0;
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    const before = game._positionHistory.size;
+    game.handleCellClick(new Hex(0, 1));
+    game.handleCellClick(new Hex(0, 0)); // -> promotion zone
+    expect(game._positionHistory.size).toBe(before); // still unrecorded pre-completion
+
+    game.completePromotion(PIECE_TYPE.QUEEN);
+    expect(game._positionHistory.size).toBe(before + 1); // now recorded
+    // The recorded hash reflects the post-promotion position as seen by
+    // _updateDrawState — BEFORE _nextTurn advances the side to move
+    // (currentFactionIdx is still 0 at record time, so the hash includes "#0").
+    const recordedHash = `${game
+      .getAlivePieces()
+      .filter((p) => p.alive)
+      .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+      .sort()
+      .join("|")}#0`;
+    expect(game._positionHistory.has(recordedHash)).toBe(true);
+    expect(game._positionHistory.get(recordedHash)).toBe(1);
+  });
 });
