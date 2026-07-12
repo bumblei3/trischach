@@ -404,22 +404,140 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(score).toBe(0); // Not endgame (25 pieces > 20)
     });
 
-    test("evaluateEndgame activates for <= 20 pieces", () => {
-      const gameState = createGameState({
+    test("evaluateEndgame rewards a king near the board center", () => {
+      // King in center should score higher than king pushed to the edge,
+      // because king activity is rewarded in the endgame (dist-from-center penalty).
+      const centerKing = createGameState({
         pieces: [
           createPiece("king", FACTION.FIRE, 0, 0),
-          createPiece("pawn", FACTION.FIRE, 0, 1),
-          createPiece("king", FACTION.WATER, 5, 5),
+          createPiece("king", FACTION.WATER, 4, 4),
         ],
         currentFaction: FACTION.FIRE,
-        currentFactionIdx: 0,
+        eliminatedFactions: new Set([FACTION.NATURE]),
+      });
+      const edgeKing = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 5),
+          createPiece("king", FACTION.WATER, 4, 4),
+        ],
+        currentFaction: FACTION.FIRE,
         eliminatedFactions: new Set([FACTION.NATURE]),
       });
 
-      const pieces = gameState.pieces.filter((p) => p.alive);
-      const score = evaluateEndgame(gameState, pieces, FACTION.FIRE);
-      // Should activate (3 pieces <= 20, 2 factions alive)
-      expect(typeof score).toBe("number");
+      const centerScore = evaluateEndgame(
+        centerKing,
+        centerKing.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      const edgeScore = evaluateEndgame(
+        edgeKing,
+        edgeKing.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      expect(centerScore).toBeGreaterThan(edgeScore);
+    });
+
+    test("evaluateEndgame rewards advanced pawns closer to promotion", () => {
+      // FIRE promotes toward r <= 0. A pawn on r=0 must score higher than one on r=4.
+      const advanced = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("pawn", FACTION.FIRE, -2, 0),
+          createPiece("king", FACTION.WATER, 4, 4),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.NATURE]),
+      });
+      const backward = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("pawn", FACTION.FIRE, -2, 4),
+          createPiece("king", FACTION.WATER, 4, 4),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.NATURE]),
+      });
+
+      const advancedScore = evaluateEndgame(
+        advanced,
+        advanced.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      const backwardScore = evaluateEndgame(
+        backward,
+        backward.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      expect(advancedScore).toBeGreaterThan(backwardScore);
+    });
+
+    test("evaluateEndgame favors RPS advantage over disadvantage in 2-vs-1", () => {
+      // FIRE beats NATURE (advantage) but loses to WATER (disadvantage).
+      // Same material, only the surviving enemy faction differs.
+      const vsNature = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("king", FACTION.NATURE, 3, 3),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.WATER]),
+      });
+      const vsWater = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("king", FACTION.WATER, 3, 3),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.NATURE]),
+      });
+
+      const advantageScore = evaluateEndgame(
+        vsNature,
+        vsNature.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      const disadvantageScore = evaluateEndgame(
+        vsWater,
+        vsWater.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      expect(advantageScore).toBeGreaterThan(disadvantageScore);
+    });
+
+    test("evaluateEndgame rewards proximity to eliminating a weakened enemy", () => {
+      // An enemy faction reduced to a lone king (<=3 pieces) yields an
+      // elimination-proximity bonus vs. a healthier enemy.
+      const weakEnemy = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("king", FACTION.NATURE, 3, 3),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.WATER]),
+      });
+      const strongEnemy = createGameState({
+        pieces: [
+          createPiece("king", FACTION.FIRE, 0, 0),
+          createPiece("king", FACTION.NATURE, 3, 3),
+          createPiece("pawn", FACTION.NATURE, 3, 2),
+          createPiece("pawn", FACTION.NATURE, 2, 3),
+          createPiece("pawn", FACTION.NATURE, 4, 1),
+        ],
+        currentFaction: FACTION.FIRE,
+        eliminatedFactions: new Set([FACTION.WATER]),
+      });
+
+      const weakScore = evaluateEndgame(
+        weakEnemy,
+        weakEnemy.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      const strongScore = evaluateEndgame(
+        strongEnemy,
+        strongEnemy.pieces.filter((p) => p.alive),
+        FACTION.FIRE,
+      );
+      expect(weakScore).toBeGreaterThan(strongScore);
     });
 
     test("evaluateBoard returns a number", () => {
