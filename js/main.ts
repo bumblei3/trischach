@@ -195,6 +195,24 @@ const personalitySelect = document.getElementById(
 const renderer = new BoardRenderer(svg);
 const game = new Game();
 
+// Expose the game + renderer instances for E2E tests / debugging (read-only
+// inspection and scripted setup of edge-case positions, e.g. driving a pawn
+// into the promotion zone without playing six moves by hand).
+(window as any).game = game;
+(window as any).renderer = renderer;
+
+// Expose engine constructors/values for E2E tests that script edge-case
+// positions (e.g. building a real Piece to drive promotion). Reads only.
+import { Piece as _Piece, PIECE_TYPE as _PIECE_TYPE } from "./pieces.ts";
+import { FACTION as _FACTION } from "./board.ts";
+import { Hex as _Hex } from "./hex.ts";
+(window as any).__trischachTestPiece = _Piece;
+(window as any).__trischachTestTypes = {
+  PIECE_TYPE: _PIECE_TYPE,
+  FACTION: _FACTION,
+};
+(window as any).__trischachTestHex = _Hex;
+
 // ─── AI Worker ──────────────────────────────────────────────────────
 
 interface WorkerMove {

@@ -115,12 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   records the post-promotion position (clock reset to 0) once the piece is
   committed — guarding a genuine draw-rule bug, not just a test gap.
   - **completePromotion omitted `result.inCheck`** (`js/game.ts`): a promotion
-  returned `result.inCheck === undefined` even when the now-to-move faction
-  was left in check, whereas every other move result sets `inCheck` (game.ts
-  `_selectTarget` does `result.inCheck = isKingInCheck(currentFaction)` after
-  `_nextTurn`). `completePromotion` now mirrors that, so the UI/AI can see that
-  the opponent was left in check by the promoted piece — a genuine
-  inconsistency, not just a test gap.
+    returned `result.inCheck === undefined` even when the now-to-move faction
+    was left in check, whereas every other move result sets `inCheck` (game.ts
+    `_selectTarget` does `result.inCheck = isKingInCheck(currentFaction)` after
+    `_nextTurn`). `completePromotion` now mirrors that, so the UI/AI can see that
+    the opponent was left in check by the promoted piece — a genuine
+    inconsistency, not just a test gap.
 
   ### Tests
 

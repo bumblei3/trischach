@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, "js/main.ts"),
+        main: resolve(__dirname, "index.html"),
         "ai-worker": resolve(__dirname, "js/ai-worker.ts"),
       },
       output: {
