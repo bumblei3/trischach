@@ -425,4 +425,39 @@ describe("Pawn Promotion", () => {
     expect(game._positionHistory.has(recordedHash)).toBe(true);
     expect(game._positionHistory.get(recordedHash)).toBe(1);
   });
+
+  test("completePromotion reports inCheck for the following faction", () => {
+    // completePromotion must set result.inCheck to whether the now-to-move
+    // faction is in check — mirroring the post-move inCheck set in
+    // _selectTarget. Before the fix a promotion returned inCheck === undefined
+    // even when the following faction was in check, so the UI/AI could not
+    // tell that the opponent was left in check by the promoted piece.
+    // RPS disabled so the pawn's move to (0,0) is a quiet promotion (no capture).
+    game.rpsEnabled = false;
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const rook = new Piece(PIECE_TYPE.ROOK, FACTION.FIRE, new Hex(2, -2)); // attacks (2,0)
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(2, 0));
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
+    const natureKing = new Piece(
+      PIECE_TYPE.KING,
+      FACTION.NATURE,
+      new Hex(5, 5),
+    );
+    game.pieces = [pawn, rook, waterKing, fireKing, natureKing];
+    game._rebuildOccupiedMap();
+    game.currentFactionIdx = 0; // FIRE
+    game.currentFaction = FACTION.FIRE;
+    game.state = GAME_STATE.SELECT_PIECE;
+
+    expect(game.isKingInCheck(FACTION.WATER)).toBe(true); // rook pins the king
+
+    game.handleCellClick(new Hex(0, 1));
+    game.handleCellClick(new Hex(0, 0)); // -> promotion (0,0 empty, no capture)
+    const result = game.completePromotion(PIECE_TYPE.QUEEN);
+
+    // The promotion hands the move to WATER, which is in check.
+    expect(game.currentFaction).toBe(FACTION.WATER);
+    expect(game.isKingInCheck(FACTION.WATER)).toBe(true);
+    expect(result.inCheck).toBe(true);
+  });
 });

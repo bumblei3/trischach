@@ -220,6 +220,11 @@ export class Game {
     this._nextTurn();
     this.selectedPiece = null;
     this.state = GAME_STATE.SELECT_PIECE;
+    // Report whether the now-to-move faction is in check (mirrors the
+    // post-move `result.inCheck` set in _selectTarget). Without this, a
+    // promotion returned `inCheck: undefined` even when the following
+    // faction was in check — inconsistent with every other move result.
+    result.inCheck = this.isKingInCheck(this.currentFaction);
     if (this.onUpdate) this.onUpdate();
     return result;
   }
