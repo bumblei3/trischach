@@ -32,9 +32,21 @@ export interface Skin {
 
 /** Colours of the default (classic elemental) skin, mirrored from board.ts. */
 const DEFAULT_COLORS: Record<Faction, FactionColor> = {
-  [FACTION.FIRE]: { primary: "#FF4500", secondary: "#FF6B35", glow: "#FF6B3566" },
-  [FACTION.WATER]: { primary: "#0099FF", secondary: "#00BFFF", glow: "#00BFFF66" },
-  [FACTION.NATURE]: { primary: "#22CC44", secondary: "#32CD32", glow: "#32CD3266" },
+  [FACTION.FIRE]: {
+    primary: "#FF4500",
+    secondary: "#FF6B35",
+    glow: "#FF6B3566",
+  },
+  [FACTION.WATER]: {
+    primary: "#0099FF",
+    secondary: "#00BFFF",
+    glow: "#00BFFF66",
+  },
+  [FACTION.NATURE]: {
+    primary: "#22CC44",
+    secondary: "#32CD32",
+    glow: "#32CD3266",
+  },
 } as Record<Faction, FactionColor>;
 
 export const SKINS: Record<string, Skin> = {
@@ -87,10 +99,14 @@ export function getSkin(id: string): Skin {
  */
 export function applySkin(
   id: string,
-  root: { setAttribute(name: string, value: string): void; style?: { setProperty(prop: string, value: string): void } } | null =
-    typeof document !== "undefined" ? document.documentElement : null,
-  colorTarget: Record<Faction, { primary: string; secondary: string; glow: string; name: string }> =
-    FACTION_COLORS,
+  root: {
+    setAttribute(name: string, value: string): void;
+    style?: { setProperty(prop: string, value: string): void };
+  } | null = typeof document !== "undefined" ? document.documentElement : null,
+  colorTarget: Record<
+    Faction,
+    { primary: string; secondary: string; glow: string; name: string }
+  > = FACTION_COLORS,
 ): string {
   const skin = getSkin(id);
 

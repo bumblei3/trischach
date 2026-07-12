@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-07-12
+
 ### Added
 
 - **Farb-Skins für das Brett.** Neues Modul `js/skins.ts` mit einem
@@ -26,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Null-Move-Pruning verwirft am Wurzelknoten keinen Zug mehr.** Bei offenem
   Suchfenster (`beta = Infinity`, z. B. der Root-Aufruf mit ±Infinity-Bounds)
   konnte der Null-Move-Refutations-Zweig ab Tiefe 3 `{ score: Infinity,
-  action: null }` zurückgeben — also einen unendlichen Score ohne Zug — und so
+action: null }` zurückgeben — also einen unendlichen Score ohne Zug — und so
   den besten Zug an der Wurzel stillschweigend verlieren. Null-Move-Pruning ist
   nur innerhalb eines begrenzten Fensters korrekt; ein zusätzlicher
   `Number.isFinite(beta)`-Guard stellt das sicher. Abgesichert durch einen
