@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`capturedPieces` now records every eliminated piece.** When a king was
+  captured (or a faction was checkmated/stalemated), all of that faction's
+  remaining pieces were flagged dead but only the king itself was added to the
+  captor's `capturedPieces` list — the rest silently vanished from the capture
+  tally. All four elimination paths (king-capture win, disadvantage-death,
+  checkmate, stalemate) now push every still-alive piece of the eliminated
+  faction exactly once, and `undoMove` correctly removes them again during AI
+  search. Guarded by new regression invariants in
+  `tests/engine-invariants.test.ts`.
+
 ## [1.2.1] - 2026-07-12
 
 ### Changed
