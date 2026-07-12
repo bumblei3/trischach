@@ -705,8 +705,12 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(richScore).toBeGreaterThan(poorScore);
     });
 
-    test("quiesce returns stand-pat score at depth limit", () => {
+    test("quiesce returns stand-pat (evaluateBoard) score at depth limit", () => {
+      // At qDepth >= 4 quiesce short-circuits and returns the static board
+      // evaluation for the maximizing faction (ai-core.ts:1923). Assert that
+      // contract directly instead of only checking the result shape.
       const gameState = createGameState();
+      const expected = evaluateBoard(gameState, FACTION.FIRE);
       const result = quiesce(
         gameState,
         -Infinity,
@@ -715,8 +719,8 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
         FACTION.FIRE,
         4,
       ); // qDepth >= 4
-      expect(result).toHaveProperty("score");
       expect(typeof result.score).toBe("number");
+      expect(result.score).toBe(expected);
     });
 
     test("iterativeDeepening returns a legal action for the moving faction", () => {
