@@ -9,6 +9,7 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
+import type { Faction } from "./types.ts";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
@@ -537,7 +538,7 @@ let currentBoardRotation = 0;
 // Track opening book moves for learning
 interface BookMoveRecord {
   hash: string;
-  faction: string;
+  faction: Faction;
   move: { pieceId: string; targetQ: number; targetR: number };
 }
 let autoBattleBookMoves: BookMoveRecord[] = [];
@@ -1218,7 +1219,7 @@ function showCombat(result: GameResult): void {
       // Learn from this game if there were book moves
       if (autoBattleBookMoves.length > 0) {
         const winnerFaction = result.winner_faction;
-        learnFromGame(autoBattleBookMoves, winnerFaction);
+        learnFromGame(autoBattleBookMoves, winnerFaction ?? null);
         saveLearnedDataToStorage();
         console.log(
           `Opening book: Learned from auto-battle game (${autoBattleBookMoves.length} book moves, winner: ${winnerFaction || "draw"})`,
@@ -2718,7 +2719,7 @@ function initEventListeners(): void {
 
           const gameHistory: Array<{
             hash: string;
-            faction: string;
+            faction: Faction;
             move: { pieceId: string; targetQ: number; targetR: number };
           }> = [];
           let moveCount = 0;
@@ -2928,7 +2929,7 @@ function initEventListeners(): void {
 
           const gameHistory: Array<{
             hash: string;
-            faction: string;
+            faction: Faction;
             move: { pieceId: string; targetQ: number; targetR: number };
           }> = [];
           let moveCount = 0;

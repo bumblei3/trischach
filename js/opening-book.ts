@@ -5,7 +5,6 @@
  * Generation is done via generate-opening-book.js
  */
 
-// @ts-nocheck - Temporary: Disable type checking during migration from JS
 import { FACTION, generateBoard } from "./board.ts";
 import { Hex } from "./hex.ts";
 import type {
@@ -17,13 +16,46 @@ import type {
 } from "./types.ts";
 
 // Opening book storage (loaded from compiled JSON)
-const OPENING_BOOK = new Map<
-  string,
-  Array<{
-    move: { pieceId: string; targetQ: number; targetR: number };
-    weight: number;
-  }>
->();
+interface BookMove {
+  pieceId: string;
+  targetQ: number;
+  targetR: number;
+}
+
+interface BookVariation {
+  move: BookMove;
+  weight: number;
+  // Learning stats (present once a variation has been visited via learnFromGame)
+  wins?: number;
+  draws?: number;
+  losses?: number;
+  visits?: number;
+}
+
+/** One recorded move from a completed game, used by learnFromGame. */
+export interface GameHistoryEntry {
+  hash: string;
+  faction: Faction;
+  move: BookMove;
+}
+
+/** Persisted learning stats for a single variation. */
+export interface LearnedVariation {
+  move: BookMove;
+  wins: number;
+  draws: number;
+  losses: number;
+  visits: number;
+}
+
+/** Shape of the persisted learned-data document. */
+export interface LearnedData {
+  version?: number;
+  updated?: string;
+  positions: Record<string, LearnedVariation[]>;
+}
+
+const OPENING_BOOK = new Map<string, BookVariation[]>();
 
 // Book metadata
 export const BOOK_INFO = {
@@ -65,11 +97,12 @@ export function parseMove(
   moveStr: string,
 ): { piece: Piece; target: Hex } | null {
   const [piecePart, targetPart] = moveStr.split("->").map((s) => s.trim());
+  if (!piecePart || !targetPart) return null;
   const piece = game.pieces.find((p) => p.id === piecePart);
   if (!piece) return null;
 
   const [q, r] = targetPart.split(",").map(Number);
-  if (isNaN(q) || isNaN(r)) return null;
+  if (q === undefined || r === undefined || isNaN(q) || isNaN(r)) return null;
 
   return { piece, target: new Hex(q, r) };
 }
@@ -85,7 +118,15 @@ export async function loadOpeningBook(): Promise<boolean> {
   try {
     // Use dynamic import for ES modules
     const module = await import("../opening-book.compiled.json");
-    const data = module.default;
+    const data = module.default as unknown as {
+      book?: Record<string, BookVariation[]>;
+      version?: string;
+      metadata?: {
+        stats?: { maxDepth?: number; totalPositions?: number };
+        lastUpdated?: string | null;
+        compiled?: string | null;
+      };
+    };
 
     if (!data || !data.book) {
       console.warn("Opening book: Invalid compiled format");
@@ -98,16 +139,16 @@ export async function loadOpeningBook(): Promise<boolean> {
       OPENING_BOOK.set(hash, variations);
     }
 
-    BOOK_INFO.version = data.version;
-    BOOK_INFO.maxPly = data.metadata.stats?.maxDepth || 9;
+    if (data.version) BOOK_INFO.version = data.version;
+    BOOK_INFO.maxPly = data.metadata?.stats?.maxDepth || 9;
     BOOK_INFO.totalPositions =
-      data.metadata.stats?.totalPositions || OPENING_BOOK.size;
-    BOOK_INFO.lastUpdated = data.metadata.lastUpdated;
-    BOOK_INFO.compiledAt = data.metadata.compiled;
+      data.metadata?.stats?.totalPositions || OPENING_BOOK.size;
+    BOOK_INFO.lastUpdated = data.metadata?.lastUpdated ?? null;
+    BOOK_INFO.compiledAt = data.metadata?.compiled ?? null;
 
     _bookLoaded = true;
     console.log(
-      `Opening book loaded: ${BOOK_INFO.totalPositions} positions from ${data.metadata.compiled}`,
+      `Opening book loaded: ${BOOK_INFO.totalPositions} positions from ${data.metadata?.compiled}`,
     );
     return true;
   } catch (error) {
@@ -325,6 +366,7 @@ export function buildOpeningBook(GameClass: new () => IGame): void {
     for (let i = 0; i < line.moves.length; i++) {
       const hash = boardHash(game);
       const moveStr = line.moves[i];
+      if (!moveStr) continue;
       const parsed = parseMove(game, moveStr);
 
       if (!parsed) {
@@ -435,6 +477,7 @@ export function pickBookMove(
 
   // Fallback to first move
   const entry = bookMoves[0];
+  if (!entry) return null;
   const piece = game.pieces.find((p) => p.id === entry.move.pieceId);
   if (piece && piece.alive) {
     return {
@@ -483,10 +526,10 @@ export { OPENING_BOOK };
 // Weighted learning from game results
 
 /** Update opening book weights based on a completed game */
-export function learnFromGame(gameHistory, winnerFaction) {
-  // gameHistory: array of { hash, faction, move: {pieceId, targetQ, targetR} }
-  // winnerFaction: 'fire' | 'water' | 'nature' | null (draw)
-
+export function learnFromGame(
+  gameHistory: GameHistoryEntry[],
+  winnerFaction: Faction | null,
+): void {
   for (const entry of gameHistory) {
     const variations = OPENING_BOOK.get(entry.hash);
     if (!variations) continue;
@@ -508,18 +551,18 @@ export function learnFromGame(gameHistory, winnerFaction) {
       variation.visits = 0;
     }
 
-    variation.visits++;
+    variation.visits = (variation.visits ?? 0) + 1;
     const isWinner = entry.faction === winnerFaction;
     const isDraw = winnerFaction === null;
 
     if (isWinner) {
-      variation.wins++;
+      variation.wins = (variation.wins ?? 0) + 1;
       variation.weight = Math.round(variation.weight * 1.3);
     } else if (isDraw) {
-      variation.draws++;
+      variation.draws = (variation.draws ?? 0) + 1;
       variation.weight = Math.round(variation.weight * 1.1);
     } else {
-      variation.losses++;
+      variation.losses = (variation.losses ?? 0) + 1;
       variation.weight = Math.round(variation.weight * 0.7);
     }
 
@@ -527,17 +570,17 @@ export function learnFromGame(gameHistory, winnerFaction) {
   }
 
   // Re-sort variations by weight
-  for (const [hash, variations] of OPENING_BOOK.entries()) {
+  for (const [, variations] of OPENING_BOOK.entries()) {
     variations.sort((a, b) => b.weight - a.weight);
   }
 }
 
 /** Export learned data for persistence */
-export function getLearnedData() {
-  const learned = {};
+export function getLearnedData(): Record<string, LearnedVariation[]> {
+  const learned: Record<string, LearnedVariation[]> = {};
   for (const [hash, variations] of OPENING_BOOK.entries()) {
     learned[hash] = variations
-      .filter((v) => v.visits > 0)
+      .filter((v) => (v.visits ?? 0) > 0)
       .map((v) => ({
         move: v.move,
         wins: v.wins || 0,
@@ -550,8 +593,10 @@ export function getLearnedData() {
 }
 
 /** Save learned data to JSON file */
-export async function saveLearnedData(filePath = null) {
-  const path = filePath || "opening-book.learned.json";
+export async function saveLearnedData(
+  filePath: string | null = null,
+): Promise<LearnedData & { version: number; updated: string }> {
+  void (filePath || "opening-book.learned.json");
   const data = {
     version: 1,
     updated: new Date().toISOString(),
@@ -564,7 +609,12 @@ export async function saveLearnedData(filePath = null) {
 }
 
 /** Load learned data from JSON */
-export function loadLearnedData(data) {
+export function loadLearnedData(
+  data:
+    | { positions?: Record<string, LearnedVariation[]> | null }
+    | null
+    | undefined,
+): void {
   if (!data || !data.positions) return;
 
   for (const [hash, variations] of Object.entries(data.positions)) {
