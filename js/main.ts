@@ -396,9 +396,6 @@ function calculateBestMoveWorker(
 ): Promise<WorkerMove | null> {
   const searchDepth = depthOverride ?? getAIDepth();
   const callId = ++cbmwCallCounter;
-  console.log(
-    `[DBG-CBMW] call#${callId} faction=${faction} depth=${searchDepth} aiWorker=${!!aiWorker} ready=${workerReady} pool=${workerPool.length}`,
-  );
   return new Promise((resolve) => {
     if (!aiWorker || !workerReady) {
       // Single-thread fallback — use parallel root-splitting on the main thread
@@ -486,12 +483,8 @@ function calculateBestMoveWorker(
           if (pending <= 0 && !settled) {
             settled = true;
             cleanup();
-            console.log(
-              `[DBG-POOL] settled call#${callId} bestMove=${bestMove ? bestMove.pieceId : "null"}`,
-            );
             resolve(bestMove);
           } else if (!settled) {
-            console.log(`[DBG-POOL] pending=${pending} call#${callId}`);
           }
         };
         handlers.push(handler);
