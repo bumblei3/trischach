@@ -189,6 +189,7 @@ export class Game {
       from: oldSymbol,
       to: piece.symbol,
       type: newType,
+      promotionType: newType,
       notation: `${piece.pos.q},${piece.pos.r} ♟→${piece.symbol}`,
     };
 

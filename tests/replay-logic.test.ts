@@ -28,6 +28,7 @@ import {
   copyGameToClipboard,
   loadGameFromString,
   loadGameFromFile,
+  parseMoveToken,
 } from "../js/replay.ts";
 
 // A real Game instance so ReplayController.precomputeStates() can call
@@ -494,5 +495,85 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
       (p) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
     );
     expect(occupant?.id === firePawn.id).toBe(false);
+  });
+});
+
+describe("formatMove / parseMoveToken: promotion piece type is preserved", () => {
+  test("formatMove writes the chosen promotion piece (R/B/N/Q), not always Q", () => {
+    const rookPromo = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.FIRE },
+      promotionType: "rook",
+    };
+    const bishopPromo = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.WATER },
+      promotionType: "bishop",
+    };
+    const knightPromo = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.NATURE },
+      promotionType: "knight",
+    };
+    expect(formatMove(rookPromo as never)).toBe("fire_Promotion=R");
+    expect(formatMove(bishopPromo as never)).toBe("water_Promotion=B");
+    expect(formatMove(knightPromo as never)).toBe("nature_Promotion=N");
+  });
+
+  test("formatMove falls back to Q when no promotionType is provided", () => {
+    const noType = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.FIRE },
+    };
+    expect(formatMove(noType as never)).toBe("fire_Promotion=Q");
+  });
+
+  test("parseMoveToken reads the promotion piece letter (R/B/N/Q)", () => {
+    expect(parseMoveToken("fire_Promotion=R").promotionType).toBe("rook");
+    expect(parseMoveToken("water_Promotion=B").promotionType).toBe("bishop");
+    expect(parseMoveToken("nature_Promotion=N").promotionType).toBe("knight");
+    expect(parseMoveToken("fire_Promotion=Q").promotionType).toBe("queen");
+  });
+
+  test("parseMoveToken reads promotion letter in a full move token", () => {
+    const m = parseMoveToken("fire_Pawn_0,0=R");
+    expect(m.promotion).toBe(true);
+    expect(m.promotionType).toBe("rook");
+    expect(m.target).toEqual({ q: 0, r: 0 });
+  });
+
+  test("completePromotion records promotionType in move history", () => {
+    const game = new Game();
+    game.init(generateBoard());
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    game.pieces = [pawn];
+    game._rebuildOccupiedMap();
+    game.pendingPromotion = pawn;
+    game.state = GAME_STATE.PROMOTION;
+
+    game.completePromotion(PIECE_TYPE.ROOK);
+    const last = game.moveHistory[game.moveHistory.length - 1]!;
+    expect(last.action).toBe("promotion");
+    expect(last.promotionType).toBe("rook");
+    expect(pawn.type).toBe(PIECE_TYPE.ROOK);
+  });
+
+  test("promotion round-trips through TSPN export + parse (R/B/N/Q)", () => {
+    for (const [letter, type] of [
+      ["R", "rook"],
+      ["B", "bishop"],
+      ["N", "knight"],
+      ["Q", "queen"],
+    ] as const) {
+      const parsed = parseMoveToken(`fire_Promotion=${letter}`);
+      expect(parsed.promotionType).toBe(type);
+      // The writer must emit the same single letter back.
+      const written = formatMove({
+        action: "promotion",
+        piece: { faction: FACTION.FIRE },
+        promotionType: type,
+      } as never);
+      expect(written).toBe(`fire_Promotion=${letter}`);
+    }
   });
 });

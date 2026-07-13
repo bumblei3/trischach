@@ -220,11 +220,30 @@ export function formatMove(
 
   // Handle promotion-only entries (no target)
   if (move.action === "promotion" || !target) {
-    return `${move.piece?.faction || "unknown"}_Promotion=Q`;
+    const PROMO_LETTER: Record<string, string> = {
+      queen: "Q",
+      rook: "R",
+      bishop: "B",
+      knight: "N",
+    };
+    const rawType = (move.promotionType || "queen").toString().toLowerCase();
+    const promoType = PROMO_LETTER[rawType] ?? "Q";
+    const factionPart = move.piece?.faction || move.faction || "unknown";
+    return `${factionPart}_Promotion=${promoType}`;
   }
 
   const piece = move.piece;
-  if (!piece) return `${move.faction || "unknown"}_Promotion=Q`;
+  if (!piece) {
+    const PROMO_LETTER2: Record<string, string> = {
+      queen: "Q",
+      rook: "R",
+      bishop: "B",
+      knight: "N",
+    };
+    const rawType2 = (move.promotionType || "queen").toString().toLowerCase();
+    const promoType = PROMO_LETTER2[rawType2] ?? "Q";
+    return `${move.faction || "unknown"}_Promotion=${promoType}`;
+  }
   const faction = piece.faction;
   const pieceName = piece.type.charAt(0).toUpperCase() + piece.type.slice(1);
 
@@ -460,14 +479,25 @@ export function parseMoveText(text: string): ParsedMove[] {
  *   fire_Pawn_0,0 =Q+
  */
 export function parseMoveToken(token: string): ParsedMove {
-  // Pattern: faction_PieceName[_x]_q,r [><=] [=Q] [#+] [comments]
+  // Pattern: faction_PieceName[_x]_q,r [><=] [=Q] [#+]
+  // Promotion pieces are encoded as a single letter (Q/R/B/N), matching the
+  // TSPN writer in formatMove().
+
+  const PROMO_MAP: Record<string, string> = {
+    q: "queen",
+    r: "rook",
+    b: "bishop",
+    n: "knight",
+  };
 
   // Remove trailing comments [...] - but save for raw
   const cleanToken = token.replace(/\s*\[.*?\]\s*$/, "");
 
   // Handle promotions without coordinates first
-  // Format: faction_PieceName_Promotion=Q OR faction_Promotion=Q
-  const promoMatch = cleanToken.match(/^([a-zA-Z]+)_(.+?)_Promotion=Q$/);
+  // Format: faction_PieceName_Promotion=Q/R/B/N OR faction_Promotion=Q/R/B/N
+  const promoMatch = cleanToken.match(
+    /^([a-zA-Z]+)_(.+?)_Promotion=(Q|R|B|N)$/,
+  );
   if (promoMatch) {
     const pieceName = promoMatch[2]!.toLowerCase();
     return {
@@ -478,15 +508,17 @@ export function parseMoveToken(token: string): ParsedMove {
       target: null,
       rpsResult: null,
       promotion: true,
-      promotionType: "queen",
+      promotionType: PROMO_MAP[promoMatch[3]!.toLowerCase()],
       check: false,
       checkmate: false,
       isCapture: false,
     };
   }
 
-  // Also handle faction_Promotion=Q (no pieceName)
-  const simplePromoMatch = cleanToken.match(/^([a-zA-Z]+)_Promotion=Q$/);
+  // Also handle faction_Promotion=Q/R/B/N (no pieceName)
+  const simplePromoMatch = cleanToken.match(
+    /^([a-zA-Z]+)_Promotion=(Q|R|B|N)$/,
+  );
   if (simplePromoMatch) {
     return {
       san: cleanToken,
@@ -496,7 +528,7 @@ export function parseMoveToken(token: string): ParsedMove {
       target: null,
       rpsResult: null,
       promotion: true,
-      promotionType: "queen",
+      promotionType: PROMO_MAP[simplePromoMatch[2]!.toLowerCase()],
       check: false,
       checkmate: false,
       isCapture: false,
@@ -507,7 +539,7 @@ export function parseMoveToken(token: string): ParsedMove {
   // Note: spaces before optional symbols are allowed
   // faction is letters only (not including _), pieceName can have _
   const match = cleanToken.match(
-    /^([a-zA-Z]+)_(.+?)(?:_x)?_([+-]?\d+,[+-]?\d+)\s*([<=>=])?(=Q)?([#+]?)?$/,
+    /^([a-zA-Z]+)_(.+?)(?:_x)?_([+-]?\d+,[+-]?\d+)\s*([<=>=])?(=(Q|R|B|N))?([#+]?)?$/,
   );
 
   if (!match) {
@@ -520,7 +552,8 @@ export function parseMoveToken(token: string): ParsedMove {
   const coord = match[3]!;
   const rpsSymbol = match[4];
   const promotion = match[5];
-  const check = match[6];
+  const promotionType = match[5] ? match[6]!.toLowerCase() : null;
+  const check = match[7];
   const rpsResult =
     rpsSymbol === ">"
       ? "advantage"
@@ -545,7 +578,7 @@ export function parseMoveToken(token: string): ParsedMove {
     target: { q, r },
     rpsResult,
     promotion: !!promotion,
-    promotionType: promotion ? "queen" : null,
+    promotionType: promotion ? PROMO_MAP[promotionType!.toLowerCase()] : null,
     check: check === "+",
     checkmate: check === "#",
     isCapture,

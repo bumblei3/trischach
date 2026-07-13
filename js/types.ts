@@ -214,6 +214,7 @@ export interface GameResult {
   winner?: Piece;
   loser?: Piece;
   promotion?: boolean;
+  promotionType?: PieceType;
   eliminated?: boolean;
   elimination?: Faction;
   eliminatedFaction?: Faction;
