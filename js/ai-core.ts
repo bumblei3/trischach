@@ -2556,8 +2556,7 @@ export function isPondering(): boolean {
  * to receive depth/score updates during pondering.
  */
 export let reportPonderProgress:
-  | ((depth: number, score: number, nodes: number) => void)
-  | null = null;
+  ((depth: number, score: number, nodes: number) => void) | null = null;
 
 export function setPonderProgressCallback(
   callback: (depth: number, score: number, nodes: number) => void,

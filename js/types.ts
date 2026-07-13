@@ -83,12 +83,7 @@ export function getRPSResult(attacker: Faction, defender: Faction): RPSResult {
 // ─── Piece Types ──────────────────────────────────────────────────
 
 export type PieceType =
-  | "king"
-  | "queen"
-  | "rook"
-  | "bishop"
-  | "knight"
-  | "pawn";
+  "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 
 export const PIECE_TYPES: PieceType[] = [
   "king",
@@ -340,10 +335,7 @@ export type Game = IGame;
 // ─── AI Types ─────────────────────────────────────────────────────
 
 export type AIPersonality =
-  | "balanced"
-  | "aggressive"
-  | "defensive"
-  | "tactical";
+  "balanced" | "aggressive" | "defensive" | "tactical";
 
 export interface PersonalityWeights {
   material: number;

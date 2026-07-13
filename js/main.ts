@@ -1262,10 +1262,7 @@ function showPromotion(piece: Piece): void {
       <div class="promotion-choices">
         ${(
           PROMOTION_CHOICES as readonly (
-            | "queen"
-            | "rook"
-            | "bishop"
-            | "knight"
+            "queen" | "rook" | "bishop" | "knight"
           )[]
         )
           .map(
@@ -1300,11 +1297,7 @@ function showPromotion(piece: Piece): void {
     promotionOverlay.querySelectorAll(".promotion-choice").forEach((btn) => {
       btn.addEventListener("mouseenter", () => {
         const type = (btn as HTMLElement).dataset.type as
-          | "queen"
-          | "rook"
-          | "bishop"
-          | "knight"
-          | undefined;
+          "queen" | "rook" | "bishop" | "knight" | undefined;
         if (!type) return;
         previewSymbol.textContent = symbols[type];
         previewName.textContent = names[type];
@@ -1457,10 +1450,7 @@ function initEventListeners(): void {
   const depthLabel = document.getElementById("depth-label") as HTMLElement;
   depthSlider?.addEventListener("input", (e: Event) => {
     const depth = parseInt((e.target as HTMLInputElement).value) as
-      | 1
-      | 2
-      | 3
-      | 4;
+      1 | 2 | 3 | 4;
     setAIDepth(depth);
     depthLabel.textContent = "KI: " + depthNames[depth];
     saveSettings({ ...loadSettings(), aiDepth: depth });
@@ -2435,10 +2425,7 @@ function initEventListeners(): void {
   ) as HTMLSelectElement;
   personalitySelect?.addEventListener("change", (e: Event) => {
     const personality = (e.target as HTMLSelectElement).value as
-      | "balanced"
-      | "aggressive"
-      | "defensive"
-      | "tactical";
+      "balanced" | "aggressive" | "defensive" | "tactical";
     setAIPersonality(personality);
     if (aiWorker && workerReady) {
       aiWorker.postMessage({ type: "setPersonality", personality });
@@ -2726,10 +2713,7 @@ function initEventListeners(): void {
           const personality = (personalitiesOrder[
             gameIdx % personalitiesOrder.length
           ] ?? "balanced") as
-            | "balanced"
-            | "aggressive"
-            | "defensive"
-            | "tactical";
+            "balanced" | "aggressive" | "defensive" | "tactical";
           setAIPersonality(personality);
 
           const gameHistory: Array<{
@@ -2749,9 +2733,7 @@ function initEventListeners(): void {
                   const winner = alive[0];
                   if (winner) {
                     winnerFaction = winner.faction as
-                      | "fire"
-                      | "water"
-                      | "nature";
+                      "fire" | "water" | "nature";
                     stats[winnerFaction]++;
                   } else {
                     stats.draws++;
@@ -2941,10 +2923,7 @@ function initEventListeners(): void {
           const personality = (personalitiesOrder[
             gameIdx % personalitiesOrder.length
           ] ?? "balanced") as
-            | "balanced"
-            | "aggressive"
-            | "defensive"
-            | "tactical";
+            "balanced" | "aggressive" | "defensive" | "tactical";
           setAIPersonality(personality);
 
           const gameHistory: Array<{
@@ -2964,9 +2943,7 @@ function initEventListeners(): void {
                   const winner = alive[0];
                   if (winner) {
                     winnerFaction = winner.faction as
-                      | "fire"
-                      | "water"
-                      | "nature";
+                      "fire" | "water" | "nature";
                     stats[winnerFaction]++;
                   } else {
                     stats.draws++;
