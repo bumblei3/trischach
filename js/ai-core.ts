@@ -1498,6 +1498,7 @@ export function simulateMove(
   const isPromotion = piece.type === "pawn" && piece.pos.r <= 0;
   if (isPromotion) {
     undo.promotion = piece.type;
+    undo.promotionSymbol = piece.symbol;
     piece.type = "queen";
     piece.symbol = "Q";
   }
@@ -1566,8 +1567,7 @@ export function undoMove(game: IGame, undo: AISnapshot): void {
 
   if (undo.promotion) {
     piece.type = undo.promotion;
-    piece.symbol =
-      piece.faction === "fire" ? "P" : piece.faction === "water" ? "P" : "P";
+    piece.symbol = undo.promotionSymbol ?? "♟";
   }
 
   game.currentFactionIdx = prevFactionIdx;
