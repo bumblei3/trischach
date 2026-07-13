@@ -44,13 +44,19 @@ import {
 // event loop. Tests verify AI logic, not search depth/strength.
 setAIDepth(2);
 
-// Mock opening-book to avoid needing full Game instance
-vi.mock("../js/opening-book.ts", () => ({
-  pickBookMove: vi.fn(() => null),
-  buildOpeningBook: vi.fn(),
-  inBook: vi.fn(() => false),
-  getBookMoves: vi.fn(() => null),
-}));
+// Mock opening-book to avoid needing full Game instance.
+// Use importOriginal so all real exports (incl. boardHash, used by main.ts's
+// dynamic import) pass through; only the book-lookup helpers are stubbed.
+vi.mock("../js/opening-book.ts", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    pickBookMove: vi.fn(() => null),
+    buildOpeningBook: vi.fn(),
+    inBook: vi.fn(() => false),
+    getBookMoves: vi.fn(() => null),
+  };
+});
 
 // --- Helper: Create a proper game state object (like deserializeGame does) ---
 function createGameState(overrides: Partial<IGame> = {}): IGame {
