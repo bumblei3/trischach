@@ -525,7 +525,7 @@ test.describe("TriSchach - Save/Load", () => {
     expect(moveEntries).toBeGreaterThan(0);
   });
 
-  test("Auto-Battle plays multiple moves without freezing the UI (regression)", async ({
+  test("Auto Battle plays multiple moves without freezing the UI (regression)", async ({
     page,
   }) => {
     // Regression test for the freeze that occurred on the SECOND auto-battle
@@ -534,16 +534,21 @@ test.describe("TriSchach - Save/Load", () => {
     await page.click("#auto-battle-btn");
     await expect(page.locator("#auto-battle-btn")).toHaveClass(/active/);
 
-    // Let auto-battle play at least a few moves (worker-backed, async).
-    // Each combat resolves via a 2.2s overlay (showCombat timer) before the
-    // next auto move is triggered, so allow ~12s to clear >2 moves.
-    await page.waitForTimeout(12000);
+    // Let auto-battle play several moves (worker-backed, async). Each combat
+    // resolves via a ~2.2s overlay (showCombat timer) before the next
+    // auto move is triggered. A cold dev-server start can be slow, so instead
+    // of a fixed wait we poll until >2 moves are logged (robust against
+    // server warm-up flakiness).
+    await expect
+      .poll(
+        async () => {
+          return page.locator("#move-log .move-entry").count();
+        },
+        { timeout: 30000, intervals: [1000] },
+      )
+      .toBeGreaterThan(2);
 
     // UI must still be interactive after multiple auto moves.
-    const moveEntries = await page.locator("#move-log .move-entry").count();
-    expect(moveEntries).toBeGreaterThan(2);
-
-    // Turn indicator must still be reachable (page not frozen).
     await expect(page.locator("#turn-indicator")).toBeVisible({
       timeout: 10000,
     });
