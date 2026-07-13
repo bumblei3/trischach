@@ -19,6 +19,7 @@ import {
   serializeGame,
   parseTSPN,
   parseMoveText,
+  formatMove,
   getResultString,
   cloneGameState,
   ReplayController,
@@ -164,6 +165,93 @@ describe("getResultString", () => {
       moveHistory: [...makeMoves()],
     });
     expect(getResultString(game)).toBe("1/2-1/2-1/2");
+  });
+});
+
+describe("formatMove annotations", () => {
+  // Helper: build a minimal move entry in the shape serializeGame emits.
+  const baseMove = {
+    piece: { faction: "fire" as const, type: "pawn", id: "p1" },
+    to: { q: 1, r: 1 },
+    faction: "fire" as const,
+    action: "move" as const,
+  };
+
+  test("emits the plain faction_pieceType_q,r notation for a quiet move", () => {
+    expect(formatMove(baseMove, {} as never, 0)).toBe("fire_Pawn_1,1");
+  });
+
+  test("marks the RPS result on a combat move (advantage/disadvantage/neutral)", () => {
+    const advantage = formatMove(
+      { ...baseMove, action: "combat", rpsResult: "advantage" },
+      {} as never,
+      0,
+    );
+    expect(advantage).toContain("fire_Pawn_x_1,1 >");
+
+    const disadvantage = formatMove(
+      { ...baseMove, action: "combat", rpsResult: "disadvantage" },
+      {} as never,
+      0,
+    );
+    expect(disadvantage).toContain("fire_Pawn_x_1,1 <");
+
+    const neutral = formatMove(
+      { ...baseMove, action: "combat", rpsResult: "neutral" },
+      {} as never,
+      0,
+    );
+    expect(neutral).toContain("fire_Pawn_x_1,1 =");
+  });
+
+  test("appends =Q for promotion", () => {
+    const promoted = formatMove(
+      { ...baseMove, promotion: true },
+      {} as never,
+      0,
+    );
+    expect(promoted).toContain("=Q");
+  });
+
+  test("appends # for checkmate and + for a mere check", () => {
+    const mate = formatMove({ ...baseMove, checkmate: true }, {} as never, 0);
+    expect(mate.endsWith("#")).toBe(true);
+
+    const check = formatMove({ ...baseMove, inCheck: true }, {} as never, 0);
+    expect(check.endsWith("+")).toBe(true);
+  });
+
+  test("appends the [faction eliminated] annotation on elimination", () => {
+    const elim = formatMove(
+      { ...baseMove, elimination: "water" },
+      {} as never,
+      0,
+    );
+    expect(elim).toContain("[water eliminated]");
+  });
+
+  test("falls back to a promotion placeholder when no piece is present", () => {
+    // No `piece`, but a `to` target and a top-level `faction` → reaches the
+    // `${move.faction || "unknown"}_Promotion=Q` defensive branch.
+    const noPiece = formatMove(
+      { faction: "fire", action: "move", to: { q: 2, r: 2 } } as never,
+      {} as never,
+      0,
+    );
+    expect(noPiece).toBe("fire_Promotion=Q");
+  });
+
+  test("falls back to a promotion placeholder for promotion-only entries", () => {
+    const promoOnly = formatMove(
+      {
+        faction: "water",
+        action: "promotion",
+        piece: { faction: "water", type: "pawn", id: "p2" },
+      } as never,
+      {} as never,
+      0,
+    );
+    expect(promoOnly).toBe("water_Promotion=Q");
   });
 });
 
