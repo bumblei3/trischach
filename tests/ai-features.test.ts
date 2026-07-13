@@ -1,4 +1,4 @@
-import { expect, test, describe, beforeEach } from "vitest";
+import { expect, test, describe, beforeEach, vi } from "vitest";
 
 // Test the AI modules directly (not through main.js UI)
 import { Game, GAME_STATE } from "../js/game.ts";
@@ -26,6 +26,20 @@ import {
 import { PIECE_TYPE, Piece } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 import { getLegalMoves } from "../js/ai-core.ts";
+
+// Mock opening-book so this file does not inherit a stale mock left in the
+// shared singleThread module cache by ai-worker.test.ts. Using importOriginal
+// keeps all real exports (incl. boardHash, used by main.ts's dynamic import)
+// passing through; only the book-lookup helpers are stubbed.
+vi.mock("../js/opening-book.ts", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    pickBookMove: vi.fn(() => null),
+    learnFromGame: vi.fn(),
+    getBookMove: vi.fn(() => null),
+  };
+});
 
 describe("AI Core: Dynamic Piece Values (RPS-aware)", () => {
   let game: Game;
