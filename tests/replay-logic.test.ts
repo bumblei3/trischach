@@ -396,15 +396,14 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     // The reconstructed game replayed the move: the pawn left its start square
     // and now sits on the recorded target square. NOTE: cloneGameState returns
     // pos as a plain {q,r} object (no .key), so compare q/r explicitly.
-    const replayedPawn = finalState.pieces.find(
-      (p: Piece) => p.id === firePawn.id,
-    );
-    expect(`${replayedPawn.pos.q},${replayedPawn.pos.r}`).toBe(
+    const replayedPawn = finalState.pieces.find((p) => p.id === firePawn.id);
+    expect(replayedPawn).toBeDefined();
+    expect(`${replayedPawn!.pos.q},${replayedPawn!.pos.r}`).toBe(
       `${target.q},${target.r}`,
     );
     // The start square is now empty (pawn moved away).
     const occupant = finalState.pieces.find(
-      (p: Piece) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
+      (p) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
     );
     expect(occupant?.id === firePawn.id).toBe(false);
   });
