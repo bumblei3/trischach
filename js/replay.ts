@@ -108,7 +108,7 @@ export interface ReplayStateSnapshot {
   currentFactionIdx: number;
   state: GameState | string;
   eliminatedFactions: (Faction | string)[];
-  capturedPieces: { fire: unknown[]; water: unknown[]; nature: unknown[] };
+  capturedPieces: { fire: string[]; water: string[]; nature: string[] };
   moveHistory: MoveHistoryEntry[];
 }
 

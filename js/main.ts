@@ -9,7 +9,7 @@ import {
   FACTION,
   generateBoard,
 } from "./board.ts";
-import type { Faction } from "./types.ts";
+import type { Faction, IGame, GameState } from "./types.ts";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
@@ -45,6 +45,7 @@ import {
   parseTSPN,
   reconstructGameFromTSPN,
   ReplayController,
+  ReplayStateSnapshot,
 } from "./replay.ts";
 import {
   generatePuzzlesFromBook,
@@ -67,6 +68,14 @@ import { Piece, PIECE_TYPE } from "./pieces.ts";
 declare global {
   interface Window {
     replayController?: ReplayController;
+    game: Game;
+    renderer: BoardRenderer;
+    __trischachTestPiece: typeof Piece;
+    __trischachTestTypes: {
+      PIECE_TYPE: typeof PIECE_TYPE;
+      FACTION: typeof FACTION;
+    };
+    __trischachTestHex: typeof Hex;
   }
 }
 
@@ -200,17 +209,17 @@ const game = new Game();
 // Expose the game + renderer instances for E2E tests / debugging (read-only
 // inspection and scripted setup of edge-case positions, e.g. driving a pawn
 // into the promotion zone without playing six moves by hand).
-(window as any).game = game;
-(window as any).renderer = renderer;
+window.game = game;
+window.renderer = renderer;
 
 // Expose engine constructors/values for E2E tests that script edge-case
 // positions (e.g. building a real Piece to drive promotion). Reads only.
-(window as any).__trischachTestPiece = Piece;
-(window as any).__trischachTestTypes = {
+window.__trischachTestPiece = Piece;
+window.__trischachTestTypes = {
   PIECE_TYPE,
   FACTION,
 };
-(window as any).__trischachTestHex = Hex;
+window.__trischachTestHex = Hex;
 
 // ─── AI Worker ──────────────────────────────────────────────────────
 
@@ -394,7 +403,11 @@ function calculateBestMoveWorker(
     if (!aiWorker || !workerReady) {
       // Single-thread fallback — use parallel root-splitting on the main thread
       // (degrades gracefully to iterativeDeepening for tiny positions).
-      const move = calculateBestMoveParallel(game, faction as any, searchDepth);
+      const move = calculateBestMoveParallel(
+        game,
+        faction as Faction,
+        searchDepth,
+      );
       if (move) {
         resolve({
           pieceId: move.piece.id,
@@ -413,7 +426,7 @@ function calculateBestMoveWorker(
     if (workerPool.length >= 2) {
       const callId = ++poolCallCounter;
       const gameState = serializeGameForWorker(game);
-      const allActions = getAllActions(game, faction as any);
+      const allActions = getAllActions(game, faction as Faction);
       if (allActions.length === 0) {
         resolve(null);
         return;
@@ -532,7 +545,7 @@ function serializeGameForWorker(game: Game): GameStateForWorker {
 // ─── Global State ───────────────────────────────────────────────────
 
 let autoBattleActive = false;
-let autoBattleTimer: any = null;
+let autoBattleTimer: ReturnType<typeof setTimeout> | null = null;
 let currentBoardRotation = 0;
 
 // Track opening book moves for learning
@@ -1612,7 +1625,7 @@ function initEventListeners(): void {
   }
 
   function updateReplayUI(): void {
-    const controller = window.replayController as any;
+    const controller = window.replayController;
     if (!controller) return;
 
     const moveInfo = document.getElementById("replay-move-info") as HTMLElement;
@@ -1722,7 +1735,7 @@ function initEventListeners(): void {
     if (replayPause) replayPause.style.display = "none";
   }
 
-  function applyGameState(state: any): void {
+  function applyGameState(state: ReplayStateSnapshot): void {
     const boardGroup = document.getElementById("board-group");
     if (boardGroup) {
       boardGroup.querySelectorAll(".piece").forEach((el) => el.remove());
@@ -1731,7 +1744,7 @@ function initEventListeners(): void {
 
     for (const p of state.pieces) {
       if (p.alive) {
-        const piece = game.pieces.find((pc: any) => pc.id === p.id);
+        const piece = game.pieces.find((pc: Piece) => pc.id === p.id);
         if (piece) {
           Object.assign(piece, p);
           renderer.renderPiece(piece);
@@ -1739,21 +1752,21 @@ function initEventListeners(): void {
       }
     }
 
-    game.currentFaction = state.currentFaction;
+    game.currentFaction = state.currentFaction as Faction;
     game.currentFactionIdx = state.currentFactionIdx;
-    game.state = state.state;
-    game.eliminatedFactions = new Set(state.eliminatedFactions);
+    game.state = state.state as GameState;
+    game.eliminatedFactions = new Set(state.eliminatedFactions as Faction[]);
     game.capturedPieces = {
       fire: (state.capturedPieces.fire || [])
-        .map((id: string) => game.pieces.find((p: any) => p.id === id))
+        .map((id: string) => game.pieces.find((p: Piece) => p.id === id))
         .filter(Boolean),
       water: (state.capturedPieces.water || [])
-        .map((id: string) => game.pieces.find((p: any) => p.id === id))
+        .map((id: string) => game.pieces.find((p: Piece) => p.id === id))
         .filter(Boolean),
       nature: (state.capturedPieces.nature || [])
-        .map((id: string) => game.pieces.find((p: any) => p.id === id))
+        .map((id: string) => game.pieces.find((p: Piece) => p.id === id))
         .filter(Boolean),
-    };
+    } as Record<Faction, Piece[]>;
 
     for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
       const el = document.getElementById(`panel-${fac}`);
@@ -2359,8 +2372,7 @@ function initEventListeners(): void {
 
       game.currentFactionIdx = factionIdx % 3;
       const factions = ["fire", "water", "nature"] as const;
-      // @ts-expect-error - index is always valid (0, 1, 2)
-      game.currentFaction = factions[game.currentFactionIdx];
+      game.currentFaction = factions[game.currentFactionIdx] as Faction;
       game._rebuildOccupiedMap();
 
       return game;
@@ -2729,7 +2741,7 @@ function initEventListeners(): void {
               // Learn from this game
               let winnerFaction: "fire" | "water" | "nature" | null = null;
               if (game.state === "game_over") {
-                const alive = game.pieces.filter((p: any) => p.alive);
+                const alive = game.pieces.filter((p: Piece) => p.alive);
                 if (alive.length === 1) {
                   const winner = alive[0];
                   if (winner) {
@@ -2809,10 +2821,10 @@ function initEventListeners(): void {
         });
       }
 
-      function boardHash(g: any): string {
+      function boardHash(g: IGame): string {
         const pieces = g.pieces
-          .filter((p: any) => p.alive)
-          .map((p: any) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+          .filter((p: Piece) => p.alive)
+          .map((p: Piece) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
           .sort()
           .join("|");
         return `${pieces}#${g.currentFactionIdx}`;
@@ -2939,7 +2951,7 @@ function initEventListeners(): void {
               // Learn from this game
               let winnerFaction: "fire" | "water" | "nature" | null = null;
               if (game.state === "game_over") {
-                const alive = game.pieces.filter((p: any) => p.alive);
+                const alive = game.pieces.filter((p: Piece) => p.alive);
                 if (alive.length === 1) {
                   const winner = alive[0];
                   if (winner) {
@@ -3019,10 +3031,10 @@ function initEventListeners(): void {
         });
       }
 
-      function boardHash(g: any): string {
+      function boardHash(g: IGame): string {
         const pieces = g.pieces
-          .filter((p: any) => p.alive)
-          .map((p: any) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+          .filter((p: Piece) => p.alive)
+          .map((p: Piece) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
           .sort()
           .join("|");
         return `${pieces}#${g.currentFactionIdx}`;
