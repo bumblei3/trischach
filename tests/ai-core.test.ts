@@ -7,6 +7,8 @@ import { test, describe, expect } from "vitest";
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import { PIECE_TYPE, PIECE_STRENGTH, Piece } from "../js/pieces.ts";
+import { Hex } from "../js/hex.ts";
+import type { PieceType } from "../js/types.ts";
 import {
   getMaterialValue,
   getDynamicPieceValue,
@@ -24,7 +26,8 @@ function createStartingGame(): Game {
 describe("ai-core: material valuation", () => {
   test("piece strength ordering (pawn<knight==bishop<rook<queen)", () => {
     const fire = FACTION.FIRE;
-    const mk = (t: PieceType) => getMaterialValue(new Piece(t, fire), fire);
+    const mk = (t: PieceType) =>
+      getMaterialValue(new Piece(t, fire, new Hex(0, 0)), fire);
 
     // Knight and Bishop are equally valued in standard piece tables.
     expect(mk(PIECE_TYPE.PAWN)).toBeLessThan(mk(PIECE_TYPE.KNIGHT));
@@ -34,7 +37,7 @@ describe("ai-core: material valuation", () => {
   });
 
   test("RPS disadvantage inflates the victim's material value", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE);
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
     const neutral = getMaterialValue(pawn, FACTION.FIRE); // own perspective => neutral (1.0x)
     // fire > water, so from water's perspective the fire pawn is advantaged => 0.85x.
     const advantaged = getMaterialValue(pawn, FACTION.WATER);
@@ -42,7 +45,6 @@ describe("ai-core: material valuation", () => {
     expect(neutral).toBeGreaterThan(0);
   });
 });
-
 describe("ai-core: dynamic piece value (RPS multiplier)", () => {
   test("RPS advantage reduces value, disadvantage inflates it", () => {
     const vt = PIECE_TYPE.PAWN;
