@@ -2252,9 +2252,7 @@ export function calculateBestMove(
     // game arrives as a serialized plain object (no .init method), so skip
     // building the hardcoded opening lines there — the compiled book is still
     // used via pickBookMove().
-    if (
-      typeof (game.constructor as { init?: unknown }).init === "function"
-    ) {
+    if (typeof (game.constructor as { init?: unknown }).init === "function") {
       buildOpeningBook(game.constructor as new () => IGame);
     }
     _bookBuilt = true;
