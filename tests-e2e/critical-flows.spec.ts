@@ -469,7 +469,9 @@ test.describe("TriSchach - Save/Load", () => {
     await expect(page.locator("#auto-battle-btn")).toHaveClass(/active/);
 
     // Let auto-battle play at least a few moves (worker-backed, async).
-    await page.waitForTimeout(6000);
+    // Each combat resolves via a 2.2s overlay (showCombat timer) before the
+    // next auto move is triggered, so allow ~12s to clear >2 moves.
+    await page.waitForTimeout(12000);
 
     // UI must still be interactive after multiple auto moves.
     const moveEntries = await page.locator("#move-log .move-entry").count();

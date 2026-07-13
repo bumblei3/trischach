@@ -18,6 +18,8 @@ import {
   setAIDepth,
   getAIDepth,
   getAllActions,
+  setNNUEEnabled,
+  loadNNUEWeights,
   setAIPersonality,
   getAIPersonalities,
   buildOpeningBook,
@@ -253,20 +255,65 @@ const PARALLEL_WORKERS = Math.max(
   ),
 );
 let workerPool: Worker[] = [];
+let poolCallCounter = 0;
+let cbmwCallCounter = 0;
 
-function spawnWorker(): Worker {
-  const w = new Worker("./ai-worker.js", { type: "module" });
-  w.onerror = (err: ErrorEvent) => {
-    console.warn("AI Worker error, falling back to main thread:", err);
-  };
-  w.postMessage({ type: "initBook" });
-  return w;
+// Detect a non-browser test DOM (happy-dom under vitest). Its `Worker` stub
+// tries to fetch/compile a module worker from the `new URL(...)` specifier and
+// hangs the test run, so we must skip real workers there and let the
+// main-thread fallback handle AI moves. happy-dom exposes a `happyDOM`
+// global on the window, which is a reliable in-browser-safe signal (no
+// `process` reference needed, so this also parses cleanly under ESLint).
+const IS_TEST_DOM =
+  typeof globalThis !== "undefined" &&
+  (globalThis as { happyDOM?: unknown }).happyDOM !== undefined;
+
+function spawnWorker(): Worker | null {
+  if (typeof Worker === "undefined" || IS_TEST_DOM) return null;
+  try {
+    // Use `new URL(..., import.meta.url)` so Vite resolves the worker module
+    // relative to THIS module (js/main.ts) instead of the page base. A bare
+    // "./ai-worker.js" is resolved relative to the document URL: in a dev
+    // server that hits the SPA fallback and returns index.html (not JS),
+    // which makes the module worker crash with an empty error event and
+    // silently forces every AI move onto the blocking main thread — freezing
+    // Auto-Battle after the first move. The `new URL` form resolves to
+    // /js/ai-worker.ts in dev and is correctly bundled to the hashed worker
+    // asset in a production build.
+    let w: Worker;
+    try {
+      w = new Worker(new URL("./ai-worker.ts", import.meta.url), {
+        type: "module",
+      });
+    } catch {
+      // Fallback for environments where the URL-constructor form is not
+      // supported (older bundlers): bare specifier relative to the page.
+      w = new Worker("./ai-worker.js", { type: "module" });
+    }
+    w.onerror = (err: ErrorEvent) => {
+      console.warn("AI Worker error, falling back to main thread:", err);
+    };
+    w.postMessage({ type: "initBook" });
+    return w;
+  } catch (e) {
+    // Any worker construction failure (unsupported env, module load error) →
+    // gracefully fall back to the main-thread search instead of crashing.
+    console.warn("Web Worker unavailable, using main thread AI:", e);
+    return null;
+  }
 }
 
 function initAIWorker(): void {
   try {
-    aiWorker = spawnWorker();
-    aiWorker.onmessage = (e: MessageEvent) => {
+    const worker = spawnWorker();
+    if (!worker) {
+      // No worker support in this environment — AI runs on the main thread.
+      aiWorker = null;
+      workerPool = [];
+      return;
+    }
+    aiWorker = worker;
+    worker.onmessage = (e: MessageEvent) => {
       const { type, move, depth, score, nodes } = e.data;
       if (type === "result" && pendingWorkerCallback) {
         pendingWorkerCallback(move);
@@ -282,16 +329,17 @@ function initAIWorker(): void {
         console.log("Worker ponder result:", move);
       }
     };
-    aiWorker.onerror = (err: ErrorEvent) => {
+    worker.onerror = (err: ErrorEvent) => {
       console.warn("AI Worker error, falling back to main thread:", err);
       aiWorker = null;
     };
-    aiWorker.postMessage({ type: "initBook" });
+    worker.postMessage({ type: "initBook" });
 
     // Build the parallel search pool (separate workers so pondering on the
     // legacy worker is never disturbed).
     for (let i = 0; i < PARALLEL_WORKERS; i++) {
-      workerPool.push(spawnWorker());
+      const poolWorker = spawnWorker();
+      if (poolWorker) workerPool.push(poolWorker);
     }
   } catch (e) {
     console.warn("Web Worker not supported, using main thread AI");
@@ -300,15 +348,52 @@ function initAIWorker(): void {
   }
 }
 
+// Load NNUE weights (async, non-blocking) and apply persisted toggle state.
+async function initNNUE(): Promise<void> {
+  try {
+    const res = await fetch("./js/weights/nnue-weights.json");
+    if (!res.ok) throw new Error(`NNUE weights fetch failed: ${res.status}`);
+    const raw = await res.json();
+    loadNNUEWeights({
+      w1: Float32Array.from(raw.w1),
+      b1: Float32Array.from(raw.b1),
+      w2: Float32Array.from(raw.w2),
+      b2: Float32Array.from(raw.b2),
+      w3: Float32Array.from(raw.w3),
+      b3: Float32Array.from(raw.b3),
+    });
+    const enabled = localStorage.getItem("trischach-nnue") === "1";
+    setNNUEEnabled(enabled);
+    const toggle = document.getElementById(
+      "nnue-toggle",
+    ) as HTMLInputElement | null;
+    if (toggle) {
+      toggle.checked = enabled;
+      toggle.addEventListener("change", () => {
+        setNNUEEnabled(toggle.checked);
+        localStorage.setItem("trischach-nnue", toggle.checked ? "1" : "0");
+      });
+    }
+  } catch (e) {
+    console.warn("NNUE weights not available, using classic eval:", e);
+  }
+}
+
 function calculateBestMoveWorker(
   game: Game,
   faction: string,
+  depthOverride?: number,
 ): Promise<WorkerMove | null> {
+  const searchDepth = depthOverride ?? getAIDepth();
+  const callId = ++cbmwCallCounter;
+  console.log(
+    `[DBG-CBMW] call#${callId} faction=${faction} depth=${searchDepth} aiWorker=${!!aiWorker} ready=${workerReady} pool=${workerPool.length}`,
+  );
   return new Promise((resolve) => {
     if (!aiWorker || !workerReady) {
       // Single-thread fallback — use parallel root-splitting on the main thread
       // (degrades gracefully to iterativeDeepening for tiny positions).
-      const move = calculateBestMoveParallel(game, faction as any, 2);
+      const move = calculateBestMoveParallel(game, faction as any, searchDepth);
       if (move) {
         resolve({
           pieceId: move.piece.id,
@@ -325,6 +410,7 @@ function calculateBestMoveWorker(
 
     // Real parallel search: split root moves across the worker pool.
     if (workerPool.length >= 2) {
+      const callId = ++poolCallCounter;
       const gameState = serializeGameForWorker(game);
       const allActions = getAllActions(game, faction as any);
       if (allActions.length === 0) {
@@ -338,7 +424,7 @@ function calculateBestMoveWorker(
         return;
       }
 
-      const n = Math.min(workerPool.length, allActions.length);
+      const n = workerPool.length;
       const groups: { pieceId: string; targetQ: number; targetR: number }[][] =
         Array.from({ length: n }, () => []);
       allActions.forEach((a, i) => {
@@ -352,30 +438,58 @@ function calculateBestMoveWorker(
       let pending = n;
       let bestScore = -Infinity;
       let bestMove: WorkerMove | null = null;
+      let settled = false;
 
-      workerPool.slice(0, n).forEach((worker, idx) => {
-        worker.onmessage = (e: MessageEvent) => {
-          if (e.data.type === "subsetResult") {
-            const { score, move } = e.data;
-            if (move && score > bestScore) {
-              bestScore = score;
-              bestMove = {
-                pieceId: move.pieceId,
-                targetQ: move.targetQ,
-                targetR: move.targetR,
-                moveType: move.moveType,
-                rps: move.rps,
-              };
-            }
-            pending--;
-            if (pending === 0) resolve(bestMove);
+      const handlers: Array<(e: MessageEvent) => void> = [];
+      // Remove EVERY handler registered for this call from its assigned
+      // worker. Pool workers are shared across consecutive auto-battle
+      // calls (we post to all `workerPool.length` workers), so a handler
+      // that is not removed leaks onto the next call and keeps decrementing
+      // a stale `pending` counter (observed as negative pending=-1,-2,…),
+      // corrupting that call's result. Removing only on `pending===0` is
+      // insufficient because a worker assigned to call#1 may also receive
+      // call#2's subset result before call#1 has settled.
+      const cleanup = (): void => {
+        workerPool.forEach((worker, i) => {
+          if (handlers[i]) worker.removeEventListener("message", handlers[i]!);
+        });
+      };
+      workerPool.forEach((worker, idx) => {
+        const handler = (e: MessageEvent) => {
+          if (e.data.type !== "subsetResult") return;
+          const { score, move } = e.data;
+          if (move && score > bestScore) {
+            bestScore = score;
+            bestMove = {
+              pieceId: move.pieceId,
+              targetQ: move.targetQ,
+              targetR: move.targetR,
+              moveType: move.moveType,
+              rps: move.rps,
+            };
+          }
+          pending--;
+          if (pending <= 0 && !settled) {
+            settled = true;
+            cleanup();
+            console.log(
+              `[DBG-POOL] settled call#${callId} bestMove=${bestMove ? bestMove.pieceId : "null"}`,
+            );
+            resolve(bestMove);
+          } else if (!settled) {
+            console.log(`[DBG-POOL] pending=${pending} call#${callId}`);
           }
         };
+        handlers.push(handler);
+        // Use addEventListener (not onmessage assignment) so consecutive
+        // auto-battle calls never overwrite each other's handlers on a
+        // shared pool worker.
+        worker.addEventListener("message", handler);
         worker.postMessage({
           type: "searchSubset",
           gameState,
           faction,
-          depth: getAIDepth(),
+          depth: searchDepth,
           subset: groups[idx],
         });
       });
@@ -496,6 +610,7 @@ function init(): void {
     }
     loadLearnedDataFromStorage(); // Merge localStorage learned data (non-fatal)
     initAIWorker();
+    initNNUE();
     const settings = loadSettings();
     applySettings(settings);
 
@@ -893,9 +1008,13 @@ function triggerAutoMove(): void {
 
     // Check if current position is in opening book before making move
     // Check if current position is in opening book before making move
-    const { inBook, pickBookMove } = await import("./opening-book.ts");
-    const wasInBook = inBook(game);
-    const bookMove = wasInBook ? pickBookMove(game) : null;
+    const {
+      inBook: inBookDyn,
+      pickBookMove: pickBookMoveDyn,
+      boardHash: boardHashDyn,
+    } = await import("./opening-book.ts");
+    const wasInBook = inBookDyn(game);
+    const bookMove = wasInBook ? pickBookMoveDyn(game) : null;
 
     // Stop pondering and get the best move found
     const ponderMove = await stopPondering();
@@ -910,7 +1029,7 @@ function triggerAutoMove(): void {
         rps: ponderMove.rps,
       };
     } else {
-      action = await calculateBestMoveWorker(game, game.currentFaction);
+      action = await calculateBestMoveWorker(game, game.currentFaction, 2);
     }
 
     if (action) {
@@ -922,8 +1041,8 @@ function triggerAutoMove(): void {
 
       // Record book move for learning if it was a book move
       if (wasInBook && bookMove && bookMove.piece.id === piece.id) {
-        const { boardHash } = await import("./opening-book.ts");
-        const hash = boardHash(game);
+        const { boardHash: boardHashDyn2 } = await import("./opening-book.ts");
+        const hash = boardHashDyn2(game);
         autoBattleBookMoves.push({
           hash,
           faction: game.currentFaction,
@@ -936,7 +1055,6 @@ function triggerAutoMove(): void {
       }
 
       game.handleCellClick(piece.pos);
-      const { Hex } = await import("./hex.ts");
       const target = new Hex(action.targetQ, action.targetR);
       const result = game.handleCellClick(target);
 
