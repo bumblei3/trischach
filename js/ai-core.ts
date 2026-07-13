@@ -1189,7 +1189,7 @@ export { evaluateNNUE, loadNNUEWeights };
  */
 export function evaluateBoardNNUE(game: IGame, faction: Faction): number {
   if (!_nnueEnabled) return evaluateBoard(game, faction);
-  return evaluateNNUE(game as any, faction);
+  return evaluateNNUE(game, faction);
 }
 
 // Single entry point for search-time evaluation (picks active eval).
@@ -2252,7 +2252,7 @@ export function calculateBestMove(
     // game arrives as a serialized plain object (no .init method), so skip
     // building the hardcoded opening lines there — the compiled book is still
     // used via pickBookMove().
-    if (typeof (game.constructor as any)?.init === "function") {
+    if (typeof (game.constructor as { init?: unknown }).init === "function") {
       buildOpeningBook(game.constructor as new () => IGame);
     }
     _bookBuilt = true;
