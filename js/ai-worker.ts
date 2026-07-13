@@ -66,6 +66,20 @@ import {
   quickSee,
 } from "./ai-core.ts";
 import { deserializeGame } from "./ai.ts";
+import type { SerializedGameState } from "./ai.ts";
+import type { Faction, AIAction } from "./types.ts";
+
+/** Shape of messages posted from the main thread into the AI worker. */
+interface WorkerRequest {
+  type: string;
+  gameState?: SerializedGameState;
+  faction?: Faction;
+  depth?: number;
+  personality?: string;
+  subset?: { pieceId: string; targetQ: number; targetR: number }[];
+  searchDepth?: number;
+  timeBudget?: number;
+}
 
 // Re-export for unit testing (coverage)
 export {
@@ -132,14 +146,15 @@ const ctx: Worker = self as unknown as Worker;
 ctx.postMessage({ type: "ready" });
 
 ctx.onmessage = function (e: MessageEvent) {
-  const { type, gameState, faction, depth, personality } = e.data as any;
+  const msg = e.data as WorkerRequest;
+  const { type, gameState, faction, depth, personality } = msg;
 
   if (type === "calculate") {
     // Reconstruct game object from serialized state
-    const game: any = deserializeGame(gameState);
+    const game = deserializeGame(gameState!);
     if (depth !== undefined) setAIDepth(depth);
 
-    const move = calculateBestMove(game, faction);
+    const move = calculateBestMove(game, faction!);
 
     if (move) {
       ctx.postMessage({
@@ -157,24 +172,24 @@ ctx.onmessage = function (e: MessageEvent) {
     }
   } else if (type === "searchSubset") {
     // Root-move splitting: search only the assigned subset of root moves.
-    const game: any = deserializeGame(gameState);
+    const game = deserializeGame(gameState!);
     if (depth !== undefined) setAIDepth(depth);
-    const subset = (e.data.subset as any[])
+    const subset = (msg.subset ?? [])
       .map((s) => {
         const target = new Hex(s.targetQ, s.targetR);
-        const actions = getAllActions(game, faction);
+        const actions = getAllActions(game, faction!);
         return actions.find(
-          (a: any) => a.piece.id === s.pieceId && a.target.equals(target),
+          (a: AIAction) => a.piece.id === s.pieceId && a.target.equals(target),
         )!;
       })
       .filter(Boolean);
-    const timeBudget = e.data.timeBudget ?? calculateTimeBudget(game);
+    const timeBudget = msg.timeBudget ?? calculateTimeBudget(game);
     beginSearch(timeBudget);
     const res = searchRootSubset(
       game,
-      faction,
+      faction!,
       subset,
-      e.data.searchDepth ?? getAIDepth(),
+      msg.searchDepth ?? getAIDepth(),
     );
     ctx.postMessage({
       type: "subsetResult",
@@ -194,8 +209,8 @@ ctx.onmessage = function (e: MessageEvent) {
     _ponderAbort = true;
 
     // Start new pondering
-    const game: any = deserializeGame(gameState);
-    const opponentFaction = faction; // In worker context, faction is the opponent to ponder for
+    const game = deserializeGame(gameState!);
+    const opponentFaction = faction!; // In worker context, faction is the opponent to ponder for
     _ponderAbort = false;
 
     // Import the ponder state from ai-core (worker has its own module instance)
@@ -245,16 +260,16 @@ ctx.onmessage = function (e: MessageEvent) {
         }
 
         // Clear progress callback
-        setPonderProgressCallback(null as any);
+        setPonderProgressCallback(null);
       })
       .catch(() => {
         ctx.postMessage({ type: "ponderResult", move: null });
-        setPonderProgressCallback(null as any);
+        setPonderProgressCallback(null);
       });
   } else if (type === "setDepth") {
-    setAIDepth(depth);
+    setAIDepth(depth ?? getAIDepth());
   } else if (type === "setPersonality") {
-    _workerPersonality = personality;
+    _workerPersonality = personality ?? "balanced";
   } else if (type === "initBook") {
     _bookBuilt = true;
     ctx.postMessage({ type: "bookReady" });
