@@ -2,6 +2,7 @@ import { getValidMoves, PIECE_STRENGTH, PIECE_TYPE } from "./pieces.ts";
 import { getRPSResult, FACTION, generateBoard } from "./board.ts";
 import { Hex } from "./hex.ts";
 import { isKingdomCheck } from "./game-check.ts";
+import type { IGame, Faction, GameState } from "./types.ts";
 import {
   pickBookMove,
   buildOpeningBook,
@@ -71,13 +72,41 @@ import {
   nodesSearched,
 } from "./ai-core.ts";
 
+/** A single piece as it appears in a serialized (postMessage) game state. */
+interface SerializedPiece {
+  id: string;
+  type: string;
+  faction: Faction | string;
+  pos: { q: number; r: number };
+  symbol: string;
+  alive: boolean;
+  hasMoved: boolean;
+}
+
+/** The plain-object game state sent from the main thread to the AI worker. */
+export interface SerializedGameState {
+  pieces: SerializedPiece[];
+  currentFactionIdx: number;
+  currentFaction: Faction | string;
+  state: GameState | string;
+  eliminatedFactions: (Faction | string)[];
+  rpsEnabled: boolean;
+  capturedPieces: Record<string, unknown[]> | unknown[];
+  _halfmoveClock?: number;
+}
+
 /**
  * Reconstruct a Game-like object from a serialized state.
  * Ported from ai-core.js (which lacks a TS counterpart for this function).
+ *
+ * The reconstructed object mirrors the subset of the `IGame` surface that the
+ * AI search touches (pieces, factions, occupied map, getAlivePieces/getPieces).
+ * It is cast to `IGame` at the single deserialization boundary; the search code
+ * never calls the UI/DOM methods that this lightweight object omits.
  */
-export function deserializeGame(state: any) {
+export function deserializeGame(state: SerializedGameState): IGame {
   const game = {
-    pieces: state.pieces.map((p: any) => ({
+    pieces: state.pieces.map((p) => ({
       id: p.id,
       type: p.type,
       faction: p.faction,
@@ -93,23 +122,19 @@ export function deserializeGame(state: any) {
     rpsEnabled: state.rpsEnabled,
     _occupiedMap: new Map(),
     capturedPieces: state.capturedPieces,
-    moveHistory: [] as any[],
+    moveHistory: [] as unknown[],
     _positionHistory: new Map(),
     _halfmoveClock: state._halfmoveClock || 0,
     // Rebuild the static board geometry. The serialized state omits
     // boardCells (it's constant), but move generation needs it to know
     // which target hexes are on the board.
     boardCells: generateBoard(),
+    getAlivePieces: () => game.pieces.filter((p) => p.alive),
+    getPieces: () => game.pieces,
   };
 
-  // Provide Game methods that the AI/search code calls directly
-  // (the main-thread Game instance has these; the deserialized
-  //  worker-side object must mirror them or getAlivePieces() etc. throw).
-  (game as any).getAlivePieces = () => game.pieces.filter((p: any) => p.alive);
-  (game as any).getPieces = () => game.pieces;
-
-  rebuildOccupiedMap(game as any);
-  return game;
+  rebuildOccupiedMap(game as unknown as IGame);
+  return game as unknown as IGame;
 }
 
 // Re-export for backward compatibility

@@ -836,7 +836,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
 
       const game = deserializeGame(state);
       expect(game.pieces.length).toBe(1);
-      expect(game.pieces[0].pos).toBeInstanceOf(Hex); // pos should be Hex
+      expect(game.pieces[0]!.pos).toBeInstanceOf(Hex); // pos should be Hex
       expect(game.currentFaction).toBe(FACTION.FIRE);
       expect(game.eliminatedFactions).toBeInstanceOf(Set);
       expect(game._occupiedMap).toBeInstanceOf(Map);

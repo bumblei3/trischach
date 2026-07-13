@@ -2559,7 +2559,7 @@ export let reportPonderProgress:
   ((depth: number, score: number, nodes: number) => void) | null = null;
 
 export function setPonderProgressCallback(
-  callback: (depth: number, score: number, nodes: number) => void,
+  callback: ((depth: number, score: number, nodes: number) => void) | null,
 ): void {
   reportPonderProgress = callback;
 }
