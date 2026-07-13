@@ -119,7 +119,9 @@ test("evaluateNNUE throws when weights are not loaded", () => {
   // Ensure no stale weights from a previous test persist.
   loadNNUEWeights(null as unknown as NNUEWeights);
   const g = makeGame();
-  expect(() => evaluateNNUE(g, FACTION.FIRE)).toThrow(/NNUE weights not loaded/);
+  expect(() => evaluateNNUE(g, FACTION.FIRE)).toThrow(
+    /NNUE weights not loaded/,
+  );
 });
 
 test("encodePosition skips dead (not alive) pieces", () => {
@@ -140,7 +142,9 @@ test("encodePosition sets exactly one piece-type and one faction one-hot per cel
   // and exactly one faction bit set (6..8).
   for (let c = 0; c < 66; c++) {
     if (vec[c * 10 + 9] !== 1) continue;
-    const typeBits = [0, 1, 2, 3, 4, 5].filter((t) => vec[c * 10 + t] === 1).length;
+    const typeBits = [0, 1, 2, 3, 4, 5].filter(
+      (t) => vec[c * 10 + t] === 1,
+    ).length;
     const factionBits = [6, 7, 8].filter((f) => vec[c * 10 + f] === 1).length;
     expect(typeBits).toBe(1);
     expect(factionBits).toBe(1);
