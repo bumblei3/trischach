@@ -13,7 +13,13 @@ export class SoundManager {
 
   private _init(): void {
     if (!this.ctx) {
-      const Ctor = window.AudioContext || (window as any).webkitAudioContext;
+      const Ctor =
+        window.AudioContext ||
+        (
+          window as unknown as {
+            webkitAudioContext?: typeof AudioContext;
+          }
+        ).webkitAudioContext;
       this.ctx = new Ctor();
     }
     if (this.ctx.state === "suspended") {
