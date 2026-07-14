@@ -82,7 +82,7 @@ describe("Engine invariants", () => {
       if (st === GAME_STATE.GAME_OVER) break;
 
       const faction = game.currentFaction;
-      const action = calculateBestMove(game as any, faction);
+      const action = calculateBestMove(game, faction);
 
       // AI may legitimately have no move (e.g. stalemate/eliminated).
       if (!action) {
