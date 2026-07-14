@@ -29,6 +29,8 @@ import {
   loadGameFromString,
   loadGameFromFile,
   parseMoveToken,
+  resolveSourcePiece,
+  replayGame,
 } from "../js/replay.ts";
 
 // A real Game instance so ReplayController.precomputeStates() can call
@@ -575,5 +577,153 @@ describe("formatMove / parseMoveToken: promotion piece type is preserved", () =>
       } as never);
       expect(written).toBe(`fire_Promotion=${letter}`);
     }
+  });
+});
+
+// ─── Branch-coverage hardening: resolveSourcePiece / replayGame / cloneGameState ───
+// These target real behavioural invariants of the replay reconstruction path
+// (source-square resolution from TSPN, promotion replay, snapshot fallbacks)
+// that the existing round-trip tests don't exercise. Not coverage padding —
+// each asserts a specific contract of how a saved game is re-materialised.
+describe("resolveSourcePiece (TSPN source-square resolution)", () => {
+  test("returns the in-memory piece as-is when move.piece has a pos", () => {
+    const piece = { faction: FACTION.FIRE, type: "pawn", pos: new Hex(1, 1) };
+    const resolved = resolveSourcePiece(
+      {} as never,
+      {
+        piece,
+      } as never,
+    );
+    expect(resolved).toBe(piece);
+  });
+
+  test("returns null when target/faction/pieceName are missing", () => {
+    expect(resolveSourcePiece({ pieces: [] } as never, {} as never)).toBeNull();
+  });
+
+  test("falls back to first candidate when game lacks getLegalMoves", () => {
+    const p = { faction: FACTION.FIRE, type: "pawn", alive: true };
+    const game = { pieces: [p] };
+    const resolved = resolveSourcePiece(
+      game as never,
+      {
+        faction: FACTION.FIRE,
+        pieceName: "Pawn",
+        target: { q: 5, r: 5 },
+      } as never,
+    );
+    expect(resolved).toBe(p);
+  });
+
+  test("uses getLegalMoves to pick the candidate whose moves include target", () => {
+    const p1 = {
+      faction: FACTION.FIRE,
+      type: "rook",
+      alive: true,
+      id: "r1",
+    };
+    const p2 = {
+      faction: FACTION.FIRE,
+      type: "rook",
+      alive: true,
+      id: "r2",
+    };
+    const game = {
+      getAlivePieces: () => [p1, p2],
+      getLegalMoves: (p: { id: string }) =>
+        p.id === "r2"
+          ? { moves: [{ q: 3, r: 4 }], attacks: [] }
+          : { moves: [{ q: 9, r: 9 }], attacks: [] },
+    };
+    const resolved = resolveSourcePiece(
+      game as never,
+      {
+        faction: FACTION.FIRE,
+        pieceName: "Rook",
+        target: { q: 3, r: 4 },
+      } as never,
+    );
+    expect(resolved).toBe(p2);
+  });
+
+  test("returns first candidate when no legal move matches the target", () => {
+    const p1 = { faction: FACTION.FIRE, type: "rook", alive: true, id: "r1" };
+    const game = {
+      getAlivePieces: () => [p1],
+      getLegalMoves: () => ({ moves: [], attacks: [] }),
+    };
+    const resolved = resolveSourcePiece(
+      game as never,
+      {
+        faction: FACTION.FIRE,
+        pieceName: "Rook",
+        target: { q: 3, r: 4 },
+      } as never,
+    );
+    expect(resolved).toBe(p1);
+  });
+});
+
+describe("replayGame generator", () => {
+  test("yields an initial pre-move snapshot with index -1 and null move", () => {
+    const game = makeEmptyGame();
+    const gen = replayGame(game, []);
+    const first = gen.next().value;
+    expect(first.index).toBe(-1);
+    expect(first.move).toBeNull();
+    expect(Array.isArray(first.game.pieces)).toBe(true);
+    // No moves → generator is exhausted after the initial snapshot.
+    expect(gen.next().done).toBe(true);
+  });
+
+  test("skips null/undefined move-history entries without throwing", () => {
+    const game = makeEmptyGame();
+    const steps = [...replayGame(game, [null as never, undefined as never])];
+    // Only the initial snapshot is yielded; the two empty moves are skipped.
+    expect(steps).toHaveLength(1);
+    expect(steps[0]!.index).toBe(-1);
+  });
+});
+
+describe("cloneGameState snapshot fallbacks", () => {
+  test("applies safe defaults for a minimal game object", () => {
+    const snap = cloneGameState({ pieces: [] } as never);
+    expect(snap.pieces).toEqual([]);
+    expect(snap.currentFaction).toBe("");
+    expect(snap.currentFactionIdx).toBe(0);
+    expect(snap.state).toBe("");
+    expect(snap.eliminatedFactions).toEqual([]);
+    expect(snap.capturedPieces).toEqual({ fire: [], water: [], nature: [] });
+  });
+
+  test("normalises captured pieces from both object and string forms to ids", () => {
+    const snap = cloneGameState({
+      pieces: [],
+      capturedPieces: {
+        fire: [{ id: "f1" } as never],
+        water: ["w-string" as never],
+        nature: [{ id: "n1" } as never, "n-string" as never],
+      },
+    } as never);
+    expect(snap.capturedPieces.fire).toEqual(["f1"]);
+    expect(snap.capturedPieces.water).toEqual(["w-string"]);
+    expect(snap.capturedPieces.nature).toEqual(["n1", "n-string"]);
+  });
+
+  test("produces a deep-independent pieces array (mutation does not leak)", () => {
+    const src = {
+      pieces: [
+        {
+          id: "p1",
+          type: "pawn",
+          faction: FACTION.FIRE,
+          pos: { q: 1, r: 2 },
+          alive: true,
+        },
+      ],
+    };
+    const snap = cloneGameState(src as never);
+    snap.pieces[0]!.pos.q = 99;
+    expect((src.pieces[0]!.pos as { q: number }).q).toBe(1);
   });
 });
