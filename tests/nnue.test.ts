@@ -181,3 +181,69 @@ test("evaluateNNUE output is bounded by tanh*1000 regardless of weights", () => 
   expect(Number.isFinite(score)).toBe(true);
   expect(Math.abs(score)).toBeLessThanOrEqual(1000.0001);
 });
+
+// ─── Training-health invariant: numerical gradient check ───────────────────
+//
+// The output layer is out = tanh(pre / T). A correct backward pass MUST apply
+// the chain-rule factor (1-out^2)/T. A previous bug computed the output
+// gradient as 2*(out-label), omitting that factor, so the analytic gradient
+// was ~T×(=80×) too large. On real multi-position trajectories this made
+// training diverge and the eval saturate to ±1000 (mini-Elo W0/L6).
+//
+// Loss-decrease heuristics do NOT catch this reliably (with tiny similar-
+// position batches the over-large gradient can still descend by luck). A
+// finite-difference gradient check does: it compares the analytic gradient
+// (extracted from one trainStep) against the numeric gradient and fails
+// deterministically if they differ in scale — regardless of random init.
+test("analytic gradient matches the numerical gradient (backprop chain-rule correct)", () => {
+  const g = makeGame();
+  const batch = [
+    { vec: encodePosition(g, FACTION.FIRE), label: 0.6 },
+    { vec: encodePosition(g, FACTION.NATURE), label: -0.4 },
+  ];
+  // Deterministic, non-trivial weights (no RNG → no flakiness).
+  const base = randomWeights();
+  const fill = (a: Float32Array, seed: number) => {
+    for (let i = 0; i < a.length; i++) a[i] = 0.05 * Math.sin(seed + i * 0.3); // small, keeps tanh unsaturated
+  };
+  fill(base.w1, 1);
+  fill(base.w2, 2);
+  fill(base.w3, 3);
+  fill(base.b1, 4);
+  fill(base.b2, 5);
+  base.b3[0] = 0.02;
+
+  const clone = (w: typeof base): typeof base => ({
+    w1: Float32Array.from(w.w1),
+    b1: Float32Array.from(w.b1),
+    w2: Float32Array.from(w.w2),
+    b2: Float32Array.from(w.b2),
+    w3: Float32Array.from(w.w3),
+    b3: Float32Array.from(w.b3),
+  });
+
+  // Analytic gradient (summed over the batch) via one trainStep. applyGrads
+  // updates w_new = w_old - (lr / n) * gradSummed, so:
+  //   gradSummed = (w_old - w_new) * n / lr.
+  const lr = 1e-3;
+  const wStep = clone(base);
+  trainStep(wStep, batch, lr);
+  const gAnalyticSummed = ((base.b3[0]! - wStep.b3[0]!) * batch.length) / lr;
+
+  // Numerical gradient of the MEAN loss via central finite differences, then
+  // scaled back up by n to compare against the summed analytic gradient.
+  const eps = 1e-4;
+  const wPlus = clone(base);
+  wPlus.b3[0]! += eps;
+  const wMinus = clone(base);
+  wMinus.b3[0]! -= eps;
+  const gNumericSummed =
+    ((loss(wPlus, batch) - loss(wMinus, batch)) / (2 * eps)) * batch.length;
+
+  // They must agree to a few percent. The old bug (missing (1-out^2)/T) made
+  // the analytic gradient ~T(=80)× too large, so this ratio would be ~80.
+  const ratio = gAnalyticSummed / gNumericSummed;
+  expect(Number.isFinite(ratio)).toBe(true);
+  expect(ratio).toBeGreaterThan(0.9);
+  expect(ratio).toBeLessThan(1.1);
+});
