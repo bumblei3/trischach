@@ -94,20 +94,49 @@ describe("isPromotion", () => {
     game = makeGame();
   });
 
-  test("true for a pawn whose target rank is the promotion rank (r <= 0)", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
-    expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(true);
-    expect(game.isPromotion(pawn, new Hex(-1, -1))).toBe(true);
+  test("FIRE pawn promotes only on its last rank (r === -2), not earlier", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    expect(game.isPromotion(pawn, new Hex(0, -2))).toBe(true); // last rank
+    expect(game.isPromotion(pawn, new Hex(-1, -1))).toBe(false); // still r=-1
+    expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(false); // apex, not last rank
+    expect(game.isPromotion(pawn, new Hex(1, 0))).toBe(false);
   });
 
-  test("false for a pawn not on the promotion rank", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 3));
-    expect(game.isPromotion(pawn, new Hex(0, 2))).toBe(false);
+  test("WATER pawn promotes only on its last rank (q === -7), not earlier", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(-6, 6));
+    expect(game.isPromotion(pawn, new Hex(-7, 6))).toBe(true); // last rank
+    expect(game.isPromotion(pawn, new Hex(-7, 5))).toBe(true); // other last-rank cell
+    expect(game.isPromotion(pawn, new Hex(-6, 5))).toBe(false); // not yet
+    // WATER starting pawns sit at r <= 0 but must NOT promote there
+    const start = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(1, 0));
+    expect(game.isPromotion(start, new Hex(1, 0))).toBe(false);
   });
 
-  test("false for a non-pawn piece", () => {
-    const rook = new Piece(PIECE_TYPE.ROOK, FACTION.FIRE, new Hex(0, 1));
-    expect(game.isPromotion(rook, new Hex(0, 0))).toBe(false);
+  test("NATURE pawn promotes only on its last rank (q === 2), not earlier", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+    expect(game.isPromotion(pawn, new Hex(2, 0))).toBe(true); // last rank
+    expect(game.isPromotion(pawn, new Hex(1, 1))).toBe(false); // not yet
+    // NATURE starting pawns must NOT promote early
+    const start = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(-1, 0));
+    expect(game.isPromotion(start, new Hex(-1, 0))).toBe(false);
+  });
+
+  test("a pawn not on the promotion rank does not promote", () => {
+    const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
+    expect(game.isPromotion(firePawn, new Hex(0, 4))).toBe(false);
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 3));
+    expect(game.isPromotion(waterPawn, new Hex(-1, 4))).toBe(false);
+    const naturePawn = new Piece(
+      PIECE_TYPE.PAWN,
+      FACTION.NATURE,
+      new Hex(-2, 3),
+    );
+    expect(game.isPromotion(naturePawn, new Hex(-1, 4))).toBe(false);
+  });
+
+  test("non-pawn pieces never promote", () => {
+    const rook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(-7, 5));
+    expect(game.isPromotion(rook, new Hex(-7, 5))).toBe(false);
   });
 });
 
@@ -252,7 +281,7 @@ describe("Threefold repetition over a promotion (regression for draw-state fix)"
     game.pieces = [];
     game._rebuildOccupiedMap();
 
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
     const natureKing = new Piece(
@@ -267,18 +296,18 @@ describe("Threefold repetition over a promotion (regression for draw-state fix)"
     game.state = GAME_STATE.SELECT_PIECE;
 
     // Drive the pawn to the promotion square (transient PROMOTION state).
-    game.handleCellClick(new Hex(0, 1));
-    game.handleCellClick(new Hex(0, 0));
+    game.handleCellClick(new Hex(0, -1));
+    game.handleCellClick(new Hex(0, -2));
     expect(game.state).toBe(GAME_STATE.PROMOTION);
 
-    // Compute the post-promotion hash (queen on 0,0) and seed it twice so the
+    // Compute the post-promotion hash (queen on 0,-2) and seed it twice so the
     // upcoming promotion becomes the 3rd occurrence.
     const postHash = `${game
       .getAlivePieces()
       .filter((p) => p.alive)
       .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
       .sort()
-      .join("|")}#0`.replace("fp0,0", "fq0,0");
+      .join("|")}#0`.replace("fp0,-2", "fq0,-2");
     game._positionHistory.set(postHash, 2);
 
     const result = game.completePromotion(PIECE_TYPE.QUEEN);

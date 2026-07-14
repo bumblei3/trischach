@@ -276,6 +276,11 @@ export interface AISnapshot {
   defenderWasKilled: boolean;
   attackerDied: boolean;
   eliminatedFaction?: Faction;
+  // Only the pieces actually killed by THIS simulated elimination. Used by
+  // undoMove so it resurrects exactly those — not every piece of the faction
+  // (which would wrongly revive pieces that were already captured earlier in
+  // the real game).
+  killedByElimination?: Piece[];
   promotion?: PieceType;
   promotionSymbol?: string;
   promoted?: boolean;

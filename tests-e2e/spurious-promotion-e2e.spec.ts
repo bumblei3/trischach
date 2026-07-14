@@ -25,7 +25,8 @@ test.describe("TriSchach - No spurious pawn promotion from AI search", () => {
     await page.waitForSelector("#board-svg .piece", { timeout: 15000 });
     await page.waitForTimeout(500);
 
-    // Position: one Fire pawn at (0,2) — r=2 is NOT the promotion rank (r<=0).
+    // Position: one Fire pawn at (0,2) — r=2 is NOT the promotion rank
+    // (FIRE promotes only on its last rank, r === -2).
     // Three kings keep the game in a valid state.
     await page.evaluate(() => {
       const g = window.game;

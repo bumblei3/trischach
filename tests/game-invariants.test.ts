@@ -12,7 +12,7 @@ import { describe, test, expect } from "vitest";
 import { Game, GAME_STATE } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import { Hex } from "../js/hex.ts";
-import { Piece, PIECE_STRENGTH } from "../js/pieces.ts";
+import { Piece, PIECE_TYPE, PIECE_STRENGTH } from "../js/pieces.ts";
 
 // Deterministic-ish RNG so failures are reproducible within a run.
 function makeRng(seed: number): () => number {
@@ -64,6 +64,33 @@ function playRandomGame(
     game.handleCellClick(piece.pos);
     if (game.state === GAME_STATE.GAME_OVER) break;
 
+    if (game.state === GAME_STATE.PROMOTION) {
+      game.completePromotion(PIECE_TYPE.QUEEN);
+      plies++;
+      // DEBUG: detect occupied drift immediately after promotion completion
+      for (const p of game.getAlivePieces()) {
+        if (game._occupiedMap!.get(p.pos.key) !== p) {
+          console.log(
+            "DRIFT after promotion-complete:",
+            p.id,
+            "@",
+            p.pos.q + "," + p.pos.r,
+            "occ=",
+            game._occupiedMap!.get(p.pos.key)?.id ?? "null",
+          );
+          console.log(
+            "  pieces:",
+            game
+              .getAlivePieces()
+              .map((x) => `${x.id}@${x.pos.q},${x.pos.r}`)
+              .join(" "),
+          );
+        }
+      }
+      checkInvariants(game, plies);
+      continue;
+    }
+
     // Choose a random target among the offered moves/attacks.
     const targets = [...game.validMoves, ...game.validAttacks];
     if (targets.length === 0) {
@@ -73,7 +100,41 @@ function playRandomGame(
       continue;
     }
     const target = targets[Math.floor(rng() * targets.length)]!;
+    const beforeOcc = new Map(game._occupiedMap!);
     game.handleCellClick(target);
+    // DEBUG: detect drift after a normal move
+    for (const p of game.getAlivePieces()) {
+      if (game._occupiedMap!.get(p.pos.key) !== p) {
+        console.log(
+          "DRIFT after move:",
+          p.id,
+          "@",
+          p.pos.q + "," + p.pos.r,
+          "occ=",
+          game._occupiedMap!.get(p.pos.key)?.id ?? "null",
+        );
+        console.log(
+          "  clicked:",
+          piece.id,
+          "@",
+          piece.pos.q + "," + piece.pos.r,
+          "-> target",
+          target.q + "," + target.r,
+        );
+        console.log(
+          "  validMoves were:",
+          targets.map((t) => `${t.q},${t.r}`).join(" "),
+        );
+        console.log(
+          "  pieces:",
+          game
+            .getAlivePieces()
+            .map((x) => `${x.id}@${x.pos.q},${x.pos.r}`)
+            .join(" "),
+        );
+        throw new Error("drift-debug");
+      }
+    }
 
     plies++;
     checkInvariants(game, plies);
