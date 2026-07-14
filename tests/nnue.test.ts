@@ -97,10 +97,7 @@ test("NNUE flag toggles evaluation path", () => {
 test("evaluateBoardNNUE falls back to classic eval when NNUE disabled", () => {
   setNNUEEnabled(false);
   const g = makeGame();
-  const classic = (function () {
-    // reference classic value via the same function the engine uses
-    return evaluateBoardNNUE(g, FACTION.FIRE);
-  })();
+  const classic = evaluateBoardNNUE(g, FACTION.FIRE);
   expect(Number.isFinite(classic)).toBe(true);
 });
 
@@ -154,15 +151,8 @@ test("encodePosition sets exactly one piece-type and one faction one-hot per cel
 test("relu forwards positive values and clamps negatives to zero", () => {
   loadNNUEWeights(randomWeights());
   const g = makeGame();
-  // Two evaluations with opposite-weight signs are hard to predict, so we
-  // assert the structural invariant directly via a known tiny position:
-  // build a vector that yields a negative pre-activation by overloading a
-  // near-zero weight set so the net output is within (-1,1). We instead test
-  // the activation math through forward() indirectly: evaluating the same
-  // position with weights scaled to a large magnitude can push the raw sum
-  // far negative, and tanh still returns a finite, bounded value.
-  const w = randomWeights();
   // Scale weights large so at least one h1/h2 pre-activation goes negative.
+  const w = randomWeights();
   for (let i = 0; i < w.w1.length; i++) w.w1[i]! *= 1000;
   for (let i = 0; i < w.w2.length; i++) w.w2[i]! *= 1000;
   loadNNUEWeights(w);
