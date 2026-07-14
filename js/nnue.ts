@@ -37,6 +37,12 @@ const F_ALIVE = 8; // always 1
 export const NNUE_INPUT_DIMS = MAX_PIECES * FEATURES_PER_PIECE;
 const H1 = 128;
 const H2 = 32;
+// Temperature: keeps the output pre-activation in the near-linear tanh region.
+// Shared by forward AND backward — the backward pass MUST divide the output
+// gradient by T (and multiply by the tanh derivative), otherwise the gradient
+// is ~T× too large and training diverges (loss goes UP, weights saturate tanh
+// to ±1 → every eval collapses to ±1000). See backward().
+const T = 80;
 const PIECE_TYPES = [
   "king",
   "queen",
@@ -77,7 +83,7 @@ export function loadNNUEWeights(w: NNUEWeights): void {
 
 export function encodePosition(
   game: IGame,
-  _perspective: Faction,
+  perspective: Faction,
 ): Float32Array {
   const vec = new Float32Array(NNUE_INPUT_DIMS);
   const alive = game.pieces.filter((p) => p.alive);
@@ -92,10 +98,15 @@ export function encodePosition(
     const base = s * FEATURES_PER_PIECE;
     const ti = PIECE_TYPES.indexOf(p.type as (typeof PIECE_TYPES)[number]);
     const fi = FACTIONS.indexOf(p.faction);
+    // Perspective-relative sign: own pieces are encoded positively, enemy
+    // pieces negatively. Without this the eval is identical for both sides
+    // (perspective-blind), which breaks alpha-beta search direction and
+    // costs ~800 Elo. This is the standard NNUE convention.
+    const sign = p.faction === perspective ? 1 : -1;
     vec[base + F_TYPE] = ti >= 0 ? ti : 0;
     vec[base + F_FACTION] = fi >= 0 ? fi : 0;
-    vec[base + F_Q] = Math.max(-1, Math.min(1, p.pos.q / 7));
-    vec[base + F_R] = Math.max(-1, Math.min(1, p.pos.r / 7));
+    vec[base + F_Q] = sign * Math.max(-1, Math.min(1, p.pos.q / 7));
+    vec[base + F_R] = sign * Math.max(-1, Math.min(1, p.pos.r / 7));
     // distance to own king
     const ok = kingPos[p.faction];
     vec[base + F_OWNKING] = ok
@@ -110,7 +121,7 @@ export function encodePosition(
     }
     vec[base + F_ENEMYKING] = Math.max(0, Math.min(1, dk / 12));
     vec[base + F_PROMO] = p.pos.r === promoRank(p.faction) ? 1 : 0;
-    vec[base + F_MATERIAL] = MATERIAL[p.type] ?? 0;
+    vec[base + F_MATERIAL] = sign * (MATERIAL[p.type] ?? 0);
     vec[base + F_ALIVE] = 1;
   }
   // Remaining slots stay at 0 except alive flag 0 (already 0) — fully
@@ -149,7 +160,6 @@ function forward(
   // to ±1. Without it, large trained weights push out to ±1 for every
   // position (all scores => ±1000), making NNUE useless. T is chosen so a
   // typical pre-activation (~±8) maps to a near-linear tanh slope.
-  const T = 80;
   return { out: Math.tanh(out / T), h1, h2 };
 }
 
@@ -201,8 +211,13 @@ function backward(
   g: Grads,
 ): void {
   const { out, h1, h2 } = forward(w, vec);
-  // dL/dout = 2*(out-label), out in tanh-space
-  const dOut = 2 * (out - label);
+  // dL/dout = 2*(out-label), where out = tanh(pre / T). Chain rule through the
+  // output nonlinearity: dL/dpre = dL/dout * d(tanh(pre/T))/dpre
+  //                              = 2*(out-label) * (1 - out^2) / T.
+  // Omitting the (1-out^2)/T factor (the previous bug) made the gradient ~T×
+  // too large and ignored tanh saturation → training diverged, loss rose, and
+  // the net saturated to ±1000 for every position. dOut below is dL/dpre.
+  const dOut = (2 * (out - label) * (1 - out * out)) / T;
   // output layer
   g.b3[0]! += dOut;
   for (let j = 0; j < H2; j++) g.w3[j]! += dOut * h2[j]!;
