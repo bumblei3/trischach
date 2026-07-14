@@ -10,7 +10,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Always run E2E serially (single worker). The Vite dev server is shared
+  // across workers; under parallel load Chrome aborts requests with
+  // net::ERR_FAILED, which the specs' `errors` assertions catch as flaky
+  // false-failures. CI already forced workers=1; do the same locally so the
+  // suite is deterministic everywhere. (Slight speed cost, worth stability.)
+  workers: 1,
   reporter: [["html"], ["json", { outputFile: "test-results/results.json" }]],
   use: {
     baseURL: "http://localhost:4173",
