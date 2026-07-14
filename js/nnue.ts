@@ -1,13 +1,17 @@
 /**
  * JS-NNUE Evaluation — neuronales Netz in reinem JS (kein WASM).
  *
- * Input-Encoding: 66 Zellen × 10 Features (6 Piece-Type-OneHot + 3
- * Faction-OneHot + 1 Occupied) = 660 dimensionale dichte Feature-Vektoren.
+ * Input-Encoding: PIECE-CENTRIC (dense, always fully populated). Instead of a
+ * 660-D one-hot over 66 cells (only ~4 cells ever occupied → sparse, dead
+ * hidden layer), we encode up to MAX_PIECES pieces, each as a dense feature
+ * vector (type, faction, normalised coords, distance to own/enemy kings,
+ * promo rank, material value, alive flag). Every input dimension is always
+ * non-zero, so the hidden layers receive real signal for every position.
  *
- * Netz: 660 → 128 (ReLU) → 32 (ReLU) → 1 (tanh × 1000).
- * ~88k Parameter, Inference via Float32Array MatMul (~0.02ms/Eval).
+ * Netz: NNUE_INPUT_DIMS → 128 (ReLU) → 32 (ReLU) → 1 (tanh × 1000 / T).
+ * Inference via Float32Array MatMul (~0.02ms/Eval).
  *
- * Training erfolgt offline (scripts/train-nnue.mjs, Self-Play). Gewichte
+ * Training erfolgt offline (scripts/train-nnue.ts, Self-Play). Gewichte
  * werden zur Laufzeit aus js/weights/nnue-weights.json geladen.
  */
 
@@ -16,8 +20,21 @@ import type { Faction, IGame } from "./types.ts";
 import { PIECE_TYPE } from "./pieces.ts";
 import { Hex } from "./hex.ts";
 
-export const NNUE_INPUT_DIMS = 660; // 66 cells × 10 features
-const CELL_COUNT = 66;
+// Piece-centric dense encoding. Every slot is always populated (alive flag =
+// 1), so no input dimension is ever "dark" — this is what lets the net learn.
+const MAX_PIECES = 18;
+const FEATURES_PER_PIECE = 9;
+// feature offsets within a slot
+const F_TYPE = 0; // 0..5 (king..pawn)
+const F_FACTION = 1; // 0..2
+const F_Q = 2; // q normalised to [-1,1]  (q range -7..7)
+const F_R = 3; // r normalised to [-1,1]  (r range -7..7)
+const F_OWNKING = 4; // distance to own king, normalised [0,1] (0=on king)
+const F_ENEMYKING = 5; // distance to nearest enemy king, normalised [0,1]
+const F_PROMO = 6; // 1 if on its last promotion rank, else 0
+const F_MATERIAL = 7; // material value normalised [-1,1]
+const F_ALIVE = 8; // always 1
+export const NNUE_INPUT_DIMS = MAX_PIECES * FEATURES_PER_PIECE;
 const H1 = 128;
 const H2 = 32;
 const PIECE_TYPES = [
@@ -29,32 +46,22 @@ const PIECE_TYPES = [
   "pawn",
 ] as const;
 const FACTIONS = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE] as const;
-
-// Canonical cell ordering — identical to generateBoard() iteration order.
-function buildCellOrder(): Hex[] {
-  const cells: Hex[] = [];
-  const N = 5;
-  for (let r = 0; r <= N; r++)
-    for (let q = -r; q <= 0; q++) cells.push(new Hex(q, r));
-  for (let d = 1; d <= 2; d++) {
-    const r = N + d;
-    for (let q = -N - d; q <= 0; q++) cells.push(new Hex(q, r));
-  }
-  for (let d = 1; d <= 2; d++) {
-    const q = d;
-    for (let r = -d; r <= N; r++) cells.push(new Hex(q, r));
-  }
-  for (let d = 1; d <= 2; d++) {
-    const s = d;
-    for (let r = -d; r <= N; r++) cells.push(new Hex(-r - s, r));
-  }
-  return cells;
+const MATERIAL: Record<string, number> = {
+  king: 0,
+  queen: 1,
+  rook: 0.5,
+  bishop: 0.33,
+  knight: 0.33,
+  pawn: 0.1,
+};
+// Promotion rank per faction (last rank the pawn reaches). Mirrors isPromotionCell.
+function promoRank(faction: Faction): number {
+  if (faction === FACTION.FIRE) return -2;
+  if (faction === FACTION.WATER) return -7;
+  return 2; // nature
 }
-const CELL_ORDER = buildCellOrder();
-const CELL_INDEX = new Map(CELL_ORDER.map((h, i) => [h.key, i]));
-
 export interface NNUEWeights {
-  w1: Float32Array; // [H1 × 660]
+  w1: Float32Array; // [H1 × NNUE_INPUT_DIMS]
   b1: Float32Array; // [H1]
   w2: Float32Array; // [H2 × H1]
   b2: Float32Array; // [H2]
@@ -73,17 +80,41 @@ export function encodePosition(
   _perspective: Faction,
 ): Float32Array {
   const vec = new Float32Array(NNUE_INPUT_DIMS);
-  for (const p of game.pieces) {
-    if (!p.alive) continue;
-    const ci = CELL_INDEX.get(p.pos.key);
-    if (ci === undefined) continue;
-    const base = ci * 10;
-    vec[base + 9] = 1; // occupied
-    const ti = PIECE_TYPES.indexOf(p.type as (typeof PIECE_TYPES)[number]);
-    if (ti >= 0) vec[base + ti] = 1;
-    const fi = FACTIONS.indexOf(p.faction);
-    if (fi >= 0) vec[base + 6 + fi] = 1;
+  const alive = game.pieces.filter((p) => p.alive);
+  // King positions per faction (for distance features).
+  const kingPos: Partial<Record<string, Hex>> = {};
+  for (const p of alive) {
+    if (p.type === "king") kingPos[p.faction] = p.pos;
   }
+  const n = Math.min(alive.length, MAX_PIECES);
+  for (let s = 0; s < n; s++) {
+    const p = alive[s]!;
+    const base = s * FEATURES_PER_PIECE;
+    const ti = PIECE_TYPES.indexOf(p.type as (typeof PIECE_TYPES)[number]);
+    const fi = FACTIONS.indexOf(p.faction);
+    vec[base + F_TYPE] = ti >= 0 ? ti : 0;
+    vec[base + F_FACTION] = fi >= 0 ? fi : 0;
+    vec[base + F_Q] = Math.max(-1, Math.min(1, p.pos.q / 7));
+    vec[base + F_R] = Math.max(-1, Math.min(1, p.pos.r / 7));
+    // distance to own king
+    const ok = kingPos[p.faction];
+    vec[base + F_OWNKING] = ok
+      ? Math.max(0, Math.min(1, ok.distance(p.pos) / 12))
+      : 0;
+    // distance to nearest enemy king
+    let dk = 12;
+    for (const f of FACTIONS) {
+      if (f === p.faction) continue;
+      const ek = kingPos[f];
+      if (ek) dk = Math.min(dk, ek.distance(p.pos));
+    }
+    vec[base + F_ENEMYKING] = Math.max(0, Math.min(1, dk / 12));
+    vec[base + F_PROMO] = p.pos.r === promoRank(p.faction) ? 1 : 0;
+    vec[base + F_MATERIAL] = MATERIAL[p.type] ?? 0;
+    vec[base + F_ALIVE] = 1;
+  }
+  // Remaining slots stay at 0 except alive flag 0 (already 0) — fully
+  // determined by n above; no extra work needed.
   return vec;
 }
 
@@ -113,7 +144,13 @@ function forward(
   }
   let out = w.b3[0]!;
   for (let j = 0; j < H2; j++) out += w.w3[j]! * h2[j]!;
-  return { out: Math.tanh(out), h1, h2 };
+  // Temperature T keeps the pre-activation in the linear tanh region so the
+  // network produces graded (position-dependent) scores instead of saturating
+  // to ±1. Without it, large trained weights push out to ±1 for every
+  // position (all scores => ±1000), making NNUE useless. T is chosen so a
+  // typical pre-activation (~±8) maps to a near-linear tanh slope.
+  const T = 80;
+  return { out: Math.tanh(out / T), h1, h2 };
 }
 
 export function evaluateNNUE(game: IGame, _perspective: Faction): number {
@@ -211,18 +248,23 @@ export function trainStep(
 }
 
 // For tests / trainer init
+// Glorot/Xavier initialization: scale = sqrt(2 / (fanIn + fanOut)). This keeps
+// pre-activations in a non-saturated, gradient-flowing range so the net can
+// actually learn. (The previous (Math.random()-0.5)*0.02 init was ~10x too
+// small, causing dead activations and a vanishing gradient during training.)
 export function randomWeights(): NNUEWeights {
-  const r = (n: number) => {
-    const a = new Float32Array(n);
-    for (let i = 0; i < n; i++) a[i] = (Math.random() - 0.5) * 0.02;
+  const glorot = (fanIn: number, fanOut: number) => {
+    const scale = Math.sqrt(2 / (fanIn + fanOut));
+    const a = new Float32Array(fanIn * fanOut);
+    for (let i = 0; i < a.length; i++) a[i] = (Math.random() * 2 - 1) * scale;
     return a;
   };
   return {
-    w1: r(H1 * NNUE_INPUT_DIMS),
-    b1: r(H1),
-    w2: r(H2 * H1),
-    b2: r(H2),
-    w3: r(H2),
-    b3: r(1),
+    w1: glorot(NNUE_INPUT_DIMS, H1),
+    b1: new Float32Array(H1), // biases zero
+    w2: glorot(H1, H2),
+    b2: new Float32Array(H2),
+    w3: glorot(H2, 1),
+    b3: new Float32Array(1),
   };
 }

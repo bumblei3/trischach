@@ -4,3 +4,5 @@ test-results/
 coverage/
 dist/
 node_modules/
+# Trained NNUE weights (large generated JSON, not hand-formatted)
+public/js/weights/nnue-weights.json
