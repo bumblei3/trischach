@@ -94,4 +94,13 @@ function main(): void {
   );
 }
 
-main();
+// Only run the 40-game benchmark when executed directly as a script — NOT when
+// imported (tests import `playGame` for a single-game smoke check). Running
+// main() on import made the unit-tests CI job play 40 full depth-3 games during
+// module load; once the NNUE weights were fixed (no longer saturating → games
+// no longer end instantly) this exceeded the 15-min job timeout and hung CI.
+const isDirectRun =
+  typeof process !== "undefined" &&
+  Array.isArray(process.argv) &&
+  /benchmark-nnue\.ts$/.test(process.argv[1] ?? "");
+if (isDirectRun) main();
