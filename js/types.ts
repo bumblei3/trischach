@@ -83,12 +83,7 @@ export function getRPSResult(attacker: Faction, defender: Faction): RPSResult {
 // ─── Piece Types ──────────────────────────────────────────────────
 
 export type PieceType =
-  | "king"
-  | "queen"
-  | "rook"
-  | "bishop"
-  | "knight"
-  | "pawn";
+  "king" | "queen" | "rook" | "bishop" | "knight" | "pawn";
 
 export const PIECE_TYPES: PieceType[] = [
   "king",
@@ -219,6 +214,7 @@ export interface GameResult {
   winner?: Piece;
   loser?: Piece;
   promotion?: boolean;
+  promotionType?: PieceType;
   eliminated?: boolean;
   elimination?: Faction;
   eliminatedFaction?: Faction;
@@ -280,7 +276,13 @@ export interface AISnapshot {
   defenderWasKilled: boolean;
   attackerDied: boolean;
   eliminatedFaction?: Faction;
+  // Only the pieces actually killed by THIS simulated elimination. Used by
+  // undoMove so it resurrects exactly those — not every piece of the faction
+  // (which would wrongly revive pieces that were already captured earlier in
+  // the real game).
+  killedByElimination?: Piece[];
   promotion?: PieceType;
+  promotionSymbol?: string;
   promoted?: boolean;
   prevFactionIdx: number;
   prevZobristHash?: bigint;
@@ -340,10 +342,7 @@ export type Game = IGame;
 // ─── AI Types ─────────────────────────────────────────────────────
 
 export type AIPersonality =
-  | "balanced"
-  | "aggressive"
-  | "defensive"
-  | "tactical";
+  "balanced" | "aggressive" | "defensive" | "tactical";
 
 export interface PersonalityWeights {
   material: number;

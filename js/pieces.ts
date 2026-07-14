@@ -1,4 +1,5 @@
 import { Hex, HEX_DIRECTIONS, HEX_DIAGONALS, hexKnightMoves } from "./hex.ts";
+import { FACTION } from "./board.ts";
 import type {
   Faction,
   PieceType,
@@ -66,6 +67,29 @@ const PAWN_FORWARD: PAWN_FORWARD_MAP = {
 
 // Attacks are the same as forward moves (like checkers/draughts) for simplicity
 const PAWN_ATTACK: PAWN_ATTACK_MAP = PAWN_FORWARD;
+
+/**
+ * Pawn "back rank" — the deepest reachable cell along each faction's forward
+ * axis (the all-letzte Reihe). The board is a triangle, so the promotion
+ * rank differs per faction and is NOT a simple `r <= 0`:
+ *   - FIRE   walks toward the apex (r decreases): last rank is r === -2
+ *   - WATER  walks along q = 1 -> q = -7 (q decreases): last rank is q === -7
+ *   - NATURE walks along q = -r - 1 -> q = 2 (q increases): last rank is q === 2
+ * A pawn promotes ONLY on reaching this single deepest rank.
+ */
+export function isPromotionCell(piece: Piece, target: Hex): boolean {
+  if (piece.type !== PIECE_TYPE.PAWN) return false;
+  switch (piece.faction) {
+    case FACTION.FIRE:
+      return target.r === -2;
+    case FACTION.WATER:
+      return target.q === -7;
+    case FACTION.NATURE:
+      return target.q === 2;
+    default:
+      return false;
+  }
+}
 
 /**
  * Get valid moves for a piece, given the board and occupied map.

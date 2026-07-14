@@ -44,13 +44,19 @@ import {
 // event loop. Tests verify AI logic, not search depth/strength.
 setAIDepth(2);
 
-// Mock opening-book to avoid needing full Game instance
-vi.mock("../js/opening-book.ts", () => ({
-  pickBookMove: vi.fn(() => null),
-  buildOpeningBook: vi.fn(),
-  inBook: vi.fn(() => false),
-  getBookMoves: vi.fn(() => null),
-}));
+// Mock opening-book to avoid needing full Game instance.
+// Use importOriginal so all real exports (incl. boardHash, used by main.ts's
+// dynamic import) pass through; only the book-lookup helpers are stubbed.
+vi.mock("../js/opening-book.ts", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    pickBookMove: vi.fn(() => null),
+    buildOpeningBook: vi.fn(),
+    inBook: vi.fn(() => false),
+    getBookMoves: vi.fn(() => null),
+  };
+});
 
 // --- Helper: Create a proper game state object (like deserializeGame does) ---
 function createGameState(overrides: Partial<IGame> = {}): IGame {
@@ -357,7 +363,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
   describe("Evaluation Functions", () => {
     test("evaluatePawnStructure gives bonus for advanced pawns", () => {
       const pieces = [
-        createPiece("pawn", FACTION.FIRE, 0, 0), // promotion rank
+        createPiece("pawn", FACTION.FIRE, 0, -2), // promotion rank (last row)
         createPiece("pawn", FACTION.FIRE, 1, 1),
         createPiece("pawn", FACTION.WATER, 0, 5), // back rank
       ];
@@ -439,11 +445,12 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("evaluateEndgame rewards advanced pawns closer to promotion", () => {
-      // FIRE promotes toward r <= 0. A pawn on r=0 must score higher than one on r=4.
+      // FIRE promotes only on its last rank (r === -2). A pawn on r=-1 (one
+      // step from promotion) must score higher than one on r=4.
       const advanced = createGameState({
         pieces: [
           createPiece("king", FACTION.FIRE, 0, 0),
-          createPiece("pawn", FACTION.FIRE, -2, 0),
+          createPiece("pawn", FACTION.FIRE, -2, -1),
           createPiece("king", FACTION.WATER, 4, 4),
         ],
         currentFaction: FACTION.FIRE,
@@ -836,7 +843,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
 
       const game = deserializeGame(state);
       expect(game.pieces.length).toBe(1);
-      expect(game.pieces[0].pos).toBeInstanceOf(Hex); // pos should be Hex
+      expect(game.pieces[0]!.pos).toBeInstanceOf(Hex); // pos should be Hex
       expect(game.currentFaction).toBe(FACTION.FIRE);
       expect(game.eliminatedFactions).toBeInstanceOf(Set);
       expect(game._occupiedMap).toBeInstanceOf(Map);

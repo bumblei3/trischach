@@ -1,6 +1,11 @@
 import { Hex } from "./hex.ts";
 import { FACTION, getRPSResult, FACTION_COLORS } from "./board.ts";
-import { getValidMoves, createInitialPieces, PIECE_TYPE } from "./pieces.ts";
+import {
+  getValidMoves,
+  createInitialPieces,
+  PIECE_TYPE,
+  isPromotionCell,
+} from "./pieces.ts";
 import {
   isKingdomCheck,
   legalMoveCheck,
@@ -161,9 +166,10 @@ export class Game {
     return isStalemateInternal(this as IGame, faction);
   }
 
-  /** Check if a pawn move to target triggers promotion. */
+  /** Check if a pawn move to target triggers promotion (reaches its faction's
+   * last rank along the forward axis). */
   isPromotion(piece: Piece, target: Hex): boolean {
-    return piece.type === PIECE_TYPE.PAWN && target.r <= 0;
+    return isPromotionCell(piece, target);
   }
 
   /** Complete a pending promotion by transforming the pawn into the chosen type. */
@@ -189,6 +195,7 @@ export class Game {
       from: oldSymbol,
       to: piece.symbol,
       type: newType,
+      promotionType: newType,
       notation: `${piece.pos.q},${piece.pos.r} ♟→${piece.symbol}`,
     };
 
@@ -477,6 +484,7 @@ export class Game {
       defenderWasKilled: false,
       attackerDied: false,
       eliminatedFaction: undefined,
+      killedByElimination: [],
       prevFactionIdx: this.currentFactionIdx,
     };
 
@@ -509,6 +517,7 @@ export class Game {
             // are already flagged dead and recorded.
             if (p.faction === defender.faction && p.alive) {
               p.alive = false;
+              undo.killedByElimination!.push(p);
               this.capturedPieces[piece.faction].push(p);
             }
           }
@@ -529,6 +538,7 @@ export class Game {
             // are already flagged dead and recorded.
             if (p.faction === piece.faction && p.alive) {
               p.alive = false;
+              undo.killedByElimination!.push(p);
               this.capturedPieces[defender.faction].push(p);
             }
           }
@@ -541,8 +551,9 @@ export class Game {
     }
 
     // Check for pawn promotion (for AI evaluation)
-    // Only if the pawn is still alive (didn't die from disadvantage)
-    if (piece.alive && piece.type === PIECE_TYPE.PAWN && target.r <= 0) {
+    // Only if the pawn is still alive (didn't die from disadvantage) and it
+    // reached its faction's last rank along the forward axis.
+    if (piece.alive && isPromotionCell(piece, target)) {
       undo.promoted = true;
     }
 
@@ -562,8 +573,14 @@ export class Game {
     // Undo elimination
     if (undo.eliminatedFaction) {
       this.eliminatedFactions.delete(undo.eliminatedFaction);
+      // Only revive the pieces THIS simulated move actually killed. The
+      // previous implementation revived every piece of the faction, which
+      // wrongly resurrected pieces that were already captured earlier in the
+      // real game — leaving two pieces on one hex (overlap) and corrupting
+      // capturedPieces. `killedByElimination` holds exactly the killed set.
+      const killed = new Set(undo.killedByElimination ?? []);
       for (const p of this.pieces) {
-        if (p.faction === undo.eliminatedFaction) {
+        if (p.faction === undo.eliminatedFaction && killed.has(p)) {
           p.alive = true;
           // Remove the piece from every faction's capturedPieces list, since
           // elimination recorded all of them as captured.

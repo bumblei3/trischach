@@ -10,11 +10,14 @@ updates:
     labels:
       - "dependencies"
       - "npm"
-    groups:
-      major-updates:
-        patterns: ["*"]
+    # Major version bumps are ignored: they routinely introduce breaking
+    # changes (e.g. the 86-package major-updates group broke typecheck,
+    # unit-tests and lint) and need deliberate, per-package handling rather
+    # than an automated group PR. Minor/patch updates stay enabled.
+    ignore:
+      - dependency-name: "*"
         update-types:
-          - "major"
+          - "version-update:semver-major"
     allow:
       - dependency-type: "direct"
         update-type: "version-update:semver-patch"

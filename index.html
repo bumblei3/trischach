@@ -10,8 +10,21 @@
     />
     <meta name="theme-color" content="#FF4500" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg" />
-    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <!-- Inline SVG favicon (data URI) so no separate /icons/* request is made.
+         A <link rel="icon" href="icons/icon-192.svg"> is fetched by Chrome via
+         its own icon-loading path that Playwright's page.route does NOT
+         intercept, so under dev-server load it could abort with
+         net::ERR_FAILED and break the E2E `errors` assertions. Inlining
+         removes the request entirely. -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%230a0a12'/%3E%3Cpath d='M96 28l20 56H56z' fill='%23FF4500'/%3E%3C/svg%3E"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%230a0a12'/%3E%3Cpath d='M96 28l20 56H56z' fill='%23FF4500'/%3E%3C/svg%3E"
+    />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta
@@ -279,7 +292,10 @@
             </div>
             <div class="setting-row">
               <label for="nnue-toggle">Neuronale Eval (NNUE)</label>
-              <input type="checkbox" id="nnue-toggle" />
+              <label class="switch">
+                <input type="checkbox" id="nnue-toggle" />
+                <span class="slider round"></span>
+              </label>
             </div>
             <div class="setting-group">
               <h3>Umwandlung</h3>

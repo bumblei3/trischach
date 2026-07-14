@@ -327,6 +327,72 @@ test.describe("TriSchach - Auto Battle", () => {
   });
 });
 
+test.describe("TriSchach - NNUE evaluation (regression)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#board-svg", { timeout: 15000 });
+    await page.waitForSelector("#board-svg .piece", { timeout: 15000 });
+    await page.waitForTimeout(1000);
+  });
+
+  test("NNUE toggle enables neural eval without 'weights not available' warning", async ({
+    page,
+  }) => {
+    // Collect console messages — the regression we guard against is the
+    // "NNUE weights not available, using classic eval" warning combined with
+    // the weights actually failing to load, which silently falls back to the
+    // classic eval (defeating the feature).
+    const consoleErrors: string[] = [];
+    page.on("console", (msg) => {
+      if (msg.type() === "warning" || msg.type() === "error") {
+        consoleErrors.push(msg.text());
+      }
+    });
+
+    // Open settings and enable the NNUE toggle.
+    await page.click("#settings-btn");
+    await expect(page.locator("#settings-overlay")).toHaveClass(/visible/);
+
+    const nnueToggle = page.locator("#nnue-toggle");
+    const nnueLabel = page.locator("label.switch:has(#nnue-toggle)");
+    await expect(nnueToggle).not.toBeChecked();
+
+    await nnueLabel.click();
+    await expect(nnueToggle).toBeChecked();
+
+    // App persists the flag under its own key and reads it on startup.
+    const nnueSetting = await page.evaluate(() =>
+      localStorage.getItem("trischach-nnue"),
+    );
+    expect(nnueSetting).toBe("1");
+
+    // Close settings, wait for the weights to load over the network.
+    await page.click("#settings-close");
+    await page.waitForTimeout(2500);
+
+    // Start Auto Battle — exercises the NNUE eval on real moves.
+    const autoBattleBtn = page.locator("#auto-battle-btn");
+    await autoBattleBtn.click();
+    await expect(autoBattleBtn).toHaveClass(/active/);
+
+    // Let several AI-vs-AI moves play out (combat overlay ~2.2s/move).
+    await page.waitForTimeout(15000);
+
+    // Stop — if it froze, this click would hang or the button stays stuck.
+    await autoBattleBtn.click();
+    await expect(autoBattleBtn).not.toHaveClass(/active/);
+
+    // Guard: neural weights must have loaded (no silent fallback warning).
+    const weightWarnings = consoleErrors.filter((t) =>
+      t.includes("NNUE weights not available"),
+    );
+    expect(
+      weightWarnings,
+      `NNUE weights failed to load: ${weightWarnings.join(" | ")}`,
+    ).toHaveLength(0);
+  });
+});
+
 test.describe("TriSchach - Save/Load", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -459,7 +525,7 @@ test.describe("TriSchach - Save/Load", () => {
     expect(moveEntries).toBeGreaterThan(0);
   });
 
-  test("Auto-Battle plays multiple moves without freezing the UI (regression)", async ({
+  test("Auto Battle plays multiple moves without freezing the UI (regression)", async ({
     page,
   }) => {
     // Regression test for the freeze that occurred on the SECOND auto-battle
@@ -468,16 +534,21 @@ test.describe("TriSchach - Save/Load", () => {
     await page.click("#auto-battle-btn");
     await expect(page.locator("#auto-battle-btn")).toHaveClass(/active/);
 
-    // Let auto-battle play at least a few moves (worker-backed, async).
-    // Each combat resolves via a 2.2s overlay (showCombat timer) before the
-    // next auto move is triggered, so allow ~12s to clear >2 moves.
-    await page.waitForTimeout(12000);
+    // Let auto-battle play several moves (worker-backed, async). Each combat
+    // resolves via a ~2.2s overlay (showCombat timer) before the next
+    // auto move is triggered. A cold dev-server start can be slow, so instead
+    // of a fixed wait we poll until >2 moves are logged (robust against
+    // server warm-up flakiness).
+    await expect
+      .poll(
+        async () => {
+          return page.locator("#move-log .move-entry").count();
+        },
+        { timeout: 30000, intervals: [1000] },
+      )
+      .toBeGreaterThan(2);
 
     // UI must still be interactive after multiple auto moves.
-    const moveEntries = await page.locator("#move-log .move-entry").count();
-    expect(moveEntries).toBeGreaterThan(2);
-
-    // Turn indicator must still be reachable (page not frozen).
     await expect(page.locator("#turn-indicator")).toBeVisible({
       timeout: 10000,
     });

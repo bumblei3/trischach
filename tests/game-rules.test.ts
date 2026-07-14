@@ -16,21 +16,33 @@ describe("Game rules: direct unit tests", () => {
   });
 
   describe("isPromotion", () => {
-    test("pawn on last rank (r <= 0) is a promotion", () => {
-      const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
-      expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(true);
-      expect(game.isPromotion(pawn, new Hex(-1, 0))).toBe(true);
+    test("FIRE pawn on last rank (r === -2) is a promotion", () => {
+      const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+      expect(game.isPromotion(pawn, new Hex(0, -2))).toBe(true);
+      expect(game.isPromotion(pawn, new Hex(2, -2))).toBe(true);
     });
 
-    test("pawn not on last rank is not a promotion", () => {
-      const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 5));
-      expect(game.isPromotion(pawn, new Hex(0, 4))).toBe(false);
-      expect(game.isPromotion(pawn, new Hex(1, 3))).toBe(false);
+    test("FIRE pawn not on last rank is not a promotion", () => {
+      const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+      expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(false); // apex, not last
+      expect(game.isPromotion(pawn, new Hex(1, -1))).toBe(false);
+    });
+
+    test("WATER pawn promotes only on last rank (q === -7)", () => {
+      const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(-6, 6));
+      expect(game.isPromotion(pawn, new Hex(-7, 6))).toBe(true);
+      expect(game.isPromotion(pawn, new Hex(-6, 5))).toBe(false);
+    });
+
+    test("NATURE pawn promotes only on last rank (q === 2)", () => {
+      const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+      expect(game.isPromotion(pawn, new Hex(2, 0))).toBe(true);
+      expect(game.isPromotion(pawn, new Hex(1, 1))).toBe(false);
     });
 
     test("non-pawn pieces never promote", () => {
-      const rook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(0, 5));
-      expect(game.isPromotion(rook, new Hex(0, 0))).toBe(false);
+      const rook = new Piece(PIECE_TYPE.ROOK, FACTION.WATER, new Hex(-7, 5));
+      expect(game.isPromotion(rook, new Hex(-7, 5))).toBe(false);
     });
   });
 

@@ -51,6 +51,13 @@ export interface PuzzleState {
   expectedMove?: PuzzleMove;
 }
 
+// handleCellClick mutates game.state at runtime, but TS narrows it via
+// control-flow analysis and wrongly concludes state can never be "game_over"
+// after the click calls. Compare against the raw string to avoid that pitfall.
+function isGameOverState(state: GameState): boolean {
+  return (state as string) === GAME_STATE.GAME_OVER;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────
 
 const PUZZLE_STORAGE_KEY = "trischach-puzzles";
@@ -141,8 +148,7 @@ function reconstructGameFromHash(hash: string): Game | null {
 
     game.currentFactionIdx = factionIdx % 3;
     const factions = ["fire", "water", "nature"] as const;
-    // @ts-expect-error - index is always valid (0, 1, 2)
-    game.currentFaction = factions[game.currentFactionIdx];
+    game.currentFaction = factions[game.currentFactionIdx] ?? "fire";
     game._rebuildOccupiedMap();
 
     return game;
@@ -272,10 +278,8 @@ async function searchForcedMate(
         testGame,
         getNextFaction(testGame, currentFaction)!,
       );
-      // @ts-expect-error - GameState union comparison
-      const isGameOver = testGame.state === GAME_STATE.GAME_OVER;
-      // @ts-expect-error - GameState union comparison with string literal
-      const isMate = testGame.state === GAME_STATE.GAME_OVER;
+      const isGameOver = isGameOverState(testGame.state);
+      const isMate = isGameOver;
 
       solutionMoves.push({
         pieceId: piece.id,
@@ -292,8 +296,7 @@ async function searchForcedMate(
         san: formatSAN(piece, target, isCapture, checkResult, isGameOver),
       });
 
-      // @ts-expect-error - GameState union comparison with string literal
-      if (testGame.state === GAME_STATE.GAME_OVER) {
+      if (isGameOverState(testGame.state)) {
         return solutionMoves;
       }
     } else {
@@ -586,8 +589,8 @@ export function formatSAN(
   isCheck: boolean,
   isMate: boolean,
 ): string {
-  // @ts-expect-error - piece.type is always a valid string
-  const pieceLetter = piece.type === "pawn" ? "" : piece.type[0].toUpperCase();
+  const pieceLetter =
+    piece.type === "pawn" ? "" : (piece.type[0] ?? "").toUpperCase();
   const capture = isCapture ? "x" : "";
   const check = isMate ? "#" : isCheck ? "+" : "";
   return `${pieceLetter}${piece.pos.q},${piece.pos.r}${capture}${target.q},${target.r}${check}`;
@@ -598,8 +601,7 @@ function serializePosition(game: Game): string {
     .getAlivePieces()
     .map(
       (p) =>
-        // @ts-expect-error - p.faction is always a valid string
-        `${p.faction[0].toUpperCase()}${p.type[0]}${p.pos.q},${p.pos.r}`,
+        `${p.faction[0]?.toUpperCase() ?? ""}${p.type[0] ?? ""}${p.pos.q},${p.pos.r}`,
     )
     .join("|");
   return `${pieces}#${game.currentFactionIdx}`;
@@ -614,8 +616,7 @@ function shuffleArray<T>(array: T[]): void {
     const j = Math.floor(Math.random() * (i + 1));
     const temp = array[i];
     array[i] = array[j]!;
-    // @ts-expect-error - indices are always valid
-    array[j] = temp;
+    array[j] = temp!;
   }
 }
 function getBookStats() {

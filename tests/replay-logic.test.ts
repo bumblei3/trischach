@@ -19,6 +19,7 @@ import {
   serializeGame,
   parseTSPN,
   parseMoveText,
+  formatMove,
   getResultString,
   cloneGameState,
   ReplayController,
@@ -27,6 +28,7 @@ import {
   copyGameToClipboard,
   loadGameFromString,
   loadGameFromFile,
+  parseMoveToken,
 } from "../js/replay.ts";
 
 // A real Game instance so ReplayController.precomputeStates() can call
@@ -164,6 +166,93 @@ describe("getResultString", () => {
       moveHistory: [...makeMoves()],
     });
     expect(getResultString(game)).toBe("1/2-1/2-1/2");
+  });
+});
+
+describe("formatMove annotations", () => {
+  // Helper: build a minimal move entry in the shape serializeGame emits.
+  const baseMove = {
+    piece: { faction: "fire" as const, type: "pawn", id: "p1" },
+    to: { q: 1, r: 1 },
+    faction: "fire" as const,
+    action: "move" as const,
+  };
+
+  test("emits the plain faction_pieceType_q,r notation for a quiet move", () => {
+    expect(formatMove(baseMove, {} as never, 0)).toBe("fire_Pawn_1,1");
+  });
+
+  test("marks the RPS result on a combat move (advantage/disadvantage/neutral)", () => {
+    const advantage = formatMove(
+      { ...baseMove, action: "combat", rpsResult: "advantage" },
+      {} as never,
+      0,
+    );
+    expect(advantage).toContain("fire_Pawn_x_1,1 >");
+
+    const disadvantage = formatMove(
+      { ...baseMove, action: "combat", rpsResult: "disadvantage" },
+      {} as never,
+      0,
+    );
+    expect(disadvantage).toContain("fire_Pawn_x_1,1 <");
+
+    const neutral = formatMove(
+      { ...baseMove, action: "combat", rpsResult: "neutral" },
+      {} as never,
+      0,
+    );
+    expect(neutral).toContain("fire_Pawn_x_1,1 =");
+  });
+
+  test("appends =Q for promotion", () => {
+    const promoted = formatMove(
+      { ...baseMove, promotion: true },
+      {} as never,
+      0,
+    );
+    expect(promoted).toContain("=Q");
+  });
+
+  test("appends # for checkmate and + for a mere check", () => {
+    const mate = formatMove({ ...baseMove, checkmate: true }, {} as never, 0);
+    expect(mate.endsWith("#")).toBe(true);
+
+    const check = formatMove({ ...baseMove, inCheck: true }, {} as never, 0);
+    expect(check.endsWith("+")).toBe(true);
+  });
+
+  test("appends the [faction eliminated] annotation on elimination", () => {
+    const elim = formatMove(
+      { ...baseMove, elimination: "water" },
+      {} as never,
+      0,
+    );
+    expect(elim).toContain("[water eliminated]");
+  });
+
+  test("falls back to a promotion placeholder when no piece is present", () => {
+    // No `piece`, but a `to` target and a top-level `faction` → reaches the
+    // `${move.faction || "unknown"}_Promotion=Q` defensive branch.
+    const noPiece = formatMove(
+      { faction: "fire", action: "move", to: { q: 2, r: 2 } } as never,
+      {} as never,
+      0,
+    );
+    expect(noPiece).toBe("fire_Promotion=Q");
+  });
+
+  test("falls back to a promotion placeholder for promotion-only entries", () => {
+    const promoOnly = formatMove(
+      {
+        faction: "water",
+        action: "promotion",
+        piece: { faction: "water", type: "pawn", id: "p2" },
+      } as never,
+      {} as never,
+      0,
+    );
+    expect(promoOnly).toBe("water_Promotion=Q");
   });
 });
 
@@ -396,16 +485,95 @@ describe("downloadGame / copyGameToClipboard / loadGameFromString / loadGameFrom
     // The reconstructed game replayed the move: the pawn left its start square
     // and now sits on the recorded target square. NOTE: cloneGameState returns
     // pos as a plain {q,r} object (no .key), so compare q/r explicitly.
-    const replayedPawn = finalState.pieces.find(
-      (p: Piece) => p.id === firePawn.id,
-    );
-    expect(`${replayedPawn.pos.q},${replayedPawn.pos.r}`).toBe(
+    const replayedPawn = finalState.pieces.find((p) => p.id === firePawn.id);
+    expect(replayedPawn).toBeDefined();
+    expect(`${replayedPawn!.pos.q},${replayedPawn!.pos.r}`).toBe(
       `${target.q},${target.r}`,
     );
     // The start square is now empty (pawn moved away).
     const occupant = finalState.pieces.find(
-      (p: Piece) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
+      (p) => `${p.pos.q},${p.pos.r}` === startKey && p.alive,
     );
     expect(occupant?.id === firePawn.id).toBe(false);
+  });
+});
+
+describe("formatMove / parseMoveToken: promotion piece type is preserved", () => {
+  test("formatMove writes the chosen promotion piece (R/B/N/Q), not always Q", () => {
+    const rookPromo = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.FIRE },
+      promotionType: "rook",
+    };
+    const bishopPromo = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.WATER },
+      promotionType: "bishop",
+    };
+    const knightPromo = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.NATURE },
+      promotionType: "knight",
+    };
+    expect(formatMove(rookPromo as never)).toBe("fire_Promotion=R");
+    expect(formatMove(bishopPromo as never)).toBe("water_Promotion=B");
+    expect(formatMove(knightPromo as never)).toBe("nature_Promotion=N");
+  });
+
+  test("formatMove falls back to Q when no promotionType is provided", () => {
+    const noType = {
+      action: "promotion" as const,
+      piece: { faction: FACTION.FIRE },
+    };
+    expect(formatMove(noType as never)).toBe("fire_Promotion=Q");
+  });
+
+  test("parseMoveToken reads the promotion piece letter (R/B/N/Q)", () => {
+    expect(parseMoveToken("fire_Promotion=R").promotionType).toBe("rook");
+    expect(parseMoveToken("water_Promotion=B").promotionType).toBe("bishop");
+    expect(parseMoveToken("nature_Promotion=N").promotionType).toBe("knight");
+    expect(parseMoveToken("fire_Promotion=Q").promotionType).toBe("queen");
+  });
+
+  test("parseMoveToken reads promotion letter in a full move token", () => {
+    const m = parseMoveToken("fire_Pawn_0,0=R");
+    expect(m.promotion).toBe(true);
+    expect(m.promotionType).toBe("rook");
+    expect(m.target).toEqual({ q: 0, r: 0 });
+  });
+
+  test("completePromotion records promotionType in move history", () => {
+    const game = new Game();
+    game.init(generateBoard());
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    game.pieces = [pawn];
+    game._rebuildOccupiedMap();
+    game.pendingPromotion = pawn;
+    game.state = GAME_STATE.PROMOTION;
+
+    game.completePromotion(PIECE_TYPE.ROOK);
+    const last = game.moveHistory[game.moveHistory.length - 1]!;
+    expect(last.action).toBe("promotion");
+    expect(last.promotionType).toBe("rook");
+    expect(pawn.type).toBe(PIECE_TYPE.ROOK);
+  });
+
+  test("promotion round-trips through TSPN export + parse (R/B/N/Q)", () => {
+    for (const [letter, type] of [
+      ["R", "rook"],
+      ["B", "bishop"],
+      ["N", "knight"],
+      ["Q", "queen"],
+    ] as const) {
+      const parsed = parseMoveToken(`fire_Promotion=${letter}`);
+      expect(parsed.promotionType).toBe(type);
+      // The writer must emit the same single letter back.
+      const written = formatMove({
+        action: "promotion",
+        piece: { faction: FACTION.FIRE },
+        promotionType: type,
+      } as never);
+      expect(written).toBe(`fire_Promotion=${letter}`);
+    }
   });
 });

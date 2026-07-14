@@ -12,9 +12,8 @@
  */
 
 import { FACTION } from "./board.ts";
-import type { Faction } from "./types.ts";
+import type { Faction, IGame } from "./types.ts";
 import { PIECE_TYPE } from "./pieces.ts";
-import { Game } from "./game.ts";
 import { Hex } from "./hex.ts";
 
 export const NNUE_INPUT_DIMS = 660; // 66 cells × 10 features
@@ -70,7 +69,7 @@ export function loadNNUEWeights(w: NNUEWeights): void {
 }
 
 export function encodePosition(
-  game: Game,
+  game: IGame,
   _perspective: Faction,
 ): Float32Array {
   const vec = new Float32Array(NNUE_INPUT_DIMS);
@@ -117,7 +116,7 @@ function forward(
   return { out: Math.tanh(out), h1, h2 };
 }
 
-export function evaluateNNUE(game: Game, _perspective: Faction): number {
+export function evaluateNNUE(game: IGame, _perspective: Faction): number {
   if (!WEIGHTS) throw new Error("NNUE weights not loaded");
   const x = encodePosition(game, _perspective);
   return forward(WEIGHTS, x).out * 1000;

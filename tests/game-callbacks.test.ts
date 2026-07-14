@@ -33,7 +33,9 @@ describe("Game event callbacks", () => {
   });
 
   test("onPromotion fires when a pawn reaches its last rank", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    // FIRE's last rank is the apex row r === -2. A FIRE pawn on (0,-1)
+    // stepping to (0,-2) reaches its true promotion rank.
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
 
@@ -41,7 +43,7 @@ describe("Game event callbacks", () => {
     game.onPromotion = onPromotion;
 
     game.handleCellClick(pawn.pos);
-    const result = game.handleCellClick(new Hex(0, 0))!;
+    const result = game.handleCellClick(new Hex(0, -2))!;
     expect(result.promotion).toBe(true);
     expect(onPromotion).toHaveBeenCalledTimes(1);
     expect(onPromotion).toHaveBeenCalledWith(pawn);

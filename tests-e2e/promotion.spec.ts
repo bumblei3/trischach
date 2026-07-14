@@ -16,10 +16,11 @@ function scriptPromotionPosition(page: import("@playwright/test").Page) {
     const Piece = (window as any).__trischachTestPiece;
     const { PIECE_TYPE, FACTION } = (window as any).__trischachTestTypes;
     const Hex = (window as any).__trischachTestHex;
-    // Minimal position: Fire pawn one step from the promotion zone at (0,1),
-    // plus all three kings so no faction is eliminated.
+    // Minimal position: Fire pawn one step from the promotion zone at (0,-1),
+    // which promotes on reaching its true last rank (0,-2) (r === -2), plus
+    // all three kings so no faction is eliminated.
     g.pieces = [
-      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1)),
+      new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1)),
       new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5)),
       new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5)),
       new Piece(PIECE_TYPE.KING, FACTION.NATURE, new Hex(5, 5)),
@@ -51,9 +52,9 @@ test.describe("TriSchach - Pawn Promotion Choice", () => {
   test("promotion overlay appears and a click promotes the pawn to a queen", async ({
     page,
   }) => {
-    // Click the Fire pawn, then click the promotion-square hex (0,0).
+    // Click the Fire pawn, then click the promotion-square hex (0,-2).
     await page.locator("#board-svg .piece-fire").first().click({ force: true });
-    const targetHex = page.locator('#board-svg polygon[title="Coord: 0,0"]');
+    const targetHex = page.locator('#board-svg polygon[title="Coord: 0,-2"]');
     await expect(targetHex).toBeVisible();
     await targetHex.click({ force: true });
 
@@ -76,7 +77,7 @@ test.describe("TriSchach - Pawn Promotion Choice", () => {
           p.faction === "fire" &&
           p.type === "queen" &&
           p.pos.q === 0 &&
-          p.pos.r === 0,
+          p.pos.r === -2,
       );
       return { promoted: !!p, pending: g.pendingPromotion };
     });
@@ -87,7 +88,7 @@ test.describe("TriSchach - Pawn Promotion Choice", () => {
   test("promotion can be completed with the Q hotkey", async ({ page }) => {
     await page.locator("#board-svg .piece-fire").first().click({ force: true });
     await page
-      .locator('#board-svg polygon[title="Coord: 0,0"]')
+      .locator('#board-svg polygon[title="Coord: 0,-2"]')
       .click({ force: true });
 
     const overlay = page.locator("#promotion-overlay");
