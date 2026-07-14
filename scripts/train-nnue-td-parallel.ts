@@ -93,7 +93,9 @@ async function main(): Promise<void> {
     weightsPath = join(workdir, "weights.json");
     writeFileSync(weightsPath, JSON.stringify(weightsToObj(w)));
     done += batch;
-    console.log(`Games ${done}/${TOTAL_GAMES}: traj=${all.length} positions trained`);
+    console.log(
+      `Games ${done}/${TOTAL_GAMES}: traj=${all.length} positions trained`,
+    );
   }
 
   // Export final weights.
@@ -102,7 +104,9 @@ async function main(): Promise<void> {
     JSON.stringify(weightsToObj(w)),
   );
   rmSync(workdir, { recursive: true, force: true });
-  console.log("TD-trained weights written to public/js/weights/nnue-weights.json");
+  console.log(
+    "TD-trained weights written to public/js/weights/nnue-weights.json",
+  );
 }
 
 main().catch((e) => {

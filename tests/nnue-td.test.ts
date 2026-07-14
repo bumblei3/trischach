@@ -1,10 +1,5 @@
 import { expect, test } from "vitest";
-import {
-  randomWeights,
-  trainStep,
-  loss,
-  encodePosition,
-} from "../js/nnue.ts";
+import { randomWeights, trainStep, loss, encodePosition } from "../js/nnue.ts";
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 

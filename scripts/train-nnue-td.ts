@@ -93,7 +93,9 @@ function main(): void {
     }
     if (game % 20 === 0) {
       const terminal = outcomeToLabel(g, FACTION.FIRE);
-      console.log(`Game ${game}: traj=${traj.length} outcome(FIRE)=${terminal}`);
+      console.log(
+        `Game ${game}: traj=${traj.length} outcome(FIRE)=${terminal}`,
+      );
     }
   }
 
@@ -109,7 +111,9 @@ function main(): void {
       b3: Array.from(w.b3),
     }),
   );
-  console.log("TD-trained weights written to public/js/weights/nnue-weights.json");
+  console.log(
+    "TD-trained weights written to public/js/weights/nnue-weights.json",
+  );
 }
 
 main();

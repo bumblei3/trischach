@@ -37,6 +37,12 @@ const F_ALIVE = 8; // always 1
 export const NNUE_INPUT_DIMS = MAX_PIECES * FEATURES_PER_PIECE;
 const H1 = 128;
 const H2 = 32;
+// Temperature: keeps the output pre-activation in the near-linear tanh region.
+// Shared by forward AND backward — the backward pass MUST divide the output
+// gradient by T (and multiply by the tanh derivative), otherwise the gradient
+// is ~T× too large and training diverges (loss goes UP, weights saturate tanh
+// to ±1 → every eval collapses to ±1000). See backward().
+const T = 80;
 const PIECE_TYPES = [
   "king",
   "queen",
@@ -154,7 +160,6 @@ function forward(
   // to ±1. Without it, large trained weights push out to ±1 for every
   // position (all scores => ±1000), making NNUE useless. T is chosen so a
   // typical pre-activation (~±8) maps to a near-linear tanh slope.
-  const T = 80;
   return { out: Math.tanh(out / T), h1, h2 };
 }
 
@@ -206,8 +211,13 @@ function backward(
   g: Grads,
 ): void {
   const { out, h1, h2 } = forward(w, vec);
-  // dL/dout = 2*(out-label), out in tanh-space
-  const dOut = 2 * (out - label);
+  // dL/dout = 2*(out-label), where out = tanh(pre / T). Chain rule through the
+  // output nonlinearity: dL/dpre = dL/dout * d(tanh(pre/T))/dpre
+  //                              = 2*(out-label) * (1 - out^2) / T.
+  // Omitting the (1-out^2)/T factor (the previous bug) made the gradient ~T×
+  // too large and ignored tanh saturation → training diverged, loss rose, and
+  // the net saturated to ±1000 for every position. dOut below is dL/dpre.
+  const dOut = (2 * (out - label) * (1 - out * out)) / T;
   // output layer
   g.b3[0]! += dOut;
   for (let j = 0; j < H2; j++) g.w3[j]! += dOut * h2[j]!;

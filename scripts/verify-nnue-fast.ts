@@ -26,7 +26,9 @@ import type { NNUEWeights } from "../js/nnue.ts";
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 function loadWeights(): NNUEWeights {
-  const raw = JSON.parse(readFileSync("public/js/weights/nnue-weights.json", "utf8"));
+  const raw = JSON.parse(
+    readFileSync("public/js/weights/nnue-weights.json", "utf8"),
+  );
   return {
     w1: Float32Array.from(raw.w1),
     b1: Float32Array.from(raw.b1),
@@ -52,18 +54,16 @@ export function perspectiveSanity(): boolean {
   if (g.pendingPromotion) g.completePromotion("queen");
   const after = evaluateNNUE(g, fire);
   setNNUEEnabled(false);
-  console.log(`perspective sanity: eval(FIRE) ${before.toFixed(1)} -> ${after.toFixed(1)}`);
+  console.log(
+    `perspective sanity: eval(FIRE) ${before.toFixed(1)} -> ${after.toFixed(1)}`,
+  );
   // A reasonable move should keep own eval from collapsing (~within -200).
   return after > before - 200;
 }
 
 export type MiniResult = { win: number; draw: number; loss: number };
 
-export function miniElo(
-  games = 10,
-  depth = 2,
-  maxPlies = 40,
-): MiniResult {
+export function miniElo(games = 10, depth = 2, maxPlies = 40): MiniResult {
   let win = 0;
   let draw = 0;
   let loss = 0;
@@ -87,7 +87,8 @@ export function miniElo(
     }
     setNNUEEnabled(false);
     if (g.eliminatedFactions.has(FACTION.FIRE)) loss++;
-    else if (TURNS.filter((f) => !g.eliminatedFactions.has(f)).length <= 1) win++;
+    else if (TURNS.filter((f) => !g.eliminatedFactions.has(f)).length <= 1)
+      win++;
     else draw++;
   }
   return { win, draw, loss };
@@ -99,7 +100,9 @@ function main(): void {
   const maxPlies = Number(process.argv[4] ?? 40);
 
   const sane = perspectiveSanity();
-  console.log(`perspective sanity: ${sane ? "OK" : "FAIL (eval not side-relative)"}`);
+  console.log(
+    `perspective sanity: ${sane ? "OK" : "FAIL (eval not side-relative)"}`,
+  );
 
   const r = miniElo(games, depth, maxPlies);
   const wr = r.win / games;

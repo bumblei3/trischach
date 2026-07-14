@@ -4,11 +4,12 @@
 
 **Goal:** Make the JS-NNUE eval actually stronger than the handcrafted eval (real Elo gain) by replacing knowledge-distillation training with Temporal-Difference (TD) learning from self-play game outcomes.
 
-**Architecture:** Current `scripts/train-nnue.ts` trains NNUE to *mimic* `evaluateBoard` (Knowledge Distillation) — label = `classic/1000`. That yields ~0 Elo (NNUE says the same thing as the handcrafted eval, only slower). Replace it with **TD(0) learning from self-play**: play full games with NNUE as the eval for both sides (`setNNUEEnabled(true)` + `loadNNUEWeights(w)`), record each position's trajectory, label every position by the game's final outcome, and run SGD (`trainStep`) on those labels. Add a **real Elo benchmark** (`scripts/benchmark-nnue.ts`) that plays NNUE vs. handcrafted over N games and reports win-rate/Elo, so we can measure before/after.
+**Architecture:** Current `scripts/train-nnue.ts` trains NNUE to _mimic_ `evaluateBoard` (Knowledge Distillation) — label = `classic/1000`. That yields ~0 Elo (NNUE says the same thing as the handcrafted eval, only slower). Replace it with **TD(0) learning from self-play**: play full games with NNUE as the eval for both sides (`setNNUEEnabled(true)` + `loadNNUEWeights(w)`), record each position's trajectory, label every position by the game's final outcome, and run SGD (`trainStep`) on those labels. Add a **real Elo benchmark** (`scripts/benchmark-nnue.ts`) that plays NNUE vs. handcrafted over N games and reports win-rate/Elo, so we can measure before/after.
 
 **Tech Stack:** TypeScript + tsx, existing `js/nnue.ts` (forward/trainStep/randomWeights/encodePosition/loadNNUEWeights/evaluateNNUE), `js/ai-core.ts` (`setNNUEEnabled`, `evaluateBoardNNUE`, `calculateBestMove`, `simulateMove`, `undoMove`), `js/game.ts`, `js/board.ts`.
 
 **Verified signatures (read from source, do not guess):**
+
 - `nnue.ts`: `randomWeights(): NNUEWeights`, `encodePosition(game: IGame, faction: Faction): Float32Array`, `evaluateNNUE(game, faction): number` (= `forward().out * 1000`), `trainStep(w, batch: {vec,label}[], lr): number` (does one SGD step + returns loss), `loss(w, batch): number`, `loadNNUEWeights(w): void`.
 - `ai-core.ts`: `setNNUEEnabled(on: boolean): void`, `evaluateBoardNNUE(game, faction): number` (delegates to `evaluateNNUE` when enabled else `evaluateBoard`), `calculateBestMove(game, faction): AIAction | null` (uses `evaluateBoardNNUE` internally at line 1241), `simulateMove(game, piece, target): void`, `undoMove(game): void`.
 - Net shape: `NNUE_INPUT_DIMS` (162 = 18×9) → 128 (ReLU) → 32 (ReLU) → 1 (`tanh(x/80) * 1000`). `forward` returns `{out, h1, h2}` with `out` in -1..1.
@@ -21,12 +22,14 @@
 **Objective:** Measure NNUE vs. handcrafted strength so we have a before/after number.
 
 **Files:**
+
 - Create: `scripts/benchmark-nnue.ts`
 - Test: `tests/benchmark-nnue.test.ts` (smoke test that it runs a few games without crashing)
 
 **Step 1: Write the benchmark script**
 
 `scripts/benchmark-nnue.ts`:
+
 ```ts
 /**
  * Elo benchmark: NNUE (enabled) vs Handcrafted (disabled) over N games.
@@ -36,18 +39,26 @@
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import {
-  calculateBestMove, setAIDepth, setNNUEEnabled, loadNNUEWeights,
+  calculateBestMove,
+  setAIDepth,
+  setNNUEEnabled,
+  loadNNUEWeights,
 } from "../js/ai-core.ts";
 import { readFileSync } from "fs";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 function loadWeights() {
-  const raw = JSON.parse(readFileSync("public/js/weights/nnue-weights.json", "utf8"));
+  const raw = JSON.parse(
+    readFileSync("public/js/weights/nnue-weights.json", "utf8"),
+  );
   return {
-    w1: Float32Array.from(raw.w1), b1: Float32Array.from(raw.b1),
-    w2: Float32Array.from(raw.w2), b2: Float32Array.from(raw.b2),
-    w3: Float32Array.from(raw.w3), b3: Float32Array.from(raw.b3),
+    w1: Float32Array.from(raw.w1),
+    b1: Float32Array.from(raw.b1),
+    w2: Float32Array.from(raw.w2),
+    b2: Float32Array.from(raw.b2),
+    w3: Float32Array.from(raw.w3),
+    b3: Float32Array.from(raw.b3),
   };
 }
 
@@ -55,7 +66,7 @@ function playGame(nnueSide: Faction): "win" | "draw" | "loss" {
   const g = new Game();
   g.init(generateBoard());
   setAIDepth(3);
-  setNNUEEnabled(true);          // NNUE for the searching side
+  setNNUEEnabled(true); // NNUE for the searching side
   loadNNUEWeights(loadWeights());
   let ply = 0;
   while (ply < 200) {
@@ -67,7 +78,10 @@ function playGame(nnueSide: Faction): "win" | "draw" | "loss" {
     const faction = TURNS[g.currentFactionIdx]!;
     setNNUEEnabled(faction === nnueSide); // NNUE only on its own turns
     const mv = calculateBestMove(g, faction);
-    if (!mv) { setNNUEEnabled(false); return "draw"; }
+    if (!mv) {
+      setNNUEEnabled(false);
+      return "draw";
+    }
     g.handleCellClick(mv.piece.pos);
     g.handleCellClick(mv.target);
     // handle promotion if any
@@ -87,13 +101,19 @@ function eloFromWinRate(wr: number): number {
 
 function main() {
   const N = Number(process.argv[2] ?? 40);
-  let win = 0, draw = 0, loss = 0;
+  let win = 0,
+    draw = 0,
+    loss = 0;
   for (let i = 0; i < N; i++) {
     const r = playGame(FACTION.FIRE); // NNUE = FIRE
-    if (r === "win") win++; else if (r === "draw") draw++; else loss++;
+    if (r === "win") win++;
+    else if (r === "draw") draw++;
+    else loss++;
   }
   const wr = win / N;
-  console.log(`NNUE(FIRE) vs Handcrafted: W${win} D${draw} L${loss} | winrate ${(wr*100).toFixed(1)}% | ~Elo ${eloFromWinRate(wr)}`);
+  console.log(
+    `NNUE(FIRE) vs Handcrafted: W${win} D${draw} L${loss} | winrate ${(wr * 100).toFixed(1)}% | ~Elo ${eloFromWinRate(wr)}`,
+  );
 }
 
 main();
@@ -102,6 +122,7 @@ main();
 **Step 2: Smoke test**
 
 `tests/benchmark-nnue.test.ts`:
+
 ```ts
 import { expect, test } from "vitest";
 import { playGame } from "../scripts/benchmark-nnue.ts";
@@ -111,6 +132,7 @@ test("benchmark playGame returns a valid result without crashing", () => {
   expect(["win", "draw", "loss"]).toContain(r);
 });
 ```
+
 Note: if `playGame` is not exported, export it (add `export` to the function) — adjust the test import accordingly.
 
 **Step 3: Run smoke test**
@@ -122,6 +144,7 @@ Run: `npx tsx scripts/benchmark-nnue.ts 40`
 Expected: prints `NNUE(FIRE) vs Handcrafted: W# D# L# | winrate X% | ~Elo Y`. Record this number as the **distillation baseline** (expected ~50% / ~0 Elo, because NNUE currently mimics handcrafted).
 
 **Step 5: Commit**
+
 ```bash
 git add scripts/benchmark-nnue.ts tests/benchmark-nnue.test.ts
 git commit -m "test: add NNUE vs handcrafted Elo benchmark (baseline)"
@@ -134,6 +157,7 @@ git commit -m "test: add NNUE vs handcrafted Elo benchmark (baseline)"
 **Objective:** Train NNUE from game outcomes instead of mimicking handcrafted eval, so it becomes genuinely stronger.
 
 **Files:**
+
 - Create: `scripts/train-nnue-td.ts`
 - Modify: none in `js/` (reuse `trainStep`, `encodePosition`, `randomWeights`, `simulateMove`, `undoMove`)
 - Test: `tests/nnue-td.test.ts` (unit test that one TD update reduces loss on a toy trajectory)
@@ -141,6 +165,7 @@ git commit -m "test: add NNUE vs handcrafted Elo benchmark (baseline)"
 **Step 1: Write the TD trainer**
 
 `scripts/train-nnue-td.ts`:
+
 ```ts
 /**
  * TD(0) Self-Play Trainer for JS-NNUE.
@@ -154,10 +179,18 @@ git commit -m "test: add NNUE vs handcrafted Elo benchmark (baseline)"
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import {
-  calculateBestMove, setAIDepth, setNNUEEnabled, loadNNUEWeights,
+  calculateBestMove,
+  setAIDepth,
+  setNNUEEnabled,
+  loadNNUEWeights,
 } from "../js/ai-core.ts";
 import { simulateMove, undoMove } from "../js/ai-core.ts";
-import { encodePosition, randomWeights, trainStep, type NNUEWeights } from "../js/nnue.ts";
+import {
+  encodePosition,
+  randomWeights,
+  trainStep,
+  type NNUEWeights,
+} from "../js/nnue.ts";
 import { writeFileSync, mkdirSync } from "fs";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
@@ -170,7 +203,10 @@ function outcomeToLabel(g: Game): number {
   return 0;
 }
 
-function playAndCollect(g: Game, w: NNUEWeights): { vec: Float32Array; faction: Faction }[] {
+function playAndCollect(
+  g: Game,
+  w: NNUEWeights,
+): { vec: Float32Array; faction: Faction }[] {
   setNNUEEnabled(true);
   loadNNUEWeights(w);
   setAIDepth(2);
@@ -206,16 +242,25 @@ function main() {
     for (let e = 0; e < EPOCHS; e++) {
       trainStep(w, batch, LR);
     }
-    if (game % 20 === 0) console.log(`Game ${game}: traj=${traj.length} outcome=${terminal}`);
+    if (game % 20 === 0)
+      console.log(`Game ${game}: traj=${traj.length} outcome=${terminal}`);
   }
 
   mkdirSync("public/js/weights", { recursive: true });
-  writeFileSync("public/js/weights/nnue-weights.json", JSON.stringify({
-    w1: Array.from(w.w1), b1: Array.from(w.b1),
-    w2: Array.from(w.w2), b2: Array.from(w.b2),
-    w3: Array.from(w.w3), b3: Array.from(w.b3),
-  }));
-  console.log("TD-trained weights written to public/js/weights/nnue-weights.json");
+  writeFileSync(
+    "public/js/weights/nnue-weights.json",
+    JSON.stringify({
+      w1: Array.from(w.w1),
+      b1: Array.from(w.b1),
+      w2: Array.from(w.w2),
+      b2: Array.from(w.b2),
+      w3: Array.from(w.w3),
+      b3: Array.from(w.b3),
+    }),
+  );
+  console.log(
+    "TD-trained weights written to public/js/weights/nnue-weights.json",
+  );
 }
 
 main();
@@ -224,6 +269,7 @@ main();
 **Step 2: Unit test that a TD update reduces loss**
 
 `tests/nnue-td.test.ts`:
+
 ```ts
 import { expect, test } from "vitest";
 import { randomWeights, trainStep, loss, encodePosition } from "../js/nnue.ts";
@@ -257,6 +303,7 @@ Expected: prints progress every 20 games, writes weights file.
 Run: `npx tsx scripts/verify-nnue.ts` (reuse existing verify script if present, else quickly print a few evaluateNNUE scores on different positions to confirm non-saturated, position-dependent output).
 
 **Step 6: Commit**
+
 ```bash
 git add scripts/train-nnue-td.ts tests/nnue-td.test.ts public/js/weights/nnue-weights.json
 git commit -m "feat: TD(0) self-play training for NNUE (real Elo signal)"
