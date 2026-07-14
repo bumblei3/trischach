@@ -49,10 +49,10 @@ function collectPositions(n: number): { vec: Float32Array; label: number }[] {
 
 function main(): void {
   const w = randomWeights();
-  const positions = collectPositions(30);
+  const positions = collectPositions(120);
   console.log(`Collected ${positions.length} training positions`);
-  const EPOCHS = 50;
-  const LR = 0.005;
+  const EPOCHS = 200;
+  const LR = 0.02;
 
   for (let epoch = 0; epoch < EPOCHS; epoch++) {
     // shuffle

@@ -35,17 +35,18 @@ function makeGame(): Game {
   return g;
 }
 
-test("NNUE_INPUT_DIMS equals 660 (66 cells x 10 features)", () => {
-  expect(NNUE_INPUT_DIMS).toBe(660);
+test("NNUE_INPUT_DIMS equals 162 (18 piece slots x 9 dense features)", () => {
+  expect(NNUE_INPUT_DIMS).toBe(162);
 });
 
-test("encodePosition produces a 660-len dense vector with exactly the occupied pieces set", () => {
+test("encodePosition produces a 162-len dense vector with exactly the alive pieces set", () => {
   const g = makeGame();
   const vec = encodePosition(g, FACTION.FIRE);
-  expect(vec.length).toBe(660);
-  let occupied = 0;
-  for (let c = 0; c < 66; c++) occupied += Number(vec[c * 10 + 9]);
-  expect(occupied).toBe(4);
+  expect(vec.length).toBe(162);
+  // Number of slots with alive flag = 1 must equal number of alive pieces (4).
+  let aliveSlots = 0;
+  for (let s = 0; s < 18; s++) aliveSlots += vec[s * 9 + 8]!; // F_ALIVE offset
+  expect(aliveSlots).toBe(4);
 });
 
 test("evaluateNNUE returns a finite number for a real position", () => {
@@ -126,25 +127,29 @@ test("encodePosition skips dead (not alive) pieces", () => {
   // Kill one of the four pieces, keep its position on the board.
   g.pieces[0]!.alive = false;
   const vec = encodePosition(g, FACTION.FIRE);
-  // occupied count must drop from 4 to 3 (dead piece not encoded).
-  let occupied = 0;
-  for (let c = 0; c < 66; c++) occupied += Number(vec[c * 10 + 9]);
-  expect(occupied).toBe(3);
+  // alive-slot count must drop from 4 to 3 (dead piece not encoded).
+  let aliveSlots = 0;
+  for (let s = 0; s < 18; s++) aliveSlots += vec[s * 9 + 8]!;
+  expect(aliveSlots).toBe(3);
 });
 
-test("encodePosition sets exactly one piece-type and one faction one-hot per cell", () => {
+test("encodePosition sets valid type/faction codes per slot", () => {
   const g = makeGame();
   const vec = encodePosition(g, FACTION.FIRE);
-  // Every occupied cell must have exactly one piece-type bit set (0..5)
-  // and exactly one faction bit set (6..8).
-  for (let c = 0; c < 66; c++) {
-    if (vec[c * 10 + 9] !== 1) continue;
-    const typeBits = [0, 1, 2, 3, 4, 5].filter(
-      (t) => vec[c * 10 + t] === 1,
-    ).length;
-    const factionBits = [6, 7, 8].filter((f) => vec[c * 10 + f] === 1).length;
-    expect(typeBits).toBe(1);
-    expect(factionBits).toBe(1);
+  // Every alive slot must have a type in 0..5 and faction in 0..2, and the
+  // alive flag = 1; dead slots must be all-zero.
+  for (let s = 0; s < 18; s++) {
+    const base = s * 9;
+    const alive = vec[base + 8];
+    if (alive === 1) {
+      expect(vec[base + 0]).toBeGreaterThanOrEqual(0);
+      expect(vec[base + 0]).toBeLessThanOrEqual(5);
+      expect(vec[base + 1]).toBeGreaterThanOrEqual(0);
+      expect(vec[base + 1]).toBeLessThanOrEqual(2);
+    } else {
+      // dead slot: all features zero
+      for (let f = 0; f < 9; f++) expect(vec[base + f]).toBe(0);
+    }
   }
 });
 
