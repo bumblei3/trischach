@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-07-14
+
 ### Fixed
 
 - **NNUE-Backprop-Chain-Rule-Bug (behob den ~-800-Elo-Kollaps).** Die
@@ -493,7 +495,8 @@ action: null }` zurückgeben — also einen unendlichen Score ohne Zug — und s
 - Initial stable release: TriSchach (3-faction RPS chess variant) with
   Auto-Battle, opening book, puzzles, replay and PWA/offline support.
 
-[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.3.2...HEAD
+[1.3.2]: https://github.com/bumblei3/trischach/compare/v1.3.1...v1.3.2
 [1.3.1]: https://github.com/bumblei3/trischach/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/bumblei3/trischach/compare/v1.2.6...v1.3.0
 [1.2.0]: https://github.com/bumblei3/trischach/compare/v1.1.1...v1.2.0
