@@ -17,6 +17,11 @@ import {
   pickBookMove,
   boardHash,
   parseMove,
+  learnFromGame,
+  getLearnedData,
+  loadLearnedData,
+  saveLearnedDataToStorage,
+  loadLearnedDataFromStorage,
 } from "../js/opening-book.ts";
 import type { IGame } from "../js/types.ts";
 
@@ -121,5 +126,163 @@ describe("boardHash / parseMove branches", () => {
       currentFaction: undefined,
     } as unknown as IGame;
     expect(boardHash(mini).endsWith("#0")).toBe(true);
+  });
+});
+
+// ─── Learning integration (learnFromGame / persistence) ───
+// The weighted-learning path (learnFromGame) and its persistence round-trip
+// (getLearnedData / loadLearnedData / localStorage) were previously untested.
+// These assert the real reinforcement invariants: a win raises a variation's
+// weight, a loss lowers it, and learned stats survive an export→import cycle.
+describe("opening book learning integration", () => {
+  beforeEach(() => {
+    buildOpeningBook(Game);
+  });
+
+  // Build a GameHistoryEntry that references a REAL book variation so
+  // learnFromGame actually finds and updates it.
+  function firstBookEntry() {
+    const game = makeGame();
+    const hash = boardHash(game);
+    const moves = getBookMoves(game)!;
+    const v = moves[0]!;
+    return {
+      game,
+      hash,
+      entry: { hash, faction: FACTION.FIRE, move: v.move },
+      weightBefore: v.weight,
+    };
+  }
+
+  test("a win increases the played variation's weight", () => {
+    const { hash, entry, weightBefore } = firstBookEntry();
+    learnFromGame([entry], FACTION.FIRE); // fire won
+    const v = getBookMoves(makeGame())!.find(
+      (m) =>
+        m.move.pieceId === entry.move.pieceId &&
+        m.move.targetQ === entry.move.targetQ &&
+        m.move.targetR === entry.move.targetR,
+    )!;
+    expect(v.weight).toBeGreaterThan(weightBefore);
+    expect(hash).toBe(boardHash(makeGame()));
+  });
+
+  test("a loss decreases the played variation's weight (floored at 10)", () => {
+    const { entry } = firstBookEntry();
+    // Winner is a different faction → the fire move counts as a loss.
+    learnFromGame([entry], FACTION.WATER);
+    const v = getBookMoves(makeGame())!.find(
+      (m) =>
+        m.move.pieceId === entry.move.pieceId &&
+        m.move.targetQ === entry.move.targetQ &&
+        m.move.targetR === entry.move.targetR,
+    )! as { weight: number; losses?: number };
+    expect(v.weight).toBeGreaterThanOrEqual(10);
+    expect(v.losses).toBeGreaterThanOrEqual(1);
+  });
+
+  test("a draw (null winner) is recorded and bumps weight slightly", () => {
+    const { entry } = firstBookEntry();
+    learnFromGame([entry], null);
+    const v = getBookMoves(makeGame())!.find(
+      (m) =>
+        m.move.pieceId === entry.move.pieceId &&
+        m.move.targetQ === entry.move.targetQ &&
+        m.move.targetR === entry.move.targetR,
+    )! as { draws?: number; visits?: number };
+    expect(v.draws).toBeGreaterThanOrEqual(1);
+    expect(v.visits).toBeGreaterThanOrEqual(1);
+  });
+
+  test("learnFromGame ignores history entries with unknown hashes", () => {
+    expect(() =>
+      learnFromGame(
+        [
+          {
+            hash: "nonexistent-hash#0",
+            faction: FACTION.FIRE,
+            move: { pieceId: "x", targetQ: 0, targetR: 0 },
+          },
+        ],
+        FACTION.FIRE,
+      ),
+    ).not.toThrow();
+  });
+
+  test("learnFromGame skips a known hash whose move is not a stored variation", () => {
+    // The hash exists in the book, but the specific move does not match any
+    // stored variation → the `if (!variation) continue` branch (replay ~574).
+    const game = makeGame();
+    const hash = boardHash(game);
+    const learned = getLearnedData();
+    const before = JSON.stringify(learned);
+    learnFromGame(
+      [
+        {
+          hash,
+          faction: FACTION.FIRE,
+          move: { pieceId: "does-not-exist", targetQ: 99, targetR: 99 },
+        },
+      ],
+      FACTION.FIRE,
+    );
+    // No visited variation was created for the bogus move.
+    const after = getLearnedData();
+    expect(JSON.stringify(after)).toBe(before);
+  });
+
+  test("getLearnedData only exports variations that were actually visited", () => {
+    const { entry } = firstBookEntry();
+    learnFromGame([entry], FACTION.FIRE);
+    const learned = getLearnedData();
+    const all = Object.values(learned).flat();
+    expect(all.length).toBeGreaterThan(0);
+    for (const v of all) expect(v.visits).toBeGreaterThan(0);
+  });
+
+  test("loadLearnedData merges stats back onto matching book variations", () => {
+    const { entry, hash } = firstBookEntry();
+    loadLearnedData({
+      positions: {
+        [hash]: [
+          {
+            move: entry.move,
+            wins: 5,
+            draws: 2,
+            losses: 1,
+            visits: 8,
+          },
+        ],
+      },
+    });
+    const v = getBookMoves(makeGame())!.find(
+      (m) =>
+        m.move.pieceId === entry.move.pieceId &&
+        m.move.targetQ === entry.move.targetQ &&
+        m.move.targetR === entry.move.targetR,
+    )! as { wins?: number; draws?: number; visits?: number };
+    expect(v.wins).toBe(5);
+    expect(v.draws).toBe(2);
+    expect(v.visits).toBe(8);
+  });
+
+  test("loadLearnedData is a no-op for null / positions-less input", () => {
+    expect(() => loadLearnedData(null)).not.toThrow();
+    expect(() => loadLearnedData(undefined)).not.toThrow();
+    expect(() => loadLearnedData({ positions: null })).not.toThrow();
+  });
+
+  test("save + load round-trips learned data through localStorage", () => {
+    const { entry } = firstBookEntry();
+    learnFromGame([entry], FACTION.FIRE);
+    expect(saveLearnedDataToStorage()).toBe(true);
+    // Rebuild a fresh book, then re-load persisted stats onto it.
+    buildOpeningBook(Game);
+    expect(loadLearnedDataFromStorage()).toBe(true);
+  });
+
+  test("loadLearnedDataFromStorage returns false when nothing is stored", () => {
+    localStorage.removeItem("trischach-opening-book-learned");
+    expect(loadLearnedDataFromStorage()).toBe(false);
   });
 });
