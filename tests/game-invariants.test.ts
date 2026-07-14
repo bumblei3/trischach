@@ -70,8 +70,21 @@ function playRandomGame(
       // DEBUG: detect occupied drift immediately after promotion completion
       for (const p of game.getAlivePieces()) {
         if (game._occupiedMap!.get(p.pos.key) !== p) {
-          console.log("DRIFT after promotion-complete:", p.id, "@", p.pos.q+","+p.pos.r, "occ=", game._occupiedMap!.get(p.pos.key)?.id ?? "null");
-          console.log("  pieces:", game.getAlivePieces().map(x=>`${x.id}@${x.pos.q},${x.pos.r}`).join(" "));
+          console.log(
+            "DRIFT after promotion-complete:",
+            p.id,
+            "@",
+            p.pos.q + "," + p.pos.r,
+            "occ=",
+            game._occupiedMap!.get(p.pos.key)?.id ?? "null",
+          );
+          console.log(
+            "  pieces:",
+            game
+              .getAlivePieces()
+              .map((x) => `${x.id}@${x.pos.q},${x.pos.r}`)
+              .join(" "),
+          );
         }
       }
       checkInvariants(game, plies);
@@ -92,10 +105,33 @@ function playRandomGame(
     // DEBUG: detect drift after a normal move
     for (const p of game.getAlivePieces()) {
       if (game._occupiedMap!.get(p.pos.key) !== p) {
-        console.log("DRIFT after move:", p.id, "@", p.pos.q+","+p.pos.r, "occ=", game._occupiedMap!.get(p.pos.key)?.id ?? "null");
-        console.log("  clicked:", piece.id, "@", piece.pos.q+","+piece.pos.r, "-> target", target.q+","+target.r);
-        console.log("  validMoves were:", targets.map(t=>`${t.q},${t.r}`).join(" "));
-        console.log("  pieces:", game.getAlivePieces().map(x=>`${x.id}@${x.pos.q},${x.pos.r}`).join(" "));
+        console.log(
+          "DRIFT after move:",
+          p.id,
+          "@",
+          p.pos.q + "," + p.pos.r,
+          "occ=",
+          game._occupiedMap!.get(p.pos.key)?.id ?? "null",
+        );
+        console.log(
+          "  clicked:",
+          piece.id,
+          "@",
+          piece.pos.q + "," + piece.pos.r,
+          "-> target",
+          target.q + "," + target.r,
+        );
+        console.log(
+          "  validMoves were:",
+          targets.map((t) => `${t.q},${t.r}`).join(" "),
+        );
+        console.log(
+          "  pieces:",
+          game
+            .getAlivePieces()
+            .map((x) => `${x.id}@${x.pos.q},${x.pos.r}`)
+            .join(" "),
+        );
         throw new Error("drift-debug");
       }
     }

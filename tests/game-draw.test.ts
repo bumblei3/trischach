@@ -126,7 +126,11 @@ describe("isPromotion", () => {
     expect(game.isPromotion(firePawn, new Hex(0, 4))).toBe(false);
     const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 3));
     expect(game.isPromotion(waterPawn, new Hex(-1, 4))).toBe(false);
-    const naturePawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(-2, 3));
+    const naturePawn = new Piece(
+      PIECE_TYPE.PAWN,
+      FACTION.NATURE,
+      new Hex(-2, 3),
+    );
     expect(game.isPromotion(naturePawn, new Hex(-1, 4))).toBe(false);
   });
 

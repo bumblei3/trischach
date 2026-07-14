@@ -1,6 +1,11 @@
 import { Hex } from "./hex.ts";
 import { FACTION, getRPSResult, FACTION_COLORS } from "./board.ts";
-import { getValidMoves, createInitialPieces, PIECE_TYPE, isPromotionCell } from "./pieces.ts";
+import {
+  getValidMoves,
+  createInitialPieces,
+  PIECE_TYPE,
+  isPromotionCell,
+} from "./pieces.ts";
 import {
   isKingdomCheck,
   legalMoveCheck,

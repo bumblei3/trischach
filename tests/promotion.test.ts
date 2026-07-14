@@ -49,7 +49,11 @@ describe("Pawn Promotion", () => {
     // NATURE last rank = q === 2 (a NATURE pawn at r<=0 must NOT promote)
     const nature = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
     expect(game.isPromotion(nature, new Hex(2, 0))).toBe(true);
-    const natureStart = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(-1, 0));
+    const natureStart = new Piece(
+      PIECE_TYPE.PAWN,
+      FACTION.NATURE,
+      new Hex(-1, 0),
+    );
     expect(game.isPromotion(natureStart, new Hex(-1, 0))).toBe(false);
   });
 

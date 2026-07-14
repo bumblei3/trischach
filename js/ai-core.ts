@@ -836,7 +836,8 @@ export function evaluatePawnStructure(
 
   for (const p of myPawns) {
     const depth = depthOf(p);
-    if (depth >= 0.85) score += 15; // on/near last rank
+    if (depth >= 0.85)
+      score += 15; // on/near last rank
     else if (depth >= 0.5) score += 5;
     else if (depth >= 0.25) score += 2;
   }
