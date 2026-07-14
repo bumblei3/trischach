@@ -138,23 +138,41 @@ export function serializeGame(
     result = getResultString(game),
     rpsEnabled = game.rpsEnabled,
     includeComments = true,
+    ...headerOverrides
   } = options;
 
   const lines: string[] = [];
-  const date = new Date().toISOString().split("T")[0];
+  const date = new Date().toISOString().split("T")[0] ?? "";
 
-  // Headers
-  lines.push(`[Event "${escapePGN(event)}"]`);
-  lines.push(`[Site "${escapePGN(site)}"]`);
-  lines.push(`[Date "${date}"]`);
-  lines.push(`[Round "${escapePGN(round)}"]`);
-  lines.push(`[Fire "Player 1"]`);
-  lines.push(`[Water "Player 2"]`);
-  lines.push(`[Nature "Player 3"]`);
-  lines.push(`[Result "${result}"]`);
-  lines.push(`[RPS "${rpsEnabled ? "on" : "off"}"]`);
-  lines.push(`[Variant "TriSchach"]`);
-  lines.push(`[Version "${REPLAY_VERSION}"]`);
+  // Canonical headers in emission order. Any PGN-style override passed in
+  // `options` (e.g. Fire/Water/Nature player names, a custom Date/Result)
+  // replaces the default in place — honoring the SerializeOptions index
+  // signature contract — without duplicating the header line.
+  const headers: Array<[string, string]> = [
+    ["Event", event],
+    ["Site", site],
+    ["Date", date],
+    ["Round", round],
+    ["Fire", "Player 1"],
+    ["Water", "Player 2"],
+    ["Nature", "Player 3"],
+    ["Result", result],
+    ["RPS", rpsEnabled ? "on" : "off"],
+    ["Variant", "TriSchach"],
+    ["Version", REPLAY_VERSION],
+  ];
+
+  const known = new Set(headers.map(([k]) => k));
+  for (const [key, value] of headers) {
+    const override = headerOverrides[key];
+    const v = typeof override === "string" ? override : value;
+    lines.push(`[${key} "${escapePGN(v)}"]`);
+  }
+  // Any extra override keys not in the canonical list are appended as headers.
+  for (const [key, value] of Object.entries(headerOverrides)) {
+    if (known.has(key) || typeof value !== "string") continue;
+    lines.push(`[${key} "${escapePGN(value)}"]`);
+  }
   lines.push("");
 
   // Move list

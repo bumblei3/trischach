@@ -118,6 +118,46 @@ describe("serializeGame / parseTSPN round-trip", () => {
     expect(parsed.moves).toEqual([]);
   });
 
+  // ─── Header-override contract (SerializeOptions index signature) ───
+  // SerializeOptions documents "honors any override passed here" for PGN-style
+  // headers, but serializeGame previously ignored every override and always
+  // emitted its hardcoded defaults. These pin the documented behaviour.
+  test("serializeGame honors a canonical header override (event)", () => {
+    const game = makeGameLike();
+    const tspn = serializeGame(game, { event: "World Cup" });
+    expect(tspn).toContain('[Event "World Cup"]');
+    expect(tspn).not.toContain('[Event "Casual Game"]');
+  });
+
+  test("serializeGame honors PascalCase player-name overrides", () => {
+    const game = makeGameLike();
+    const tspn = serializeGame(game, {
+      Fire: "Alice",
+      Water: "Bob",
+      Nature: "Carol",
+    });
+    expect(tspn).toContain('[Fire "Alice"]');
+    expect(tspn).toContain('[Water "Bob"]');
+    expect(tspn).toContain('[Nature "Carol"]');
+    // The hardcoded placeholder names must be gone.
+    expect(tspn).not.toContain('[Fire "Player 1"]');
+  });
+
+  test("serializeGame override does not duplicate a header line", () => {
+    const game = makeGameLike();
+    const tspn = serializeGame(game, { Fire: "Alice" });
+    const fireLines = tspn.split("\n").filter((l) => l.startsWith("[Fire "));
+    expect(fireLines).toHaveLength(1);
+  });
+
+  test("ReplayController.exportTSPN applies caller headers end-to-end", () => {
+    const game = makeEmptyGame();
+    const ctrl = new ReplayController(game, []);
+    const tspn = ctrl.exportTSPN({ Event: "My Event" });
+    const parsed = parseTSPN(tspn);
+    expect(parsed.headers.Event).toBe("My Event");
+  });
+
   test("cloneGameState copies captured pieces for all three factions", () => {
     // Exercises the water/nature branches of the capturedPieces
     // serialization (replay.ts:623-624) that the fire-only move
