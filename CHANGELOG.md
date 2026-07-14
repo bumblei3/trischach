@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **NNUE-Backprop-Chain-Rule-Bug (behob den ~-800-Elo-Kollaps).** Die
+  Ausgabeschicht ist `out = tanh(pre / T)` (T=80), aber der Backward-Pass
+  berechnete den Ausgabegradienten als `2*(out-label)` und behandelte tanh
+  damit als linear — der Kettenregel-Faktor `(1-out²)/T` fehlte. Der analytische
+  Gradient war dadurch ~80× zu groß und ignorierte die tanh-Sättigung: jeder
+  Trainingsschritt überschoss, der Loss stieg statt zu fallen, die Gewichte
+  explodierten, tanh sättigte → jede Position wurde zu ±1000 evaluiert
+  (mini-Elo W0/L6 unabhängig vom Training). Fix: `T=80` als geteilte Konstante
+  für `forward`+`backward`, korrigierter Gradient
+  `2*(out-label)*(1-out²)/T`. Nach dem Fix + 40-Spiele-TD-Retrain sprang die
+  mini-Elo von W0 D0 L6 auf W0 D8 L0 (Sättigung weg, Eval graduiert). (#80)
+- **CI-Hang: `benchmark-nnue` `main()` lief beim Import.**
+  `tests/benchmark-nnue.test.ts` importiert `playGame` aus
+  `scripts/benchmark-nnue.ts`, dessen `main()` beim Modul-Load 40 volle
+  Tiefe-3-Spiele spielte. Mit den alten (saturierten) Gewichten endeten diese
+  sofort; nach dem Backprop-Fix laufen echte Spiele länger → der Import
+  überschritt das 15-Minuten-Job-Timeout und der `unit-tests`-Job hing. Fix:
+  `main()` hinter einen `isDirectRun`-Guard (läuft nur bei direktem
+  Script-Aufruf, nicht bei Import); Testlauf von 15-min-Hang auf ~1m45s. (#80)
+- **AI-Core Ponder-Progress meldet echte Node-Zahl.** Der Progress-Callback im
+  Ponder-Pfad berichtet nun die tatsächlich gesuchte Node-Anzahl. (#79)
+
+### Added
+
+- **Board-120°-Rotationssymmetrie-Invariant** (`tests/board-structure.test.ts`).
+  Prüft, dass das Brett echt dreizählig rotationssymmetrisch ist (Rotation um
+  das WAHRE Zentrum = `rot120` + eine einzige Translation `t=(-5,5)` bildet
+  FIRE→WATER→NATURE aufeinander ab und lässt das Gesamtbrett invariant). Ein
+  naiver Rotate-um-den-Ursprung-Check meldet eine FALSCHE Asymmetrie (der
+  Ursprung ist die Dreiecksspitze, nicht das Zentrum) — dieser Test fixiert die
+  KORREKTE Invariante, damit eine echte fairness-brechende Brett-Änderung laut
+  fehlschlägt. Die zuvor befürchtete Board-Asymmetrie war ein Messfehler; das
+  Brett ist beweisbar fair. (#82)
+- **NNUE-Backprop-Gradient-Check** (`tests/nnue.test.ts`). Finite-Differenzen-
+  vs. analytischer Gradient auf dem Ausgabegewicht: fängt den tanh-
+  Kettenregel-Bug deterministisch (Ratio ≈ 1.0 mit Fix, exakt ~80 mit Bug).
+  Loss-Abnahme-Heuristiken fangen den Bug NICHT zuverlässig. (#82)
+- **NNUE-TD-Tooling.** TD(0)-Self-Play-Trainer (`scripts/train-nnue-td.ts`),
+  paralleler Trainer über CPU-Kerne (`scripts/train-nnue-td-parallel.ts`) und
+  schneller Sanity+mini-Elo-Verify (`scripts/verify-nnue-fast.ts`). (#80)
+
+### Changed
+
+- **Engine-Invarianten-Tests entschlackt** — redundante `as any`-Casts entfernt
+  (`game` ist ein echtes `IGame`), Opening-Book-Mocks gegen den
+  `IGame`-Vertrag gehärtet. (#77, #78)
+
+## [1.3.1] - 2026-07-13
+
+### Fixed
+
+- **Pawn-Promotion respektiert den gewählten Figurentyp (R/B/N/Q).** Die
+  Promotion setzte nicht zuverlässig den in der Dialog-Auswahl gewählten Typ
+  um; zusätzlich mutierte die AI-Suche das Pawn-Symbol spurios zu 'P'/Royal.
+  Beide Pfade sind gefixt und per E2E-Test abgesichert. (#68, #69, #71, #72)
+
+### Changed
+
+- **`any`-Typen projektweit eliminiert.** `main.ts`, `ai-core.ts`, `nnue.ts`,
+  `ai.ts`, `ai-worker.ts`, `replay.ts`, `sounds.ts` sowie `puzzle.ts` und
+  `opening-book.ts` (`@ts-nocheck`/`@ts-expect-error` entfernt) sind jetzt
+  vollständig ohne `any` typisiert. (#59–#64)
+- **Test-Härtung.** NNUE- und Skins-Branch-Coverage erhöht, Opening-Book-Mocks
+  isoliert (importOriginal), Replay-Invarianten gehärtet. (#57, #58, #65, #66,
+  #67, #70)
+- **Dependabot Major-Updates auf ignore** (Breaking-Change-Risiko).
+
 ## [1.3.0] - 2026-07-13
 
 ### Added
@@ -424,7 +493,9 @@ action: null }` zurückgeben — also einen unendlichen Score ohne Zug — und s
 - Initial stable release: TriSchach (3-faction RPS chess variant) with
   Auto-Battle, opening book, puzzles, replay and PWA/offline support.
 
-[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/bumblei3/trischach/compare/v1.3.1...HEAD
+[1.3.1]: https://github.com/bumblei3/trischach/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/bumblei3/trischach/compare/v1.2.6...v1.3.0
 [1.2.0]: https://github.com/bumblei3/trischach/compare/v1.1.1...v1.2.0
 [1.1.1]: https://github.com/bumblei3/trischach/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/bumblei3/trischach/compare/v1.0.0...v1.1.0
