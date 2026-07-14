@@ -77,4 +77,66 @@ describe("generateBoard structure", () => {
     const keys = [...cells.keys()];
     expect(new Set(keys).size).toBe(keys.length);
   });
+
+  test("board is 120° rotationally symmetric: each start zone maps onto the next", () => {
+    // The three factions must be perfectly interchangeable — a 3-player game is
+    // only fair if the board has 3-fold rotational symmetry. The centre of that
+    // symmetry is NOT the origin (0,0) (that is the apex of the central
+    // triangle), so we look for a single translation t such that a 120°
+    // rotation about the origin followed by +t cycles FIRE→WATER→NATURE→FIRE
+    // and keeps the whole board invariant.
+    //
+    // (A naive rotate-about-origin check gives a FALSE asymmetry: it was the
+    // exact mistake that once sent NNUE debugging down a wrong path. This test
+    // pins the CORRECT invariant so a real board change that breaks fairness
+    // fails loudly, and the false alarm can never recur.)
+    const all = [...cells.values()];
+    const keyset = (hs: Hex[]) => new Set(hs.map((h) => h.key));
+    const zone = (z: string) =>
+      all.filter((c) => c.zone === z).map((c) => c.hex);
+    // 120° rotation about origin in cube coords: (q,r,s) → (r,s,q).
+    const rot120 = (h: Hex) => new Hex(h.r, -h.q - h.r);
+    const allKeys = keyset(all.map((c) => c.hex));
+
+    // Find the unique translation mapping rot120(src) onto dst (as sets).
+    const findT = (src: Hex[], dst: Hex[]): Hex | null => {
+      const dstKeys = keyset(dst);
+      const r0 = rot120(src[0]!);
+      for (const d of dst) {
+        const t = new Hex(d.q - r0.q, d.r - r0.r);
+        const mapped = src.map(
+          (h) => new Hex(rot120(h).q + t.q, rot120(h).r + t.r),
+        );
+        if (
+          mapped.length === dst.length &&
+          mapped.every((h) => dstKeys.has(h.key))
+        )
+          return t;
+      }
+      return null;
+    };
+
+    const fire = zone(ZONE.START_FIRE);
+    const water = zone(ZONE.START_WATER);
+    const nature = zone(ZONE.START_NATURE);
+    const tFW = findT(fire, water);
+    const tWN = findT(water, nature);
+    const tNF = findT(nature, fire);
+
+    // Each zone maps onto the next in the RPS cycle.
+    expect(tFW).not.toBeNull();
+    expect(tWN).not.toBeNull();
+    expect(tNF).not.toBeNull();
+    // A single rotation centre ⇒ identical translation for all three steps.
+    expect(tFW!.key).toBe(tWN!.key);
+    expect(tWN!.key).toBe(tNF!.key);
+
+    // The whole board (triangle + all wings) is invariant under rot120 + t.
+    const mappedAll = all.map((c) => {
+      const rr = rot120(c.hex);
+      return new Hex(rr.q + tFW!.q, rr.r + tFW!.r);
+    });
+    expect(mappedAll.length).toBe(allKeys.size);
+    expect(mappedAll.every((h) => allKeys.has(h.key))).toBe(true);
+  });
 });
