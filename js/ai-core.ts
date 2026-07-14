@@ -2532,6 +2532,11 @@ async function runPonderSearch(): Promise<void> {
       ponderState.bestMove = result.action;
       ponderState.bestScore = result.score;
       prevScore = result.score;
+      // Keep the per-ponder node counter in sync with the module-level
+      // search counter (minimax increments `nodesSearched` directly, but
+      // ponderState.nodesSearched was never updated — it stayed 0, so the
+      // progress callback reported a bogus node count).
+      ponderState.nodesSearched = nodesSearched;
 
       // Progress callback for UI (optional)
       if (typeof reportPonderProgress === "function") {

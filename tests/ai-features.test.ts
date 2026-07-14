@@ -11,6 +11,7 @@ import {
   stopPondering,
   getPonderMove,
   isPondering,
+  setPonderProgressCallback,
   PonderState,
 } from "../js/ai.ts";
 
@@ -538,6 +539,34 @@ describe("AI Core: Pondering", () => {
 
     stopPondering(); // Cleanup
   });
+
+  test("reportPonderProgress callback fires with depth/score/nodes during pondering", async () => {
+    const calls: Array<{ depth: number; score: number; nodes: number }> = [];
+    setPonderProgressCallback((depth, score, nodes) => {
+      calls.push({ depth, score, nodes });
+    });
+
+    startPondering(game, FACTION.FIRE);
+    // Poll until a best move has been committed (which triggers the progress
+    // callback branch), or give up after ~2s.
+    const deadline = Date.now() + 2000;
+    while (Date.now() < deadline) {
+      if (getPonderMove()) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    await stopPondering();
+
+    // Callback must have fired at least once with a committed move.
+    expect(calls.length).toBeGreaterThan(0);
+    for (const c of calls) {
+      expect(c.depth).toBeGreaterThanOrEqual(1);
+      expect(typeof c.score).toBe("number");
+      expect(c.nodes).toBeGreaterThan(0);
+    }
+
+    // Cleanup: clear the callback so other tests are unaffected.
+    setPonderProgressCallback(null);
+  }, 5000);
 
   test("pondering works when opponent has no legal moves", () => {
     // Create a position where opponent has no moves
