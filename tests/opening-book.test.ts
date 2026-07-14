@@ -41,6 +41,10 @@ import {
   loadOpeningBook,
   saveLearnedDataToStorage,
   loadLearnedDataFromStorage,
+  BuildBookGame,
+  BookQueryGame,
+  ParseMoveGame,
+  BoardHashGame,
 } from "../js/opening-book.ts";
 
 // Typed alias for the app's OPENING_BOOK so the optional learning stats
@@ -48,7 +52,7 @@ import {
 const APP_BOOK = OPENING_BOOK as unknown as Map<string, BookVariation[]>;
 
 // Mock Game class that mimics the real Game behavior
-class MockGame {
+class MockGame implements BuildBookGame {
   pieces: Piece[] = [];
   currentFaction: Faction = FACTION.FIRE;
   currentFactionIdx = 0;
@@ -169,12 +173,12 @@ class MockGame {
     }
   }
 
-  handleCellClick(pos: Hex) {
+  handleCellClick(pos: Hex): GameResult | null {
     // Find piece at position
     const piece = this._occupiedMap.get(pos.key);
 
     if (this.pendingPromotion) {
-      return { action: "none" };
+      return null;
     }
 
     if (this.selectedPiece) {
@@ -198,26 +202,29 @@ class MockGame {
 
       this._rebuildOccupiedMap();
 
-      return targetPiece ? { action: "combat" } : { action: "move" };
+      return targetPiece
+        ? ({ action: "combat", piece: targetPiece } as GameResult)
+        : ({ action: "move", from, to: pos } as GameResult);
     } else {
       // Select piece
       if (piece && piece.alive) {
         this.selectedPiece = piece;
-        return { action: "select", piece };
+        return { action: "select", piece } as GameResult;
       }
-      return { action: "none" };
+      return null;
     }
   }
 
-  completePromotion() {
+  completePromotion(_newType?: PieceType): GameResult | null {
     this.pendingPromotion = null;
+    return null;
   }
 }
 
 // Helper to create starting position - just use MockGame directly.
-// Typed as `any` so the mock can be passed to app functions that expect IGame
-// without implementing the full IGame surface.
-function createStartingGame(): any {
+// MockGame implements BuildBookGame, so it can be passed to opening-book
+// functions without an `as any` cast.
+function createStartingGame(): BuildBookGame {
   const game = new MockGame();
   game.init(generateBoard());
   return game;
@@ -290,7 +297,7 @@ describe("Opening Book: parseMove", () => {
   test("parses valid move string", () => {
     const game = createStartingGame();
     const moveStr = "fire_pawn_10 -> -4,5";
-    const parsed = parseMove(game as any, moveStr)!;
+    const parsed = parseMove(game, moveStr)!;
 
     expect(parsed).not.toBeNull();
     expect(parsed.piece).toBeDefined();
@@ -302,7 +309,7 @@ describe("Opening Book: parseMove", () => {
   test("returns null for non-existent piece", () => {
     const game = createStartingGame();
     const moveStr = "fire_nonexistent -> -4,5";
-    const parsed = parseMove(game as any, moveStr)!;
+    const parsed = parseMove(game, moveStr)!;
 
     expect(parsed).toBeNull();
   });
@@ -310,7 +317,7 @@ describe("Opening Book: parseMove", () => {
   test("returns null for invalid coordinates", () => {
     const game = createStartingGame();
     const moveStr = "fire_pawn_10 -> a,b";
-    const parsed = parseMove(game as any, moveStr)!;
+    const parsed = parseMove(game, moveStr)!;
 
     expect(parsed).toBeNull();
   });
@@ -318,7 +325,7 @@ describe("Opening Book: parseMove", () => {
   test("handles spaces correctly", () => {
     const game = createStartingGame();
     const moveStr = "fire_pawn_10 ->  -4, 5 ";
-    const parsed = parseMove(game as any, moveStr)!;
+    const parsed = parseMove(game, moveStr)!;
 
     expect(parsed).not.toBeNull();
     expect(parsed.target.q).toBe(-4);
@@ -333,14 +340,14 @@ describe("Opening Book: buildOpeningBook", () => {
   });
 
   test("builds book with positions", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     expect(OPENING_BOOK.size).toBeGreaterThan(0);
     expect(BOOK_INFO.totalPositions).toBeGreaterThan(0);
   });
 
   test("creates entries for all 12 opening lines", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     // 4 lines per faction * 3 factions = 12 lines minimum
     // Each line creates entries at each ply
@@ -352,10 +359,10 @@ describe("Opening Book: buildOpeningBook", () => {
   });
 
   test("idempotent - second build does not double entries", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const firstSize = OPENING_BOOK.size;
 
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const secondSize = OPENING_BOOK.size;
 
     expect(secondSize).toBe(firstSize);
@@ -370,15 +377,15 @@ describe("Opening Book: getBookMoves", () => {
   test("returns null for position not in book", () => {
     const game = createStartingGame();
     // Don't build book
-    const moves = getBookMoves(game as any)!;
+    const moves = getBookMoves(game)!;
     expect(moves).toBeNull();
   });
 
   test("returns moves for position after book build", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
-    const moves = getBookMoves(game as any)!;
+    const moves = getBookMoves(game)!;
 
     expect(moves).not.toBeNull();
     expect(Array.isArray(moves)).toBe(true);
@@ -391,10 +398,10 @@ describe("Opening Book: getBookMoves", () => {
   });
 
   test("returned moves have correct structure", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
-    const moves = getBookMoves(game as any)!;
+    const moves = getBookMoves(game)!;
 
     for (const move of moves) {
       expect(move).toHaveProperty("move");
@@ -419,7 +426,7 @@ describe("Opening Book: pickBookMove", () => {
   });
 
   test("returns a valid move from book", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
     const move = pickBookMove(game);
@@ -434,7 +441,7 @@ describe("Opening Book: pickBookMove", () => {
   });
 
   test("returns valid piece for the move", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
     // Run multiple times to test weighted random
@@ -443,7 +450,7 @@ describe("Opening Book: pickBookMove", () => {
       if (move) {
         expect(move.piece.alive).toBe(true);
         // Piece should match one of the book entries
-        const bookMoves = getBookMoves(game as any)!;
+        const bookMoves = getBookMoves(game)!;
         const matchingEntry = bookMoves.find(
           (m) => m.move.pieceId === move.piece.id,
         );
@@ -453,7 +460,7 @@ describe("Opening Book: pickBookMove", () => {
   });
 
   test("falls back to first move if piece not found", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
     // Kill all pieces except one
@@ -482,7 +489,7 @@ describe("Opening Book: inBook", () => {
   });
 
   test("returns true for position in book", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
     expect(inBook(game)).toBe(true);
   });
@@ -506,7 +513,7 @@ describe("Opening Book: getBookStats", () => {
 
   test("stats update after build", () => {
     const before = getBookStats();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const after = getBookStats();
 
     expect(after.positions).toBeGreaterThan(before.positions);
@@ -514,7 +521,7 @@ describe("Opening Book: getBookStats", () => {
   });
 
   test("maxPly matches BOOK_INFO", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const stats = getBookStats();
     expect(stats.maxPly).toBe(BOOK_INFO.maxPly);
   });
@@ -530,7 +537,7 @@ describe("Opening Book: OPENING_BOOK Map", () => {
   });
 
   test("can be cleared", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     expect(OPENING_BOOK.size).toBeGreaterThan(0);
 
     OPENING_BOOK.clear();
@@ -538,7 +545,7 @@ describe("Opening Book: OPENING_BOOK Map", () => {
   });
 
   test("stores arrays of move entries", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     for (const [_hash, moves] of OPENING_BOOK) {
       expect(Array.isArray(moves)).toBe(true);
@@ -556,7 +563,7 @@ describe("Opening Book: Integration with Game flow", () => {
   });
 
   test("book move is legal in game", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
     const bookMove = pickBookMove(game);
@@ -564,19 +571,19 @@ describe("Opening Book: Integration with Game flow", () => {
     if (bookMove) {
       // Simulate selecting and moving
       const selectResult = game.handleCellClick(bookMove.piece.pos);
-      expect(selectResult.action).toBe("select");
+      expect(selectResult!.action).toBe("select");
 
       const result = game.handleCellClick(bookMove.target);
       // Should be a valid move or combat
-      expect(["move", "combat", "promotion"]).toContain(result.action);
+      expect(["move", "combat", "promotion"]).toContain(result!.action);
     }
   });
 
   test("multiple moves from same position are legal", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     const game = createStartingGame();
 
-    const bookMoves = getBookMoves(game as any)!;
+    const bookMoves = getBookMoves(game)!;
 
     if (bookMoves && bookMoves.length > 0) {
       for (const entry of bookMoves) {
@@ -585,12 +592,12 @@ describe("Opening Book: Integration with Game flow", () => {
         );
         if (piece && piece.alive) {
           const selectResult = game.handleCellClick(piece.pos);
-          if (selectResult.action === "select") {
+          if (selectResult!.action === "select") {
             const result = game.handleCellClick(
               new Hex(entry.move.targetQ, entry.move.targetR),
             );
             // Should be a valid action (or promotion)
-            expect(["move", "combat", "promotion"]).toContain(result.action);
+            expect(["move", "combat", "promotion"]).toContain(result!.action);
           }
         }
       }
@@ -604,7 +611,7 @@ describe("Opening Book: Weight handling", () => {
   });
 
   test("weights decrease with ply depth", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     for (const [_hash, moves] of OPENING_BOOK) {
       for (const entry of moves) {
@@ -614,7 +621,7 @@ describe("Opening Book: Weight handling", () => {
   });
 
   test("duplicates are not added for same move at same position", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     for (const [_hash, moves] of OPENING_BOOK) {
       const seen = new Set();
@@ -636,23 +643,23 @@ describe("Opening Book: Edge cases", () => {
     const game = new MockGame();
     game.init(generateBoard());
 
-    expect(inBook(game as any)).toBe(false);
-    expect(getBookMoves(game as any)).toBeNull();
-    expect(pickBookMove(game as any)).toBeNull();
+    expect(inBook(game)).toBe(false);
+    expect(getBookMoves(game)).toBeNull();
+    expect(pickBookMove(game)).toBeNull();
   });
 
   test("boardHash handles empty game", () => {
     const game = new MockGame();
     game.init(generateBoard());
 
-    const hash = boardHash(game as any);
+    const hash = boardHash(game);
     expect(typeof hash).toBe("string");
     expect(hash).toContain("#0"); // faction index 0
   });
 
   test("parseMove handles missing -> separator", () => {
     const game = createStartingGame();
-    const parsed = parseMove(game as any, "fire_pawn_10 -4,5")!;
+    const parsed = parseMove(game, "fire_pawn_10 -4,5")!;
     expect(parsed).toBeNull();
   });
 });
@@ -677,7 +684,7 @@ describe("Opening Book: loadOpeningBook", () => {
 describe("Opening Book: learnFromGame", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
   });
 
   test("increases weight for winning moves", () => {
@@ -830,7 +837,7 @@ describe("Opening Book: learnFromGame", () => {
 describe("Opening Book: getLearnedData", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
   });
 
   test("exports learned data with correct structure", () => {
@@ -844,28 +851,28 @@ describe("Opening Book: getLearnedData", () => {
       FACTION.FIRE,
     );
 
-    const learned = getLearnedData() as any;
+    const learned = getLearnedData();
 
     expect(learned).toHaveProperty(hash);
     expect(Array.isArray(learned[hash])).toBe(true);
-    expect(learned[hash].length).toBeGreaterThan(0);
+    expect(learned[hash]!.length).toBeGreaterThan(0);
 
-    const entry = learned[hash][0];
+    const entry = learned[hash]![0]!;
     expect(entry).toHaveProperty("move");
     expect(entry).toHaveProperty("wins");
     expect(entry).toHaveProperty("draws");
     expect(entry).toHaveProperty("losses");
     expect(entry).toHaveProperty("visits");
-    expect(entry.visits).toBe(1);
-    expect(entry.wins).toBe(1);
+    expect(entry!.visits).toBe(1);
+    expect(entry!.wins).toBe(1);
   });
 
   test("only exports entries with visits > 0", () => {
-    const learned = getLearnedData() as any;
+    const learned = getLearnedData();
 
     // Without any learning, learned data should be empty or only have empty arrays
-    for (const [_hash, entries] of Object.entries(learned)) {
-      for (const entry of entries as any[]) {
+    for (const entries of Object.values(learned)) {
+      for (const entry of entries) {
         expect(entry.visits).toBeGreaterThan(0);
       }
     }
@@ -873,7 +880,7 @@ describe("Opening Book: getLearnedData", () => {
 
   test("returns empty object for empty book", () => {
     OPENING_BOOK.clear();
-    const learned = getLearnedData() as any;
+    const learned = getLearnedData();
     expect(Object.keys(learned).length).toBe(0);
   });
 });
@@ -881,7 +888,7 @@ describe("Opening Book: getLearnedData", () => {
 describe("Opening Book: saveLearnedData", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
   });
 
   test("function exists", () => {
@@ -928,7 +935,7 @@ describe("Opening Book: saveLearnedData", () => {
 describe("Opening Book: loadLearnedData", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
   });
 
   test("loads learned data into existing positions", () => {
@@ -1043,11 +1050,11 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
         this.pendingPromotion = null;
       }
 
-      override handleCellClick(pos: Hex) {
+      override handleCellClick(pos: Hex): GameResult | null {
         const result = super.handleCellClick(pos);
         // Simulate promotion on 8th rank
         if (
-          result.action === "move" &&
+          result?.action === "move" &&
           this.selectedPiece &&
           this.selectedPiece.type === PIECE_TYPE.PAWN
         ) {
@@ -1057,19 +1064,23 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
             (this.selectedPiece.faction === FACTION.NATURE && pos.q <= -6)
           ) {
             this.pendingPromotion = { piece: this.selectedPiece, pos } as any;
-            return { action: "promotion", piece: this.selectedPiece };
+            return {
+              action: "promotion",
+              piece: this.selectedPiece,
+            } as GameResult;
           }
         }
         return result;
       }
 
-      override completePromotion() {
+      override completePromotion(_newType?: PieceType): GameResult | null {
         this.pendingPromotion = null;
+        return null;
       }
     };
 
     // Should not throw
-    buildOpeningBook(mockGameWithPromotion as any);
+    buildOpeningBook(mockGameWithPromotion);
     expect(OPENING_BOOK.size).toBeGreaterThan(0);
   });
 
@@ -1081,14 +1092,14 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
       override handleCellClick(pos: Hex) {
         // Make second move illegal
         if (this.selectedPiece && this.moveHistory.length >= 1) {
-          return { action: "none" };
+          return null;
         }
         return super.handleCellClick(pos);
       }
     };
 
     // Should not throw, just skip that line
-    buildOpeningBook(mockGameIllegal as any);
+    buildOpeningBook(mockGameIllegal);
     expect(OPENING_BOOK.size).toBeGreaterThan(0);
   });
 
@@ -1097,19 +1108,19 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
       override handleCellClick(pos: Hex) {
         if (!this.selectedPiece) {
           // Fail to select piece
-          return { action: "none" };
+          return null;
         }
         return super.handleCellClick(pos);
       }
     };
 
     // Should not throw
-    buildOpeningBook(mockGameSelectFail as any);
+    buildOpeningBook(mockGameSelectFail);
     expect(OPENING_BOOK.size).toBeGreaterThan(0);
   });
 
   test("weight decay works correctly across plies", () => {
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     // First ply should have highest weights
     // Later plies should have decayed weights
@@ -1130,7 +1141,7 @@ describe("Opening Book: buildOpeningBook edge cases", () => {
 describe("Opening Book: saveLearnedDataToStorage / loadLearnedDataFromStorage", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
     localStorage.clear();
   });
 
@@ -1168,7 +1179,7 @@ describe("Opening Book: saveLearnedDataToStorage / loadLearnedDataFromStorage", 
 
     // Clear and reload
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
 
     const result = loadLearnedDataFromStorage();
     expect(result).toBe(true);
@@ -1194,7 +1205,7 @@ describe("Opening Book: saveLearnedDataToStorage / loadLearnedDataFromStorage", 
 describe("Opening Book: saveLearnedData (file)", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
   });
 
   test("returns data object with version, updated, positions", async () => {
@@ -1304,7 +1315,7 @@ describe("Opening Book: loadOpeningBook with mocked import", () => {
 describe("Opening Book: loadLearnedData advanced", () => {
   beforeEach(() => {
     OPENING_BOOK.clear();
-    buildOpeningBook(MockGame as any);
+    buildOpeningBook(MockGame);
   });
 
   test("merges learned data with existing book entries", () => {

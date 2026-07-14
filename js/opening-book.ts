@@ -13,7 +13,37 @@ import type {
   Piece,
   PieceType,
   Hex as HexType,
+  Cell,
+  GameResult,
 } from "./types.ts";
+
+// Narrow contracts — opening-book only relies on a small subset of IGame.
+// Using narrow interfaces (instead of the full IGame) lets test mocks be
+// type-checked against the *exact* surface opening-book touches, so a
+// contract break (e.g. a mock forgetting to stub a used method) fails at
+// compile time instead of slipping through an `as any` cast. The real Game
+// class satisfies these because IGame is a superset.
+export interface BoardHashGame {
+  pieces: Piece[];
+  currentFactionIdx?: number;
+  currentFaction?: Faction;
+  getAlivePieces?(): Piece[];
+}
+export interface ParseMoveGame {
+  pieces: Piece[];
+}
+export interface BookQueryGame {
+  pieces: Piece[];
+  currentFactionIdx?: number;
+  currentFaction?: Faction;
+  getAlivePieces?(): Piece[];
+}
+export interface BuildBookGame extends BookQueryGame {
+  init(boardCells: Map<string, Cell>): void;
+  handleCellClick(pos: Hex): GameResult | null;
+  completePromotion(newType: PieceType): GameResult | null;
+  _rebuildOccupiedMap(): void;
+}
 
 // Opening book storage (loaded from compiled JSON)
 interface BookMove {
@@ -69,7 +99,7 @@ export const BOOK_INFO = {
 // ---------------------------------------------------------------------------
 // Helper: Generate board hash (matches ai.js exactly)
 // ---------------------------------------------------------------------------
-export function boardHash(game: IGame): string {
+export function boardHash(game: BoardHashGame): string {
   const pieces = game.getAlivePieces
     ? game.getAlivePieces()
     : game.pieces.filter((p) => p.alive);
@@ -93,7 +123,7 @@ export function boardHash(game: IGame): string {
 // Parse move helper (for buildOpeningBook)
 // ---------------------------------------------------------------------------
 export function parseMove(
-  game: IGame,
+  game: ParseMoveGame,
   moveStr: string,
 ): { piece: Piece; target: Hex } | null {
   const [piecePart, targetPart] = moveStr.split("->").map((s) => s.trim());
@@ -169,7 +199,7 @@ export async function loadOpeningBook(): Promise<boolean> {
  * This is kept for testing and development.
  * Call this once at startup after Game class is loaded.
  */
-export function buildOpeningBook(GameClass: new () => IGame): void {
+export function buildOpeningBook(GameClass: new () => BuildBookGame): void {
   // NOTE: Do NOT clear() OPENING_BOOK here. In production the compiled
   // book is loaded first via loadOpeningBook() into this same map; calling
   // clear() would discard that data and replace it with these hardcoded
@@ -436,7 +466,7 @@ export function buildOpeningBook(GameClass: new () => IGame): void {
  * Returns array of { move: {pieceId, targetQ, targetR}, weight } sorted by weight desc.
  * Returns null if position not in book.
  */
-export function getBookMoves(game: IGame): Array<{
+export function getBookMoves(game: BookQueryGame): Array<{
   move: { pieceId: string; targetQ: number; targetR: number };
   weight: number;
 }> | null {
@@ -453,7 +483,7 @@ export function getBookMoves(game: IGame): Array<{
  * Returns { piece, target } or null if no book move.
  */
 export function pickBookMove(
-  game: IGame,
+  game: BookQueryGame,
 ): { piece: Piece; target: Hex } | null {
   const bookMoves = getBookMoves(game);
   if (!bookMoves) return null;
@@ -492,7 +522,7 @@ export function pickBookMove(
 /**
  * Check if we're still in book (position has entries).
  */
-export function inBook(game: IGame): boolean {
+export function inBook(game: BookQueryGame): boolean {
   const hash = boardHash(game);
   return OPENING_BOOK.has(hash) && OPENING_BOOK.get(hash)!.length > 0;
 }
