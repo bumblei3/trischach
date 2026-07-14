@@ -8,7 +8,7 @@
  * Add/modify here, then both consumers stay in sync.
  */
 
-import { getValidMoves, PIECE_STRENGTH } from "./pieces.ts";
+import { getValidMoves, PIECE_STRENGTH, isPromotionCell } from "./pieces.ts";
 import { getRPSResult, FACTION } from "./board.ts";
 import { Hex } from "./hex.ts";
 import { isKingdomCheck } from "./game-check.ts";
@@ -813,15 +813,38 @@ export function evaluatePawnStructure(
   const enemyPawns = pawns.filter((p) => p.faction !== faction);
   let score = 0;
 
+  // Forward depth toward each faction's own last rank, normalized to 0..1
+  // (FIRE max=2, WATER max=7, NATURE max=2) so the bonus is
+  // comparable across factions.
+  const maxDepth: Record<string, number> = {
+    [FACTION.FIRE]: 2,
+    [FACTION.WATER]: 7,
+    [FACTION.NATURE]: 2,
+  };
+  const absDepth = (p: Piece): number =>
+    p.faction === FACTION.FIRE
+      ? -p.pos.r
+      : p.faction === FACTION.WATER
+        ? -p.pos.q
+        : p.faction === FACTION.NATURE
+          ? p.pos.q
+          : 0;
+  const depthOf = (p: Piece): number => {
+    const md = maxDepth[p.faction];
+    return md ? absDepth(p) / md : 0;
+  };
+
   for (const p of myPawns) {
-    if (p.pos.r <= 0) score += 15;
-    else if (p.pos.r <= 2) score += 5;
-    else if (p.pos.r <= 4) score += 2;
+    const depth = depthOf(p);
+    if (depth >= 0.85) score += 15; // on/near last rank
+    else if (depth >= 0.5) score += 5;
+    else if (depth >= 0.25) score += 2;
   }
   for (const p of enemyPawns) {
-    if (p.pos.r <= 0) score -= 15;
-    else if (p.pos.r <= 2) score -= 5;
-    else if (p.pos.r <= 4) score -= 2;
+    const depth = depthOf(p);
+    if (depth >= 0.85) score -= 15;
+    else if (depth >= 0.5) score -= 5;
+    else if (depth >= 0.25) score -= 2;
   }
 
   const myColumnCounts: Record<number, number> = {};
@@ -928,12 +951,32 @@ export function evaluateEndgame(
     }
   }
 
-  // 2. PAWN PROMOTION PRESSURE
+  // 2. PAWN PROMOTION PRESSURE (faction-aware, normalized depth)
+  // Each faction's max forward depth differs (FIRE r:0->-2 = 2, WATER
+  // q:0->-7 = 7, NATURE q:0->2 = 2), so normalize to 0..1.
+  const maxDepth: Record<string, number> = {
+    [FACTION.FIRE]: 2,
+    [FACTION.WATER]: 7,
+    [FACTION.NATURE]: 2,
+  };
+  const forwardDepth = (p: Piece): number => {
+    const raw =
+      p.faction === FACTION.FIRE
+        ? -p.pos.r
+        : p.faction === FACTION.WATER
+          ? -p.pos.q
+          : p.faction === FACTION.NATURE
+            ? p.pos.q
+            : 0;
+    const md = maxDepth[p.faction];
+    return md ? raw / md : 0;
+  };
   for (const pawn of myPawns) {
-    if (pawn.pos.r <= 0) score += isLateEndgame ? 200 : 100;
-    else if (pawn.pos.r === 1) score += isLateEndgame ? 80 : 40;
-    else if (pawn.pos.r === 2) score += isLateEndgame ? 40 : 20;
-    else if (pawn.pos.r <= 4) score += 10;
+    const depth = forwardDepth(pawn); // 0..1
+    if (depth >= 0.85) score += isLateEndgame ? 200 : 100;
+    else if (depth >= 0.6) score += isLateEndgame ? 80 : 40;
+    else if (depth >= 0.4) score += isLateEndgame ? 40 : 20;
+    else if (depth >= 0.15) score += 10;
 
     const blockingPawns = pieces.filter(
       (p) =>
@@ -1495,7 +1538,7 @@ export function simulateMove(
     piece.hasMoved = true;
   }
 
-  const isPromotion = piece.type === "pawn" && piece.pos.r <= 0;
+  const isPromotion = isPromotionCell(piece, target);
   if (isPromotion) {
     undo.promotion = piece.type;
     undo.promotionSymbol = piece.symbol;

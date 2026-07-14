@@ -15,39 +15,42 @@ describe("Pawn Promotion", () => {
     game.rpsEnabled = true;
   });
 
-  test("isPromotion: pawn at r=0 triggers promotion", () => {
+  test("isPromotion: FIRE pawn reaches last rank (r=-2) triggers promotion", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    expect(game.isPromotion(pawn, new Hex(0, -2))).toBe(true);
+  });
+
+  test("isPromotion: FIRE pawn at r=0 (apex) does NOT trigger promotion", () => {
     const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
-    expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(true);
+    expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(false); // apex r=0, not last rank
   });
 
-  test("isPromotion: pawn at r=-1 triggers promotion", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
-    expect(game.isPromotion(pawn, new Hex(0, -1))).toBe(true);
-  });
-
-  test("isPromotion: pawn at r=1 does NOT trigger promotion", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
-    expect(game.isPromotion(pawn, new Hex(0, 1))).toBe(false);
+  test("isPromotion: FIRE pawn at r=-1 does NOT trigger promotion", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -2));
+    expect(game.isPromotion(pawn, new Hex(0, -1))).toBe(false);
   });
 
   test("isPromotion: non-pawn piece never triggers promotion", () => {
-    const queen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, 1));
-    expect(game.isPromotion(queen, new Hex(0, 0))).toBe(false);
+    const queen = new Piece(PIECE_TYPE.QUEEN, FACTION.FIRE, new Hex(0, -1));
+    expect(game.isPromotion(queen, new Hex(0, -2))).toBe(false);
   });
 
-  test("isPromotion is faction-agnostic (all pawns promote at r<=0)", () => {
-    // The engine's promotion rule is `target.r <= 0`, independent of faction.
-    // Verify the same pawn landing on r=0 promotes whether it belongs to Fire,
-    // Water, or Nature — the rule must not be hardcoded to Fire's side of the
-    // board. This guards against a regression that would silently disable
-    // promotion for the other two factions.
-    for (const faction of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
-      const pawn = new Piece(PIECE_TYPE.PAWN, faction, new Hex(0, 1));
-      expect(game.isPromotion(pawn, new Hex(0, 0))).toBe(true);
-      // And a non-promotion square never promotes, for any faction.
-      const farPawn = new Piece(PIECE_TYPE.PAWN, faction, new Hex(0, 3));
-      expect(game.isPromotion(farPawn, new Hex(0, 2))).toBe(false);
-    }
+  test("isPromotion is faction-specific (each promotes only on its own last rank)", () => {
+    // FIRE last rank = r === -2
+    const fire = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    expect(game.isPromotion(fire, new Hex(0, -2))).toBe(true);
+
+    // WATER last rank = q === -7 (a WATER pawn sitting at r<=0 must NOT promote)
+    const water = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(-6, 6));
+    expect(game.isPromotion(water, new Hex(-7, 6))).toBe(true);
+    const waterStart = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(1, 0));
+    expect(game.isPromotion(waterStart, new Hex(1, 0))).toBe(false);
+
+    // NATURE last rank = q === 2 (a NATURE pawn at r<=0 must NOT promote)
+    const nature = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(1, 0));
+    expect(game.isPromotion(nature, new Hex(2, 0))).toBe(true);
+    const natureStart = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(-1, 0));
+    expect(game.isPromotion(natureStart, new Hex(-1, 0))).toBe(false);
   });
 
   test("PROMOTION_CHOICES contains queen, rook, bishop, knight", () => {
@@ -59,39 +62,50 @@ describe("Pawn Promotion", () => {
     ]);
   });
 
-  test("handleCellClick: pawn move to r<=0 triggers PROMOTION state", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+  test("handleCellClick: FIRE pawn move to last rank (r=-2) triggers PROMOTION state", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
 
     // Select the pawn
-    const sel = game.handleCellClick(new Hex(0, 1))!;
+    const sel = game.handleCellClick(new Hex(0, -1))!;
     expect(sel.action).toBe("select");
 
-    // Move to r=0 (promotion zone)
-    const result = game.handleCellClick(new Hex(0, 0))!;
+    // Move to r=-2 (promotion zone = last rank)
+    const result = game.handleCellClick(new Hex(0, -2))!;
     expect(result.action).toBe("move");
     expect(result.promotion).toBe(true);
     expect(game.state).toBe(GAME_STATE.PROMOTION);
     expect(game.pendingPromotion).toBe(pawn);
   });
 
-  test("handleCellClick: returns null during PROMOTION state", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+  test("handleCellClick: FIRE pawn NOT at last rank does not trigger PROMOTION", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0)); // apex, r=0
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
 
-    game.handleCellClick(new Hex(0, 1));
     game.handleCellClick(new Hex(0, 0));
+    const result = game.handleCellClick(new Hex(0, -1))!; // r=-1, NOT the last rank (r=-2)
+    expect(result.promotion).toBeFalsy();
+    expect(game.state).not.toBe(GAME_STATE.PROMOTION);
+  });
+
+  test("handleCellClick: returns null during PROMOTION state", () => {
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    game.pieces = [pawn];
+    game._rebuildOccupiedMap();
+
+    game.handleCellClick(new Hex(0, -1));
+    game.handleCellClick(new Hex(0, -2));
     expect(game.state).toBe(GAME_STATE.PROMOTION);
 
     // Clicking during promotion should return null
-    const result = game.handleCellClick(new Hex(1, 0))!;
+    const result = game.handleCellClick(new Hex(1, -2))!;
     expect(result).toBeNull();
   });
 
   test("completePromotion: transforms pawn to queen", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -2));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.pendingPromotion = pawn;
@@ -108,7 +122,7 @@ describe("Pawn Promotion", () => {
   });
 
   test("completePromotion: transforms pawn to rook", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, -2));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.pendingPromotion = pawn;
@@ -120,7 +134,7 @@ describe("Pawn Promotion", () => {
   });
 
   test("completePromotion: transforms pawn to bishop", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, -2));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.pendingPromotion = pawn;
@@ -132,7 +146,7 @@ describe("Pawn Promotion", () => {
   });
 
   test("completePromotion: transforms pawn to knight", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -2));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.pendingPromotion = pawn;
@@ -150,7 +164,7 @@ describe("Pawn Promotion", () => {
   });
 
   test("completePromotion: advances turn after promotion", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -2));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.pendingPromotion = pawn;
@@ -162,7 +176,7 @@ describe("Pawn Promotion", () => {
   });
 
   test("completePromotion: adds to move history", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -2));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.pendingPromotion = pawn;
@@ -177,7 +191,7 @@ describe("Pawn Promotion", () => {
   });
 
   test("promotion: game over if last faction after promotion", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 0));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -2));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     game.pieces = [pawn, fireKing];
     game.eliminatedFactions.add(FACTION.WATER);
@@ -192,16 +206,16 @@ describe("Pawn Promotion", () => {
   });
 
   test("simulateMove: promotion flag set in undo object", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
 
-    const undo = game.simulateMove(pawn, new Hex(0, 0));
+    const undo = game.simulateMove(pawn, new Hex(0, -2));
     expect(undo.promoted).toBe(true);
 
     game.undoMove(undo);
     expect(pawn.type).toBe(PIECE_TYPE.PAWN);
-    expect(pawn.pos.equals(new Hex(0, 1))).toBe(true);
+    expect(pawn.pos.equals(new Hex(0, -1))).toBe(true);
   });
 
   test("simulateMove: no promotion flag for non-promoting move", () => {
@@ -219,7 +233,7 @@ describe("Pawn Promotion", () => {
     // the symmetric counterpart to the advantage case (defender dies) and is
     // the critical RPS rule that makes the 3-player balance work.
     const firePawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 2));
-    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 1));
+    const waterPawn = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, -1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
     game.pieces = [firePawn, waterPawn, fireKing, waterKing];
@@ -228,7 +242,7 @@ describe("Pawn Promotion", () => {
     game.currentFactionIdx = 0; // FIRE to move
     game.currentFaction = FACTION.FIRE;
 
-    const undo = game.simulateMove(firePawn, new Hex(0, 1)); // capture water pawn
+    const undo = game.simulateMove(firePawn, new Hex(0, -1)); // capture water pawn
     expect(undo.wasAttack).toBe(true);
     expect(undo.attackerDied).toBe(true);
     expect(undo.defenderWasKilled).toBeFalsy();
@@ -247,16 +261,16 @@ describe("Pawn Promotion", () => {
   });
 
   test("full promotion flow: select -> move -> promote -> next turn", () => {
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
 
     // 1. Select pawn
-    game.handleCellClick(new Hex(0, 1));
+    game.handleCellClick(new Hex(0, -1));
     expect(game.state).toBe(GAME_STATE.SELECT_TARGET);
 
     // 2. Move to promotion zone
-    const moveResult = game.handleCellClick(new Hex(0, 0))!;
+    const moveResult = game.handleCellClick(new Hex(0, -2))!;
     expect(game.state).toBe(GAME_STATE.PROMOTION);
     expect(moveResult.promotion).toBe(true);
 
@@ -271,28 +285,28 @@ describe("Pawn Promotion", () => {
     // The undo path must restore a promoted pawn to its original type AND
     // square — mirroring the elimination-undo guarantees. Drive a real
     // promote via handleCellClick, then undo and assert the pawn is back.
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     game.pieces = [pawn];
     game._rebuildOccupiedMap();
     game.currentFactionIdx = 0;
     game.currentFaction = FACTION.FIRE;
     game.state = GAME_STATE.SELECT_PIECE;
 
-    game.handleCellClick(new Hex(0, 1)); // select pawn
-    const moveResult = game.handleCellClick(new Hex(0, 0))!; // -> promotion zone
+    game.handleCellClick(new Hex(0, -1)); // select pawn
+    const moveResult = game.handleCellClick(new Hex(0, -2))!; // -> promotion zone
     expect(moveResult.promotion).toBe(true);
     expect(game.state).toBe(GAME_STATE.PROMOTION);
 
     game.completePromotion(PIECE_TYPE.QUEEN);
     expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
-    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
+    expect(pawn.pos.equals(new Hex(0, -2))).toBe(true);
 
     // Undo the whole promotion move. The popped snapshot is the one taken at
     // the move (pawn already on 0,0), so the pawn returns there as a PAWN.
     const restored = game.undo();
     expect(restored).not.toBeNull();
     expect(pawn.type).toBe(PIECE_TYPE.PAWN); // demoted back
-    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true); // back to pre-promo square
+    expect(pawn.pos.equals(new Hex(0, -2))).toBe(true); // back to pre-promo square
     expect(game.state).toBe(GAME_STATE.SELECT_PIECE);
     expect(game.currentFaction).toBe(FACTION.FIRE);
   });
@@ -301,7 +315,7 @@ describe("Pawn Promotion", () => {
     // Once the game reaches GAME_OVER (or a draw), further clicks must not
     // mutate state or produce a move. This guards the UI against post-game
     // input driving the engine.
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     game.pieces = [pawn, fireKing];
     game.eliminatedFactions.add(FACTION.WATER);
@@ -312,7 +326,7 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.GAME_OVER;
     (game as any).winner_faction = FACTION.FIRE;
 
-    const result = game.handleCellClick(new Hex(0, 1));
+    const result = game.handleCellClick(new Hex(0, -1));
     expect(result).toBeNull();
     // State is untouched by the click.
     expect(game.state).toBe(GAME_STATE.GAME_OVER);
@@ -321,7 +335,7 @@ describe("Pawn Promotion", () => {
 
     // Same for a draw state.
     game.state = GAME_STATE.DRAW_REPETITION;
-    const result2 = game.handleCellClick(new Hex(0, 1));
+    const result2 = game.handleCellClick(new Hex(0, -1));
     expect(result2).toBeNull();
     expect(game.state).toBe(GAME_STATE.DRAW_REPETITION);
   });
@@ -331,7 +345,7 @@ describe("Pawn Promotion", () => {
     // state and waits for completePromotion(). Any board click in that window
     // must be a no-op (return null, state unchanged) so the UI cannot sneak a
     // second move in before the player picks a promotion piece.
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     game.pieces = [pawn, fireKing];
     game._rebuildOccupiedMap();
@@ -340,8 +354,8 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.SELECT_PIECE;
 
     // Drive the pawn into the promotion zone.
-    game.handleCellClick(new Hex(0, 1));
-    const moveResult = game.handleCellClick(new Hex(0, 0))!;
+    game.handleCellClick(new Hex(0, -1));
+    const moveResult = game.handleCellClick(new Hex(0, -2))!;
     expect(moveResult.promotion).toBe(true);
     expect(game.state).toBe(GAME_STATE.PROMOTION);
     expect(game.pendingPromotion).toBe(pawn);
@@ -352,7 +366,7 @@ describe("Pawn Promotion", () => {
     expect(game.state).toBe(GAME_STATE.PROMOTION); // still awaiting choice
     expect(game.pendingPromotion).toBe(pawn); // promotion not cancelled
     // The pawn stays on the promotion square, unmoved by the stray click.
-    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
+    expect(pawn.pos.equals(new Hex(0, -2))).toBe(true);
     expect(pawn.type).toBe(PIECE_TYPE.PAWN); // not yet promoted
   });
 
@@ -361,7 +375,7 @@ describe("Pawn Promotion", () => {
     // to 0 on completion — guarding a bug where completePromotion never called
     // _updateDrawState and thus left the clock frozen (e.g. at 99), silently
     // preventing the draw-rule reset that every pawn move triggers.
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
     const natureKing = new Piece(
@@ -376,8 +390,8 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.SELECT_PIECE;
     game._halfmoveClock = 99; // just below the 100 draw limit
 
-    game.handleCellClick(new Hex(0, 1));
-    game.handleCellClick(new Hex(0, 0)); // -> promotion zone (transient)
+    game.handleCellClick(new Hex(0, -1));
+    game.handleCellClick(new Hex(0, -2)); // -> promotion zone (transient)
     expect(game._halfmoveClock).toBe(99); // unchanged until completed
 
     game.completePromotion(PIECE_TYPE.QUEEN);
@@ -391,7 +405,7 @@ describe("Pawn Promotion", () => {
     // promotion flow (_selectTarget early-return + completePromotion) never
     // called _updateDrawState, so promoted positions were invisible to the
     // repetition counter.
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
     const natureKing = new Piece(
@@ -406,8 +420,8 @@ describe("Pawn Promotion", () => {
     game.state = GAME_STATE.SELECT_PIECE;
 
     const before = game._positionHistory.size;
-    game.handleCellClick(new Hex(0, 1));
-    game.handleCellClick(new Hex(0, 0)); // -> promotion zone
+    game.handleCellClick(new Hex(0, -1));
+    game.handleCellClick(new Hex(0, -2)); // -> promotion zone
     expect(game._positionHistory.size).toBe(before); // still unrecorded pre-completion
 
     game.completePromotion(PIECE_TYPE.QUEEN);
@@ -433,7 +447,7 @@ describe("Pawn Promotion", () => {
     // tell that the opponent was left in check by the promoted piece.
     // RPS disabled so the pawn's move to (0,0) is a quiet promotion (no capture).
     game.rpsEnabled = false;
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
     const rook = new Piece(PIECE_TYPE.ROOK, FACTION.FIRE, new Hex(2, -2)); // attacks (2,0)
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(2, 0));
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
@@ -450,8 +464,8 @@ describe("Pawn Promotion", () => {
 
     expect(game.isKingInCheck(FACTION.WATER)).toBe(true); // rook pins the king
 
-    game.handleCellClick(new Hex(0, 1));
-    game.handleCellClick(new Hex(0, 0)); // -> promotion (0,0 empty, no capture)
+    game.handleCellClick(new Hex(0, -1));
+    game.handleCellClick(new Hex(0, -2)); // -> promotion (0,0 empty, no capture)
     const result = game.completePromotion(PIECE_TYPE.QUEEN)!;
 
     // The promotion hands the move to WATER, which is in check.
@@ -468,8 +482,8 @@ describe("Pawn Promotion", () => {
     // guard for the round-25 fix (isPromotion now also requires the pawn to
     // survive the move).
     game.rpsEnabled = true; // Fire vs Water is a disadvantage for Fire
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
-    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, 0)); // on promo edge (r<=0)
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.WATER, new Hex(0, -2)); // on promo edge (r<=0)
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(5, -5));
     const natureKing = new Piece(
@@ -483,8 +497,8 @@ describe("Pawn Promotion", () => {
     game.currentFaction = FACTION.FIRE;
     game.state = GAME_STATE.SELECT_PIECE;
 
-    game.handleCellClick(new Hex(0, 1));
-    const result = game.handleCellClick(new Hex(0, 0))!; // disadvantage combat in zone
+    game.handleCellClick(new Hex(0, -1));
+    const result = game.handleCellClick(new Hex(0, -2))!; // disadvantage combat in zone
 
     // The attacker died (disadvantage); defender survives.
     expect(pawn.alive).toBe(false);
@@ -506,8 +520,8 @@ describe("Pawn Promotion", () => {
     // check in the round-25 fix still allows legitimate promotions by capture.
     // Fire can move (0,1) -> (0,0) and Fire beats Nature (advantage).
     game.rpsEnabled = true;
-    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, 1));
-    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, 0)); // on promo edge (r<=0)
+    const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, new Hex(0, -1));
+    const enemy = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, new Hex(0, -2)); // on promo edge (r<=0)
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(-5, 5));
     const natureKing = new Piece(
       PIECE_TYPE.KING,
@@ -521,8 +535,8 @@ describe("Pawn Promotion", () => {
     game.currentFaction = FACTION.FIRE;
     game.state = GAME_STATE.SELECT_PIECE;
 
-    game.handleCellClick(new Hex(0, 1));
-    const result = game.handleCellClick(new Hex(0, 0))!; // advantage combat in zone
+    game.handleCellClick(new Hex(0, -1));
+    const result = game.handleCellClick(new Hex(0, -2))!; // advantage combat in zone
 
     expect(result.action).toBe("combat");
     expect(enemy.alive).toBe(false); // defender captured
@@ -535,6 +549,6 @@ describe("Pawn Promotion", () => {
     const pres = game.completePromotion(PIECE_TYPE.QUEEN);
     expect(pres).not.toBeNull();
     expect(pawn.type).toBe(PIECE_TYPE.QUEEN);
-    expect(pawn.pos.equals(new Hex(0, 0))).toBe(true);
+    expect(pawn.pos.equals(new Hex(0, -2))).toBe(true);
   });
 });
