@@ -77,7 +77,7 @@ export function loadNNUEWeights(w: NNUEWeights): void {
 
 export function encodePosition(
   game: IGame,
-  _perspective: Faction,
+  perspective: Faction,
 ): Float32Array {
   const vec = new Float32Array(NNUE_INPUT_DIMS);
   const alive = game.pieces.filter((p) => p.alive);
@@ -92,10 +92,15 @@ export function encodePosition(
     const base = s * FEATURES_PER_PIECE;
     const ti = PIECE_TYPES.indexOf(p.type as (typeof PIECE_TYPES)[number]);
     const fi = FACTIONS.indexOf(p.faction);
+    // Perspective-relative sign: own pieces are encoded positively, enemy
+    // pieces negatively. Without this the eval is identical for both sides
+    // (perspective-blind), which breaks alpha-beta search direction and
+    // costs ~800 Elo. This is the standard NNUE convention.
+    const sign = p.faction === perspective ? 1 : -1;
     vec[base + F_TYPE] = ti >= 0 ? ti : 0;
     vec[base + F_FACTION] = fi >= 0 ? fi : 0;
-    vec[base + F_Q] = Math.max(-1, Math.min(1, p.pos.q / 7));
-    vec[base + F_R] = Math.max(-1, Math.min(1, p.pos.r / 7));
+    vec[base + F_Q] = sign * Math.max(-1, Math.min(1, p.pos.q / 7));
+    vec[base + F_R] = sign * Math.max(-1, Math.min(1, p.pos.r / 7));
     // distance to own king
     const ok = kingPos[p.faction];
     vec[base + F_OWNKING] = ok
@@ -110,7 +115,7 @@ export function encodePosition(
     }
     vec[base + F_ENEMYKING] = Math.max(0, Math.min(1, dk / 12));
     vec[base + F_PROMO] = p.pos.r === promoRank(p.faction) ? 1 : 0;
-    vec[base + F_MATERIAL] = MATERIAL[p.type] ?? 0;
+    vec[base + F_MATERIAL] = sign * (MATERIAL[p.type] ?? 0);
     vec[base + F_ALIVE] = 1;
   }
   // Remaining slots stay at 0 except alive flag 0 (already 0) — fully
