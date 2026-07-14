@@ -33,10 +33,11 @@ import type { NNUEWeights } from "../js/nnue.ts";
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 /** Terminal outcome from FIRE's perspective: +1 win, -1 loss, 0 draw. */
-function outcomeToLabel(g: Game): number {
-  if (g.eliminatedFactions.has(FACTION.FIRE)) return -1;
+/** Terminal outcome from `faction`'s perspective: +1 win, -1 loss, 0 draw. */
+function outcomeToLabel(g: Game, faction: Faction): number {
+  if (g.eliminatedFactions.has(faction)) return -1;
   const alive = TURNS.filter((f) => !g.eliminatedFactions.has(f));
-  if (alive.length <= 1) return 1;
+  if (alive.length <= 1) return 1; // faction is the survivor
   return 0;
 }
 
@@ -44,17 +45,24 @@ function outcomeToLabel(g: Game): number {
  * Play one self-play game with NNUE as the eval for both sides, collecting the
  * trajectory of encoded positions (side-to-move perspective) for TD training.
  */
-function playAndCollect(g: Game, w: NNUEWeights): Float32Array[] {
+function playAndCollect(
+  g: Game,
+  w: NNUEWeights,
+): { vec: Float32Array; faction: Faction }[] {
   setNNUEEnabled(true);
   loadNNUEWeights(w);
   setAIDepth(2);
-  const traj: Float32Array[] = [];
+  const traj: { vec: Float32Array; faction: Faction }[] = [];
   let ply = 0;
   while (ply < 120) {
     const alive = TURNS.filter((f) => !g.eliminatedFactions.has(f));
     if (alive.length <= 1) break;
     const faction = TURNS[g.currentFactionIdx]!;
-    traj.push(encodePosition(g, faction));
+    // Encode from the side-to-move perspective AND remember that perspective,
+    // so the TD label below can be computed from the same viewpoint. The eval
+    // is perspective-relative, so the label MUST be too — otherwise the net
+    // learns contradictory signal (this was the bug that kept Elo at -800).
+    traj.push({ vec: encodePosition(g, faction), faction });
     const mv = calculateBestMove(g, faction);
     if (!mv) break;
     simulateMove(g, mv.piece, mv.target);
@@ -74,14 +82,18 @@ function main(): void {
     const g = new Game();
     g.init(generateBoard());
     const traj = playAndCollect(g, w);
-    const terminal = outcomeToLabel(g);
-    // TD(0): label every position with the terminal outcome.
-    const batch = traj.map((vec) => ({ vec, label: terminal }));
+    // TD(0): label every position with the terminal outcome, computed from
+    // the SAME side-to-move perspective the position was encoded with.
+    const batch = traj.map((t) => ({
+      vec: t.vec,
+      label: outcomeToLabel(g, t.faction),
+    }));
     for (let e = 0; e < EPOCHS; e++) {
       trainStep(w, batch, LR);
     }
     if (game % 20 === 0) {
-      console.log(`Game ${game}: traj=${traj.length} outcome=${terminal}`);
+      const terminal = outcomeToLabel(g, FACTION.FIRE);
+      console.log(`Game ${game}: traj=${traj.length} outcome(FIRE)=${terminal}`);
     }
   }
 
