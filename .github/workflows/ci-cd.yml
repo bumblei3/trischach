@@ -323,6 +323,28 @@ jobs:
               body
             });
 
+  # NNUE Elo regression gate.
+  # Runs the fast NNUE sanity + mini-Elo check against the committed weights
+  # (public/js/weights/nnue-weights.json — no build needed). The gate value is
+  # set well below the current measured Elo (~-180 at d2/16 games) so it only
+  # fails on a genuine regression (weights that lost >~70 Elo), not on normal
+  # benchmark variance. A perspective-sanity failure (eval not side-relative,
+  # e.g. after an encoding change) hard-fails regardless of the gate.
+  nnue-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: NNUE Elo gate
+        run: npx tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-250
+
   # Release automation
   release:
     name: Create Release
@@ -359,7 +381,7 @@ jobs:
           generate_release_notes: true
 
   deploy:
-    needs: [typecheck, lint, unit-tests, e2e-tests, codeql]
+    needs: [typecheck, lint, unit-tests, e2e-tests, codeql, nnue-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
