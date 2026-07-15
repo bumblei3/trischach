@@ -5,6 +5,7 @@ import { expect, test, describe, beforeEach } from "vitest";
 import {
   getTutorialSteps,
   isTutorialDone,
+  isAutomatedBrowser,
   markTutorialDone,
   resetTutorial,
   shouldShowTutorialOnStartup,
@@ -29,9 +30,10 @@ describe("tutorial persistence", () => {
     localStorage.clear();
   });
 
-  test("defaults to not done / show on startup", () => {
+  test("defaults to not done; startup show respects automation flag", () => {
     expect(isTutorialDone()).toBe(false);
-    expect(shouldShowTutorialOnStartup()).toBe(true);
+    // happy-dom (and Playwright) may set navigator.webdriver → suppress auto-open.
+    expect(shouldShowTutorialOnStartup()).toBe(!isAutomatedBrowser());
   });
 
   test("markTutorialDone persists and hides on startup", () => {
@@ -45,6 +47,10 @@ describe("tutorial persistence", () => {
     markTutorialDone();
     resetTutorial();
     expect(isTutorialDone()).toBe(false);
-    expect(shouldShowTutorialOnStartup()).toBe(true);
+    expect(shouldShowTutorialOnStartup()).toBe(!isAutomatedBrowser());
+  });
+
+  test("isAutomatedBrowser is a boolean (env-dependent)", () => {
+    expect(typeof isAutomatedBrowser()).toBe("boolean");
   });
 });

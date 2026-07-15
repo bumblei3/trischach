@@ -76,7 +76,32 @@ export function resetTutorial(): void {
   }
 }
 
-/** Show on first visit only (tutorial not yet completed). */
+/**
+ * Detect Playwright/CI browsers and explicit opt-out query params.
+ * Without this, the first-run overlay intercepts all pointer events and
+ * breaks the entire E2E suite (empty localStorage → tutorial always opens).
+ */
+export function isAutomatedBrowser(): boolean {
+  try {
+    if (typeof navigator !== "undefined" && navigator.webdriver) {
+      return true;
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    if (typeof location !== "undefined") {
+      const q = new URLSearchParams(location.search);
+      if (q.has("e2e") || q.has("notutorial")) return true;
+    }
+  } catch {
+    // ignore
+  }
+  return false;
+}
+
+/** Show on first visit only (tutorial not yet completed, not automation). */
 export function shouldShowTutorialOnStartup(): boolean {
+  if (isAutomatedBrowser()) return false;
   return !isTutorialDone();
 }

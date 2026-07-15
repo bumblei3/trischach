@@ -410,8 +410,7 @@ export async function validatePuzzle(puzzle: Puzzle): Promise<boolean> {
 
   // Check that mate is delivered (full game over or last move marked mate)
   const last = puzzle.solution[puzzle.solution.length - 1];
-  const solved =
-    isGameOverState(testGame.state) || last?.isMate === true;
+  const solved = isGameOverState(testGame.state) || last?.isMate === true;
   if (!solved) return false;
 
   // Uniqueness of the first move (no alternative immediate mates)

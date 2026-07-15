@@ -28,6 +28,13 @@ export const test = base.extend({});
 // deterministic (no cached AI worker / static assets from prior runs).
 test.beforeEach(async ({ context, page }) => {
   await context.addInitScript(() => {
+    // Mark tutorial complete before the app boots so the first-run overlay
+    // never blocks clicks (Phase A regression: 18 E2E failures on main).
+    try {
+      localStorage.setItem("trischach-tutorial-done", "1");
+    } catch {
+      /* private mode / blocked storage */
+    }
     try {
       Object.defineProperty(navigator, "serviceWorker", {
         configurable: true,

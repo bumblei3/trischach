@@ -173,6 +173,7 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 ## 🗺️ Roadmap / Ideen
 
 ### Erledigt
+
 - [✅] **Puzzle Mode** – "Mate in N" Generator aus Opening Book
 - [✅] **Mate-in-N Detection** – Quiescence erweitert, Eval Bar "Matt in 3"
 - [✅] **Pondering** – Denken während Gegnerzug (+50-80 Elo)
@@ -184,6 +185,7 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 - [✅] **Replay-Analyse** – „Engine empfiehlt…“ mit Eval an der aktuellen Position
 
 ### Offen
+
 - [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
 - [ ] **NNUE default-on** – erst nach messbarem Elo-Gewinn vs. Handcrafted
 - [ ] **Distributed Match Runner** – Koordinierte Engine-Matches über mehrere Clients
