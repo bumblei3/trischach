@@ -35,6 +35,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   oft leer).
 - README-Roadmap: NNUE, Parallel Search und Phase-A-Features als erledigt markiert.
 
+### Fixed
+
+- **Flaky Pondering-Test behoben.** `tests/ai-features.test.ts` >
+  "reportPonderProgress callback fires …" lief unter Coverage-Instrumentierung
+  sporadisch in den 5000 ms-Timeout (8168 ms statt Limit, ~1/10 Runs rot).
+  Ursache: der Test pollt auf den committeten Ponder-Move (`getPonderMove()`),
+  der erst nach einem kompletten Depth-Durchlauf gesetzt wird; die synchrone
+  `minimax`-Suche blockiert aber den Event-Loop, sodass `stopPondering()` den
+  Rest verbrauchte. Fix: auf das Feuern des `reportPonderProgress`-Callbacks
+  pollen (passiert unmittelbar nach Depth 1, ~1.3 s) und das Test-Timeout auf
+  15 s anheben. Verifiziert durch 12× vollen Coverage-Run ohne Fail.
+- **ai-worker Unit-Tests verdichtet.** Die Worker-spezifischen Message-Pfade
+  waren kaum abgedeckt (nur `calculate`/`setDepth`). Neu: `searchSubset`
+  (Root-Splitting, inkl. leerem Subset), das volle Pondering-Protokoll
+  (`startPonder` → `ponderReady`/`ponderProgress`/`ponderResult` →
+  `stopPonder`), `setPersonality` (Worker-Personality-State) und `initBook` →
+  `bookReady`. Das Harness spy-t jetzt `postMessage` über die gesamte
+  Testdauer (inkl. async via setTimeout/queueMicrotask), damit die
+  UI-Freeze-kritischen Pondering-Messages nicht mehr im Leeren landen.
+
 ## [1.3.2] - 2026-07-14
 
 ### Fixed

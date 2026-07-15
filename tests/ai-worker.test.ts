@@ -2,11 +2,11 @@
  * ai-worker.test.js - Tests for the AI Web Worker
  * Tests the worker message interface AND core AI functions (now exported for coverage)
  */
-import { expect, test, describe, vi } from "vitest";
+import { expect, test, describe, vi, beforeEach, afterEach } from "vitest";
 import { Hex } from "../js/hex.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.ts";
-import { GAME_STATE } from "../js/game.ts";
+import { GAME_STATE, Game } from "../js/game.ts";
 import {
   IGame,
   GameState,
@@ -35,6 +35,8 @@ import {
   greedyBestMove,
   calculateBestMove,
   deserializeGame,
+  getWorkerPersonality,
+  setWorkerPersonality,
   TURN_ORDER,
   AI_PERSONALITIES,
   setAIDepth,
@@ -885,16 +887,34 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       onmessage: ((e: MessageEvent) => any) | null;
     };
 
-    function runHandler(data: any, posted: any[]): void {
-      const originalPost = workerCtx.postMessage;
+    // A shared spy array that stays active for the ENTIRE test (including
+    // async messages emitted via setTimeout / queueMicrotask, e.g. the
+    // ponderReady / ponderProgress / ponderResult protocol). The previous
+    // per-call spy restored the real postMessage immediately after the
+    // synchronous handler returned, so any message posted from a timer/microtask
+    // was lost. The worker relies on async messages (startPonder posts
+    // ponderReady via setTimeout), so the spy must outlive the handler call.
+    let posted: any[] = [];
+    let originalPost: ((msg: any) => void) | null = null;
+
+    beforeEach(() => {
+      posted = [];
+      originalPost = workerCtx.postMessage;
       workerCtx.postMessage = (msg: any) => posted.push(msg);
-      workerCtx.onmessage!({ data } as MessageEvent);
+    });
+
+    afterEach(() => {
       workerCtx.postMessage = originalPost;
+      // Always stop any pondering the test may have left running, so the
+      // background search can't bleed into the next test or block the suite.
+      workerCtx.onmessage!({ data: { type: "stopPonder" } } as MessageEvent);
+    });
+
+    function runHandler(data: any): void {
+      workerCtx.onmessage!({ data } as MessageEvent);
     }
 
     test("'calculate' message runs the search and posts a result", () => {
-      const posted: any[] = [];
-
       const gameState = createGameState({
         pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
         currentFaction: FACTION.FIRE,
@@ -902,10 +922,7 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       });
 
       // The handler reads e.data.{type, gameState, faction, depth}
-      runHandler(
-        { type: "calculate", gameState, faction: FACTION.FIRE },
-        posted,
-      );
+      runHandler({ type: "calculate", gameState, faction: FACTION.FIRE });
 
       // It must have posted a 'result' with a move object
       // (pieceId + targetQ/R + moveType), not an error.
@@ -919,14 +936,9 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("'calculate' with no legal moves posts result move: null", () => {
-      const posted: any[] = [];
-
       const gameState = createGameState({ pieces: [] });
 
-      runHandler(
-        { type: "calculate", gameState, faction: FACTION.FIRE },
-        posted,
-      );
+      runHandler({ type: "calculate", gameState, faction: FACTION.FIRE });
 
       const result = posted.find((m) => m.type === "result");
       expect(result).toBeDefined();
@@ -934,12 +946,138 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("'setDepth' message updates the search depth without throwing", () => {
-      const posted: any[] = [];
-
       // Must not throw (the handler just calls setAIDepth).
+      expect(() => runHandler({ type: "setDepth", depth: 4 })).not.toThrow();
+    });
+
+    test("'searchSubset' searches only the assigned root moves and posts subsetResult", () => {
+      // A real fire pawn that can move, so a legal action exists for the subset.
+      const gameState = createGameState({
+        pieces: [
+          createPiece("pawn", FACTION.FIRE, 0, 3),
+          createPiece("king", FACTION.FIRE, -5, 5),
+          createPiece("king", FACTION.WATER, 5, 5),
+          createPiece("king", FACTION.NATURE, 0, -5),
+        ],
+        currentFaction: FACTION.FIRE,
+        currentFactionIdx: 0,
+      });
+
+      const { moves } = getLegalMoves(gameState, gameState.pieces[0]!);
+      expect(moves.length).toBeGreaterThan(0);
+      const target = moves[0]!;
+
+      runHandler({
+        type: "searchSubset",
+        gameState,
+        faction: FACTION.FIRE,
+        depth: 2,
+        searchDepth: 2,
+        subset: [
+          {
+            pieceId: gameState.pieces[0]!.id,
+            targetQ: target.q,
+            targetR: target.r,
+          },
+        ],
+      });
+
+      const res = posted.find((m) => m.type === "subsetResult");
+      expect(res).toBeDefined();
+      expect(res.score).toBeGreaterThanOrEqual(-Infinity);
+      expect(res.move).not.toBeNull();
+      // The returned move must be exactly the one we asked the worker to search.
+      expect(res.move.pieceId).toBe(gameState.pieces[0]!.id);
+      expect(res.move.targetQ).toBe(target.q);
+      expect(res.move.targetR).toBe(target.r);
+    });
+
+    test("'searchSubset' with empty subset posts subsetResult move: null", () => {
+      const gameState = createGameState({
+        pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
+        currentFaction: FACTION.FIRE,
+        currentFactionIdx: 0,
+      });
+
+      runHandler({
+        type: "searchSubset",
+        gameState,
+        faction: FACTION.FIRE,
+        depth: 1,
+        subset: [],
+      });
+
+      const res = posted.find((m) => m.type === "subsetResult");
+      expect(res).toBeDefined();
+      expect(res.move).toBeNull();
+    });
+
+    test("'startPonder' then 'stopPonder' posts ponderReady + ponderProgress + ponderResult", async () => {
+      // Use a real starting position so the pondering faction (WATER) has
+      // genuine legal moves and the iterative-deepening search actually runs
+      // (the worker's startPondering short-circuits to no-op when the faction
+      // has zero actions, which would never fire ponderProgress).
+      const g = new Game();
+      g.init(generateBoard());
+      const gameState = g as unknown as IGame;
+
+      // Begin pondering for FIRE's opponent (WATER). The worker tracks its own
+      // ponder state; the afterEach hook stops any lingering pondering so the
+      // suite stays clean.
+      runHandler({ type: "startPonder", gameState, faction: FACTION.WATER });
+
+      // ponderReady is signalled via setTimeout(…, 50).
+      const deadlineReady = Date.now() + 2000;
+      while (Date.now() < deadlineReady) {
+        if (posted.find((m) => m.type === "ponderReady")) break;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      expect(posted.find((m) => m.type === "ponderReady")).toBeDefined();
+
+      // Poll until the ponder progress callback has fired (after depth 1 of
+      // the search, ~1.3s). This is the protocol the main thread relies on to
+      // show live ponder stats.
+      const deadlineProgress = Date.now() + 4000;
+      while (Date.now() < deadlineProgress) {
+        if (posted.find((m) => m.type === "ponderProgress")) break;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+
+      // Stop and collect the committed ponder move.
+      runHandler({ type: "stopPonder" });
+      // stopPonder is async (stopPondering().then); let the microtask flush.
+      await new Promise((r) => setTimeout(r, 0));
+
+      const progress = posted.find((m) => m.type === "ponderProgress");
+      expect(progress).toBeDefined();
+      expect(progress.depth).toBeGreaterThanOrEqual(1);
+      expect(typeof progress.score).toBe("number");
+      expect(progress.nodes).toBeGreaterThan(0);
+
+      const result = posted.find((m) => m.type === "ponderResult");
+      expect(result).toBeDefined();
+      expect(result.move).not.toBeNull();
+      expect(result.move).toHaveProperty("pieceId");
+      expect(result.move).toHaveProperty("targetQ");
+      expect(result.move).toHaveProperty("targetR");
+      expect(result.move).toHaveProperty("moveType");
+    }, 15000);
+
+    test("'setPersonality' updates the worker personality state", () => {
       expect(() =>
-        runHandler({ type: "setDepth", depth: 4 }, posted),
+        runHandler({ type: "setPersonality", personality: "aggressive" }),
       ).not.toThrow();
+      expect(getWorkerPersonality()).toBe("aggressive");
+
+      // Reset so other tests see the default.
+      setWorkerPersonality("balanced");
+      expect(getWorkerPersonality()).toBe("balanced");
+    });
+
+    test("'initBook' marks the book built and posts bookReady", () => {
+      expect(() => runHandler({ type: "initBook" })).not.toThrow();
+      const ready = posted.find((m) => m.type === "bookReady");
+      expect(ready).toBeDefined();
     });
   });
 });
