@@ -915,7 +915,6 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     }
 
     test("'calculate' message runs the search and posts a result", () => {
-
       const gameState = createGameState({
         pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
         currentFaction: FACTION.FIRE,
@@ -937,7 +936,6 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("'calculate' with no legal moves posts result move: null", () => {
-
       const gameState = createGameState({ pieces: [] });
 
       runHandler({ type: "calculate", gameState, faction: FACTION.FIRE });
@@ -948,15 +946,11 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("'setDepth' message updates the search depth without throwing", () => {
-
       // Must not throw (the handler just calls setAIDepth).
-      expect(() =>
-        runHandler({ type: "setDepth", depth: 4 }),
-      ).not.toThrow();
+      expect(() => runHandler({ type: "setDepth", depth: 4 })).not.toThrow();
     });
 
     test("'searchSubset' searches only the assigned root moves and posts subsetResult", () => {
-
       // A real fire pawn that can move, so a legal action exists for the subset.
       const gameState = createGameState({
         pieces: [
@@ -980,14 +974,13 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
         depth: 2,
         searchDepth: 2,
         subset: [
-            {
-              pieceId: gameState.pieces[0]!.id,
-              targetQ: target.q,
-              targetR: target.r,
-            },
-          ],
-        },
-      );
+          {
+            pieceId: gameState.pieces[0]!.id,
+            targetQ: target.q,
+            targetR: target.r,
+          },
+        ],
+      });
 
       const res = posted.find((m) => m.type === "subsetResult");
       expect(res).toBeDefined();
@@ -1000,22 +993,19 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("'searchSubset' with empty subset posts subsetResult move: null", () => {
-
       const gameState = createGameState({
         pieces: [createPiece("pawn", FACTION.FIRE, 0, 3)],
         currentFaction: FACTION.FIRE,
         currentFactionIdx: 0,
       });
 
-      runHandler(
-        {
-          type: "searchSubset",
-          gameState,
-          faction: FACTION.FIRE,
-          depth: 1,
-          subset: [],
-        },
-      );
+      runHandler({
+        type: "searchSubset",
+        gameState,
+        faction: FACTION.FIRE,
+        depth: 1,
+        subset: [],
+      });
 
       const res = posted.find((m) => m.type === "subsetResult");
       expect(res).toBeDefined();
@@ -1074,7 +1064,6 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     }, 15000);
 
     test("'setPersonality' updates the worker personality state", () => {
-
       expect(() =>
         runHandler({ type: "setPersonality", personality: "aggressive" }),
       ).not.toThrow();
@@ -1086,7 +1075,6 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
     });
 
     test("'initBook' marks the book built and posts bookReady", () => {
-
       expect(() => runHandler({ type: "initBook" })).not.toThrow();
       const ready = posted.find((m) => m.type === "bookReady");
       expect(ready).toBeDefined();
