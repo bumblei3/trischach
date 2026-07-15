@@ -31,7 +31,7 @@
 - **📚 Opening Book:** 3×4 Styles (Classical, Aggressive, Solid, Tricky), Depth 22+, Weighted Learning
 - **Auditives Feedback:** Dynamische Soundeffekte (Web Audio API)
 - **Modernes UI:** Glassmorphism-Design mit Neon-Farben, Dark Mode
-- **Pure Vanilla Power:** 100% HTML, CSS, JavaScript (ES Modules). Keine Frameworks, kein Build-Step. Performantes SVG-Rendering.
+- **Pure Vanilla Power:** 100% HTML, CSS, TypeScript (ES Modules), keine UI-Frameworks. Der Quellcode ist Vanilla; für das Deployment läuft ein Vite-Build (bundelt `js/*.ts` → `dist/`, kopiert NNUE-Gewichte & Assets). Performantes SVG-Rendering.
 
 ## 🎲 Spielregeln
 
@@ -75,13 +75,21 @@ Lokal lässt sich TriSchach in Sekunden starten:
 3. Lokalen Webserver starten:
 
    ```bash
-   # Mit Python (keine Node-Deps nötig)
+   # Variante A — mit Vite-Build (empfohlen, voller Funktionsumfang inkl. NNUE)
+   npm install --legacy-peer-deps
+   npm run build
+   npx serve dist
+   # öffne http://localhost:3000/
+
+   # Variante B — ohne Build (kein Node/npm nötig, spielt aber OHNE neuronale
+   # Eval: initNNUE() fetcht ./js/weights/nnue-weights.json, das nur vom
+   # Vite-Build nach dist/ kopiert wird. Ohne Build fällt die Engine sauber
+   # auf die Handcrafted-Eval zurück — das Spiel läuft trotzdem vollständig.)
    python3 -m http.server 8080
-   # Oder mit Node.js
-   npx serve .
+   # öffne http://localhost:8080/
    ```
 
-4. Öffne `http://localhost:8080/` im Browser.
+4. Öffne die angegebene URL im Browser.
 
 ### PWA Installieren
 
