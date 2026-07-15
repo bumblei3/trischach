@@ -2209,3 +2209,194 @@ input:checked + .slider:before {
     margin-right: 0.5rem;
   }
 }
+
+.puzzle-streak {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.puzzle-streak strong {
+  color: var(--fire);
+}
+
+.puzzle-streak .streak-best {
+  color: var(--water);
+}
+
+/* === Replay analysis === */
+.replay-analysis {
+  width: 100%;
+  margin-top: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  font-size: 0.85rem;
+  color: var(--text);
+  text-align: center;
+}
+
+.replay-analysis[hidden] {
+  display: none !important;
+}
+
+.replay-analysis .analysis-label {
+  color: var(--text-dim);
+  margin-right: 0.35rem;
+}
+
+.replay-analysis .analysis-san {
+  font-weight: 700;
+  color: var(--water);
+}
+
+.replay-analysis .analysis-score {
+  font-weight: 600;
+  color: var(--nature);
+  margin-left: 0.5rem;
+}
+
+/* === Tutorial Overlay === */
+#tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+#tutorial-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tutorial-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 460px;
+  width: 92vw;
+  text-align: center;
+  animation: combat-appear 0.4s ease;
+}
+
+.tutorial-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tutorial-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  background: linear-gradient(135deg, var(--fire), var(--nature), var(--water));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.tutorial-body {
+  color: var(--text-dim);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
+.tutorial-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  text-align: left;
+}
+
+.tutorial-bullets li {
+  padding: 0.45rem 0.7rem;
+  margin-bottom: 0.4rem;
+  border-radius: var(--radius);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.tutorial-progress {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.tutorial-dot.active {
+  background: var(--fire);
+  box-shadow: 0 0 8px rgba(255, 69, 0, 0.5);
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.tutorial-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.tutorial-btn.primary {
+  background: linear-gradient(135deg, var(--fire), #ff6b35);
+  border-color: transparent;
+  color: #fff;
+}
+
+.tutorial-btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255, 69, 0, 0.35);
+}
+
+.tutorial-btn.ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+
+.setting-action-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.setting-action-btn:hover {
+  border-color: var(--water);
+  color: var(--water);
+}

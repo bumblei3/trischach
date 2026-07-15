@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tutorial (First-Run).** Drei Screens — Brett, Schere-Stein-Papier, Siegbedingung.
+  Erscheint beim ersten Besuch; jederzeit über ❓ oder Einstellungen → „Nochmal
+  anzeigen“ erneut startbar. Fortschritt in `localStorage`
+  (`trischach-tutorial-done`).
+- **Puzzle-Uniqueness.** Generator und `validatePuzzle` akzeptieren nur Puzzles
+  mit eindeutigem Matt-Eröffnungszug (`hasUniqueSolution` /
+  `findAllImmediateMatingMoves`).
+- **Daily-Streak.** Lösen des Tagespuzzles zählt Streak (aktuell / Best / Gesamt);
+  Anzeige im Puzzle-Menü und im Erfolgs-Dialog.
+- **Replay-Analyse.** Button „🔍 Analysieren“ im Replay: Engine-Empfehlung +
+  Eval der aktuellen Position (`js/analysis.ts`).
+
+### Changed
+
+- Puzzle-Board ruft `loadPuzzle()` zuverlässig beim Öffnen auf (State war vorher
+  oft leer).
+- README-Roadmap: NNUE, Parallel Search und Phase-A-Features als erledigt markiert.
+
 ## [1.3.2] - 2026-07-14
 
 ### Fixed

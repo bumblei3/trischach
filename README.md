@@ -172,12 +172,20 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 
 ## 🗺️ Roadmap / Ideen
 
+### Erledigt
 - [✅] **Puzzle Mode** – "Mate in N" Generator aus Opening Book
 - [✅] **Mate-in-N Detection** – Quiescence erweitert, Eval Bar "Matt in 3"
-- [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
-- [ ] **Neural Evaluation (tiny NNUE)** – ~150-200 Elo Gewinn
-- [ ] **Parallel Search** – SharedArrayBuffer + Web Workers
 - [✅] **Pondering** – Denken während Gegnerzug (+50-80 Elo)
 - [✅] **Opening Book Expansion** – 3×4 Styles, Depth 22+, Weighted Learning aus Engine-Selbstpartien
+- [✅] **JS-NNUE Evaluation** – 660→128→32→1, TD-Training, opt-in (1.3.x)
+- [✅] **Parallel Search** – Root-Move-Splitting über Web Worker (ohne SharedArrayBuffer)
+- [✅] **Tutorial** – 3 Screens (Brett, RPS, Sieg), First-Run + Settings
+- [✅] **Puzzle Uniqueness + Daily Streak** – eindeutiger Eröffnungszug, Streak-Tracking
+- [✅] **Replay-Analyse** – „Engine empfiehlt…“ mit Eval an der aktuellen Position
+
+### Offen
+- [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
+- [ ] **NNUE default-on** – erst nach messbarem Elo-Gewinn vs. Handcrafted
 - [ ] **Distributed Match Runner** – Koordinierte Engine-Matches über mehrere Clients
-- [ ] **Endgame Tablebases** – Syzygy-Style für 3-Spieler-Endspiele
+- [ ] **Endgame Tablebases** – Syzygy-Style für 3-Spieler-Endspiele (3–4 Steine zuerst)
+- [ ] **Analyse-Modus vertiefen** – PV-Linie, RPS-Erklärung, Auto-Analyse beim Replay-Schritt

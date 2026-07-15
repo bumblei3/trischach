@@ -127,6 +127,13 @@
               <button id="puzzle-btn" title="Puzzle Modus (Matt in N)">
                 ♟ Puzzle
               </button>
+              <button
+                id="tutorial-btn"
+                class="btn-ghost"
+                title="Tutorial anzeigen"
+              >
+                ❓
+              </button>
               <button id="settings-btn" class="btn-ghost" title="Einstellungen">
                 ⚙️
               </button>
@@ -174,6 +181,12 @@
               >
                 💾 Ganze Partie
               </button>
+              <button
+                id="replay-analyze"
+                title="Position analysieren (Engine)"
+              >
+                🔍 Analysieren
+              </button>
             </div>
             <div class="rps-toggle-container replay-info">
               <span id="replay-move-info">Zug 0 / 0</span>
@@ -186,6 +199,9 @@
                 value="1"
                 style="width: 80px"
               />
+            </div>
+            <div id="replay-analysis" class="replay-analysis" hidden>
+              <span id="replay-analysis-text">–</span>
             </div>
           </div>
         </section>
@@ -216,6 +232,7 @@
       <div id="combat-overlay"></div>
       <div id="promotion-overlay"></div>
       <div id="puzzle-overlay"></div>
+      <div id="tutorial-overlay" aria-hidden="true"></div>
     </div>
 
     <!-- Settings Modal -->
@@ -296,6 +313,16 @@
                 <input type="checkbox" id="nnue-toggle" />
                 <span class="slider round"></span>
               </label>
+            </div>
+            <div class="setting-row">
+              <label>Tutorial</label>
+              <button
+                type="button"
+                id="tutorial-replay-btn"
+                class="setting-action-btn"
+              >
+                ❓ Nochmal anzeigen
+              </button>
             </div>
             <div class="setting-group">
               <h3>Umwandlung</h3>

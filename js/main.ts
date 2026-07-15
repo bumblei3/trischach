@@ -56,10 +56,21 @@ import {
   resetPuzzle,
   abandonPuzzle,
   getDailyPuzzle,
+  getPuzzleStreak,
+  isTodaysDailyPuzzle,
+  isDailySolvedToday,
+  recordDailyPuzzleSolved,
   Puzzle,
   PuzzleMove,
   PuzzleState,
 } from "./puzzle.ts";
+import {
+  getTutorialSteps,
+  markTutorialDone,
+  shouldShowTutorialOnStartup,
+  resetTutorial,
+} from "./tutorial.ts";
+import { analyzePosition } from "./analysis.ts";
 import { Hex } from "./hex.ts";
 import { Piece, PIECE_TYPE } from "./pieces.ts";
 
@@ -164,6 +175,9 @@ const promotionOverlay = document.getElementById(
   "promotion-overlay",
 ) as HTMLElement;
 const puzzleOverlay = document.getElementById("puzzle-overlay") as HTMLElement;
+const tutorialOverlay = document.getElementById(
+  "tutorial-overlay",
+) as HTMLElement | null;
 
 const restartBtn = document.getElementById("restart-btn") as HTMLButtonElement;
 const autoBattleBtn = document.getElementById(
@@ -1615,6 +1629,51 @@ function initEventListeners(): void {
   function hideReplayControls(): void {
     const replayControls = document.getElementById("replay-controls");
     if (replayControls) replayControls.style.display = "none";
+    clearReplayAnalysis();
+  }
+
+  function clearReplayAnalysis(): void {
+    const panel = document.getElementById("replay-analysis");
+    const text = document.getElementById("replay-analysis-text");
+    if (panel) panel.hidden = true;
+    if (text) text.textContent = "–";
+  }
+
+  function renderReplayAnalysis(): void {
+    const panel = document.getElementById("replay-analysis");
+    const text = document.getElementById("replay-analysis-text");
+    if (!panel || !text) return;
+
+    text.textContent = "Analysiere…";
+    panel.hidden = false;
+
+    // Defer so the "Analysiere…" paint can show before a blocking search.
+    requestAnimationFrame(() => {
+      try {
+        const depth = Math.min(3, getAIDepth());
+        const result = analyzePosition(game, depth);
+        if (result.gameOver) {
+          text.innerHTML = `<span class="analysis-label">Status:</span> Partie beendet`;
+          return;
+        }
+        const factionName =
+          FACTION_COLORS[result.faction as Faction]?.name ?? result.faction;
+        if (result.san) {
+          text.innerHTML =
+            `<span class="analysis-label">Engine empfiehlt</span>` +
+            `<span class="analysis-san">${escapeHtml(result.san)}</span>` +
+            `<span class="analysis-score">(${escapeHtml(result.scoreLabel)} · ${escapeHtml(factionName)} · d${result.depth})</span>`;
+        } else {
+          text.innerHTML =
+            `<span class="analysis-label">Eval</span>` +
+            `<span class="analysis-score">${escapeHtml(result.scoreLabel)}</span>` +
+            `<span class="analysis-label"> · kein Zug · ${escapeHtml(factionName)}</span>`;
+        }
+      } catch (err) {
+        console.error("Analysis failed:", err);
+        text.textContent = "Analyse fehlgeschlagen";
+      }
+    });
   }
 
   function updateReplayUI(): void {
@@ -1665,6 +1724,9 @@ function initEventListeners(): void {
         index === controller.getCurrentMoveNumber() - 1,
       );
     });
+
+    // Clear stale analysis when the position changes (user re-runs manually).
+    clearReplayAnalysis();
   }
 
   function replayStep(delta: number): void {
@@ -1886,6 +1948,17 @@ function initEventListeners(): void {
     }
   });
 
+  const replayAnalyze = document.getElementById(
+    "replay-analyze",
+  ) as HTMLButtonElement | null;
+  replayAnalyze?.addEventListener("click", () => {
+    if (!window.replayController) {
+      showHintToast("Zuerst eine Partie laden");
+      return;
+    }
+    renderReplayAnalysis();
+  });
+
   // ─── Puzzle Mode ────────────────────────────────────────────────────
 
   let puzzleGame: Game | null = null;
@@ -1895,6 +1968,8 @@ function initEventListeners(): void {
   let puzzleStartTime: number = 0;
 
   async function showPuzzleMenu(): Promise<void> {
+    const streak = getPuzzleStreak();
+    const dailyDone = isDailySolvedToday();
     puzzleOverlay.innerHTML = `
       <div class="puzzle-box">
         <div class="puzzle-header">
@@ -1903,10 +1978,15 @@ function initEventListeners(): void {
         </div>
         <div class="puzzle-info" id="puzzle-menu-info">
           <div class="puzzle-info-item"><strong>Tagespuzzle</strong></div>
-          <span class="puzzle-difficulty medium" id="puzzle-daily-difficulty">Medium</span>
+          <span class="puzzle-difficulty medium" id="puzzle-daily-difficulty">${dailyDone ? "GELÖST" : "Medium"}</span>
+        </div>
+        <div class="puzzle-streak">
+          <span>🔥 Streak: <strong>${streak.current}</strong></span>
+          <span class="streak-best">Best: <strong>${streak.best}</strong></span>
+          <span>Gesamt: <strong>${streak.totalDailySolved}</strong></span>
         </div>
         <div class="puzzle-actions">
-          <button class="puzzle-btn primary" id="puzzle-daily-btn">📅 Tagespuzzle</button>
+          <button class="puzzle-btn primary" id="puzzle-daily-btn">${dailyDone ? "📅 Tagespuzzle (nochmal)" : "📅 Tagespuzzle"}</button>
           <button class="puzzle-btn secondary" id="puzzle-generate-btn">🔄 Neu generieren</button>
           <button class="puzzle-btn secondary" id="puzzle-continue-btn" style="display: none">▶️ Fortsetzen</button>
         </div>
@@ -1937,7 +2017,7 @@ function initEventListeners(): void {
       ?.addEventListener("click", () => {
         const state = getPuzzleState();
         if (state.currentPuzzle) {
-          showPuzzleBoard(state.currentPuzzle);
+          showPuzzleBoard(state.currentPuzzle, { resume: true });
         }
       });
 
@@ -2010,7 +2090,10 @@ function initEventListeners(): void {
     });
   }
 
-  function showPuzzleBoard(puzzle: Puzzle): void {
+  function showPuzzleBoard(
+    puzzle: Puzzle,
+    options: { resume?: boolean } = {},
+  ): void {
     // Create a new game from the puzzle position
     const testGame = new Game();
     const cells = generateBoard();
@@ -2027,8 +2110,13 @@ function initEventListeners(): void {
     Object.assign(testGame, gameFromFen);
     testGame.clearUndoStack(); // No undo in puzzle mode
 
+    // Fresh open resets progress; "Fortsetzen" keeps in-memory puzzle state.
+    if (!options.resume) {
+      loadPuzzle(puzzle);
+    }
     puzzleGame = testGame;
-    puzzleStartTime = Date.now();
+    const state = getPuzzleState();
+    puzzleStartTime = state.startTime || Date.now();
 
     // Create a temporary renderer for the puzzle board
     const puzzleBoardContainer = document.createElement("div");
@@ -2275,6 +2363,12 @@ function initEventListeners(): void {
       .padStart(2, "0");
     const secs = (elapsed % 60).toString().padStart(2, "0");
 
+    let streakHtml = "";
+    if (success && isTodaysDailyPuzzle(puzzle)) {
+      const streak = recordDailyPuzzleSolved();
+      streakHtml = `<span>🔥 Streak: <strong>${streak.current}</strong> (Best ${streak.best})</span>`;
+    }
+
     puzzleOverlay.innerHTML = `
       <div class="puzzle-box">
         <div class="puzzle-header">
@@ -2287,7 +2381,8 @@ function initEventListeners(): void {
             <span>Zeit: <strong>${mins}:${secs}</strong></span>
             <span>Züge: <strong>${state.currentMoveIndex}/${puzzle.solution.length}</strong></span>
             ${success && state.hintUsed ? '<span style="color: var(--water)">Hinweis genutzt</span>' : ""}
-            ${!success && state.expectedMove ? `<span>Richtig: <strong>${state.expectedMove.san}</strong></span>` : ""}
+            ${!success && state.expectedMove ? `<span>Richtig: <strong>${escapeHtml(state.expectedMove.san)}</strong></span>` : ""}
+            ${streakHtml}
           </div>
         </div>
         <div class="puzzle-actions">
@@ -3279,6 +3374,97 @@ function initEventListeners(): void {
 
   // We can also just load once when initEventListeners runs
   loadOpeningBookStats();
+
+  // ─── Tutorial ─────────────────────────────────────────────────────
+  let tutorialStepIndex = 0;
+
+  function hideTutorial(): void {
+    if (!tutorialOverlay) return;
+    tutorialOverlay.classList.remove("visible");
+    tutorialOverlay.setAttribute("aria-hidden", "true");
+    tutorialOverlay.innerHTML = "";
+  }
+
+  function finishTutorial(): void {
+    markTutorialDone();
+    hideTutorial();
+  }
+
+  function renderTutorialStep(index: number): void {
+    if (!tutorialOverlay) return;
+    const steps = getTutorialSteps();
+    const step = steps[index];
+    if (!step) {
+      finishTutorial();
+      return;
+    }
+    tutorialStepIndex = index;
+    const isLast = index >= steps.length - 1;
+    tutorialOverlay.innerHTML = `
+      <div class="tutorial-box" role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+        <div class="tutorial-icon">${step.icon}</div>
+        <h2 class="tutorial-title" id="tutorial-title">${escapeHtml(step.title)}</h2>
+        <p class="tutorial-body">${escapeHtml(step.body)}</p>
+        <ul class="tutorial-bullets">
+          ${step.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}
+        </ul>
+        <div class="tutorial-progress" aria-hidden="true">
+          ${steps
+            .map(
+              (_, i) =>
+                `<span class="tutorial-dot${i === index ? " active" : ""}"></span>`,
+            )
+            .join("")}
+        </div>
+        <div class="tutorial-actions">
+          <button type="button" class="tutorial-btn ghost" id="tutorial-skip">Überspringen</button>
+          ${
+            index > 0
+              ? `<button type="button" class="tutorial-btn" id="tutorial-back">Zurück</button>`
+              : ""
+          }
+          <button type="button" class="tutorial-btn primary" id="tutorial-next">
+            ${isLast ? "Los geht's" : "Weiter"}
+          </button>
+        </div>
+      </div>
+    `;
+    tutorialOverlay.classList.add("visible");
+    tutorialOverlay.setAttribute("aria-hidden", "false");
+
+    document
+      .getElementById("tutorial-skip")
+      ?.addEventListener("click", () => finishTutorial());
+    document
+      .getElementById("tutorial-back")
+      ?.addEventListener("click", () => renderTutorialStep(index - 1));
+    document.getElementById("tutorial-next")?.addEventListener("click", () => {
+      if (isLast) finishTutorial();
+      else renderTutorialStep(index + 1);
+    });
+  }
+
+  function showTutorial(fromStart = true): void {
+    if (fromStart) tutorialStepIndex = 0;
+    renderTutorialStep(tutorialStepIndex);
+  }
+
+  document
+    .getElementById("tutorial-btn")
+    ?.addEventListener("click", () => showTutorial(true));
+  document
+    .getElementById("tutorial-replay-btn")
+    ?.addEventListener("click", () => {
+      resetTutorial();
+      // Close settings so the tutorial is visible above the board.
+      settingsOverlay?.classList.remove("visible");
+      showTutorial(true);
+    });
+
+  if (shouldShowTutorialOnStartup()) {
+    // Slight delay so the board paints first.
+    setTimeout(() => showTutorial(true), 400);
+  }
 }
 
 // ─── Start ──────────────────────────────────────────────────────────

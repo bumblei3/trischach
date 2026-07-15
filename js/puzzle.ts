@@ -96,7 +96,7 @@ export async function generatePuzzlesFromBook(
 
     // Try to find a forced mate from this position
     const puzzle = await findMatePuzzle(game);
-    if (puzzle) {
+    if (puzzle && (await validatePuzzle(puzzle))) {
       puzzles.push(puzzle);
     }
   }
@@ -196,9 +196,12 @@ async function findMatePuzzle(game: Game): Promise<Puzzle | null> {
 }
 
 /**
- * Find immediate mate in 1 move.
+ * Find all legal moves that immediately mate (eliminate) from the side to move.
+ * Used for mate-in-1 generation and uniqueness checks.
+ * Always uses the select → target click sequence (Game state machine).
  */
-function findImmediateMate(game: Game): PuzzleMove | null {
+export function findAllImmediateMatingMoves(game: Game): PuzzleMove[] {
+  const mates: PuzzleMove[] = [];
   const pieces = game
     .getAlivePieces()
     .filter((p) => p.faction === game.currentFaction);
@@ -206,37 +209,81 @@ function findImmediateMate(game: Game): PuzzleMove | null {
   for (const piece of pieces) {
     const { moves, attacks } = game.getLegalMoves(piece);
     for (const target of [...moves, ...attacks]) {
+      const isCapture = !!game.getPieceAt(target);
       const testGame = cloneGameForTest(game);
       const testPiece = testGame.getPieceAt(piece.pos);
       if (!testPiece) continue;
 
-      const result = testGame.handleCellClick(testPiece.pos);
-      if (result && (result.action === "move" || result.action === "combat")) {
-        // Check if opponent is mated
-        const nextFaction = getNextFaction(testGame, testGame.currentFaction);
-        if (nextFaction && isCheckmateInternal(testGame, nextFaction)) {
-          return {
-            pieceId: piece.id,
-            pieceType: piece.type,
-            faction: piece.faction,
-            from: { q: piece.pos.q, r: piece.pos.r },
-            to: { q: target.q, r: target.r },
-            isCapture: !!testGame.getPieceAt(target),
-            isCheck: true,
-            isMate: true,
-            san: formatSAN(
-              piece,
-              target,
-              !!testGame.getPieceAt(target),
-              true,
-              true,
-            ),
-          };
-        }
+      const selectResult = testGame.handleCellClick(testPiece.pos);
+      if (!selectResult || selectResult.action !== "select") continue;
+
+      const moveResult = testGame.handleCellClick(target);
+      if (
+        !moveResult ||
+        (moveResult.action !== "move" && moveResult.action !== "combat")
+      ) {
+        continue;
+      }
+
+      // After a successful move, currentFaction is the next side to move.
+      // Mate means that side is checkmated or the game already ended.
+      const isMate =
+        isGameOverState(testGame.state) ||
+        isCheckmateInternal(testGame, testGame.currentFaction);
+
+      if (isMate) {
+        mates.push({
+          pieceId: piece.id,
+          pieceType: piece.type,
+          faction: piece.faction,
+          from: { q: piece.pos.q, r: piece.pos.r },
+          to: { q: target.q, r: target.r },
+          isCapture,
+          isCheck: true,
+          isMate: true,
+          san: formatSAN(piece, target, isCapture, true, true),
+        });
       }
     }
   }
-  return null;
+  return mates;
+}
+
+/**
+ * Find immediate mate in 1 move.
+ */
+function findImmediateMate(game: Game): PuzzleMove | null {
+  const mates = findAllImmediateMatingMoves(game);
+  return mates[0] ?? null;
+}
+
+/**
+ * True if the puzzle's first move is unique among immediate mating moves.
+ * Mate-in-1 requires exactly one mating move matching the solution.
+ * Longer mates require no faster (immediate) alternative mate.
+ */
+export function hasUniqueSolution(puzzle: Puzzle): boolean {
+  const game = deserializePosition(puzzle.fen);
+  if (!game) return false;
+
+  const first = puzzle.solution[0];
+  if (!first) return false;
+
+  const mates = findAllImmediateMatingMoves(game);
+  const matchesFirst = (m: PuzzleMove) =>
+    m.pieceId === first.pieceId &&
+    m.to.q === first.to.q &&
+    m.to.r === first.to.r &&
+    m.from.q === first.from.q &&
+    m.from.r === first.from.r;
+
+  if (puzzle.mateIn <= 1 || puzzle.solution.length === 1) {
+    return mates.length === 1 && matchesFirst(mates[0]!);
+  }
+
+  // Multi-move: no alternative immediate mate (or only the solution first move).
+  if (mates.length === 0) return true;
+  return mates.length === 1 && matchesFirst(mates[0]!);
 }
 
 /**
@@ -341,14 +388,14 @@ function buildPuzzle(
 // ─── Puzzle Validation ────────────────────────────────────────────────────
 
 /**
- * Validate that a puzzle is solvable and has a unique solution.
+ * Validate that a puzzle is solvable and has a unique first-move solution.
  */
 export async function validatePuzzle(puzzle: Puzzle): Promise<boolean> {
   const game = deserializePosition(puzzle.fen);
   if (!game) return false;
 
   // Verify the solution works
-  let testGame = cloneGameForTest(game);
+  const testGame = cloneGameForTest(game);
   for (const move of puzzle.solution) {
     const piece = testGame.getPieceAt(new Hex(move.from.q, move.from.r));
     if (!piece || piece.id !== move.pieceId) return false;
@@ -361,12 +408,14 @@ export async function validatePuzzle(puzzle: Puzzle): Promise<boolean> {
     if (!moveResult) return false;
   }
 
-  // Check that mate is delivered
-  if (testGame.state !== GAME_STATE.GAME_OVER) return false;
+  // Check that mate is delivered (full game over or last move marked mate)
+  const last = puzzle.solution[puzzle.solution.length - 1];
+  const solved =
+    isGameOverState(testGame.state) || last?.isMate === true;
+  if (!solved) return false;
 
-  // TODO: Check for alternative solutions (uniqueness)
-
-  return true;
+  // Uniqueness of the first move (no alternative immediate mates)
+  return hasUniqueSolution(puzzle);
 }
 
 // ─── Puzzle State Management ─────────────────────────────────────────────
@@ -633,9 +682,97 @@ function getBookStats() {
 
 const DAILY_PUZZLE_KEY = "trischach-daily-puzzle";
 const DAILY_PUZZLE_DATE_KEY = "trischach-daily-puzzle-date";
+const STREAK_KEY = "trischach-puzzle-streak";
+
+export interface PuzzleStreak {
+  current: number;
+  best: number;
+  lastSolvedDate: string | null;
+  totalDailySolved: number;
+}
+
+export function todayISO(now: Date = new Date()): string {
+  return now.toISOString().split("T")[0]!;
+}
+
+function previousISO(date: string): string {
+  const d = new Date(`${date}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().split("T")[0]!;
+}
+
+export function getPuzzleStreak(): PuzzleStreak {
+  try {
+    const raw = localStorage.getItem(STREAK_KEY);
+    if (raw) {
+      const s = JSON.parse(raw) as Partial<PuzzleStreak>;
+      return {
+        current: Number(s.current) || 0,
+        best: Number(s.best) || 0,
+        lastSolvedDate: s.lastSolvedDate ?? null,
+        totalDailySolved: Number(s.totalDailySolved) || 0,
+      };
+    }
+  } catch (e) {
+    console.warn("Failed to load puzzle streak:", e);
+  }
+  return { current: 0, best: 0, lastSolvedDate: null, totalDailySolved: 0 };
+}
+
+function savePuzzleStreak(streak: PuzzleStreak): void {
+  try {
+    localStorage.setItem(STREAK_KEY, JSON.stringify(streak));
+  } catch (e) {
+    console.warn("Failed to save puzzle streak:", e);
+  }
+}
+
+/** Whether today's daily puzzle was already solved (streak counted). */
+export function isDailySolvedToday(date: string = todayISO()): boolean {
+  return getPuzzleStreak().lastSolvedDate === date;
+}
+
+/** True if `puzzle` is the cached daily puzzle for today. */
+export function isTodaysDailyPuzzle(puzzle: Puzzle): boolean {
+  try {
+    if (localStorage.getItem(DAILY_PUZZLE_DATE_KEY) !== todayISO()) {
+      return false;
+    }
+    const data = localStorage.getItem(DAILY_PUZZLE_KEY);
+    if (!data) return false;
+    const daily = JSON.parse(data) as Puzzle;
+    return daily.id === puzzle.id;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Record a successful daily-puzzle solve. Idempotent for the same day.
+ * Streak continues if the previous solve was yesterday; otherwise resets to 1.
+ */
+export function recordDailyPuzzleSolved(
+  date: string = todayISO(),
+): PuzzleStreak {
+  const streak = getPuzzleStreak();
+  if (streak.lastSolvedDate === date) {
+    return streak;
+  }
+
+  if (streak.lastSolvedDate === previousISO(date)) {
+    streak.current += 1;
+  } else {
+    streak.current = 1;
+  }
+  streak.best = Math.max(streak.best, streak.current);
+  streak.lastSolvedDate = date;
+  streak.totalDailySolved += 1;
+  savePuzzleStreak(streak);
+  return streak;
+}
 
 export async function getDailyPuzzle(): Promise<Puzzle | null> {
-  const today = new Date().toISOString().split("T")[0]!;
+  const today = todayISO();
   const storedDate = localStorage.getItem(DAILY_PUZZLE_DATE_KEY);
 
   if (storedDate === today) {
@@ -655,7 +792,7 @@ async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
   const puzzles = await generatePuzzlesFromBook(10);
   if (puzzles.length === 0) return null;
 
-  // Pick a medium difficulty puzzle for daily
+  // Prefer medium; all generated puzzles already passed validatePuzzle.
   const mediumPuzzles = puzzles.filter((p) => p.difficulty === "medium");
   const daily =
     mediumPuzzles.length > 0
@@ -674,4 +811,10 @@ async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
 
 // ─── Export for debugging ────────────────────────────────────────────────
 
-export { PUZZLE_STORAGE_KEY, PUZZLE_PROGRESS_KEY };
+export {
+  PUZZLE_STORAGE_KEY,
+  PUZZLE_PROGRESS_KEY,
+  DAILY_PUZZLE_KEY,
+  DAILY_PUZZLE_DATE_KEY,
+  STREAK_KEY,
+};
