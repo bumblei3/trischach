@@ -55,6 +55,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Testdauer (inkl. async via setTimeout/queueMicrotask), damit die
   UI-Freeze-kritischen Pondering-Messages nicht mehr im Leeren landen.
 
+- **README-Installation ehrlich gemacht.** Die Anleitung behauptete
+  "kein Build-Step / python3 -m http.server reicht". `initNNUE()` fetcht
+  aber `./js/weights/nnue-weights.json`, das nur vom Vite-Build nach
+  `dist/` kopiert wird. Die README führt jetzt zwei Varianten: mit Build
+  (voller Funktionsumfang inkl. NNUE) und ohne Build (spielt sauber ohne
+  neuronale Eval, Engine fällt auf Handcrafted zurück). Auch der
+  "Pure Vanilla"-Claim ist präzisiert: Vanilla-Quellcode, aber Vite-Deploy-Build.
+
 ## [1.3.2] - 2026-07-14
 
 ### Fixed
