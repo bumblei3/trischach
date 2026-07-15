@@ -6,8 +6,10 @@ import { Game } from "../js/game.ts";
 import {
   encodePosition,
   NNUE_INPUT_DIMS,
+  FEATURES_PER_PIECE,
   evaluateNNUE,
   loadNNUEWeights,
+  clearNNUEWeights,
   randomWeights,
   loss,
   trainStep,
@@ -35,17 +37,18 @@ function makeGame(): Game {
   return g;
 }
 
-test("NNUE_INPUT_DIMS equals 162 (18 piece slots x 9 dense features)", () => {
-  expect(NNUE_INPUT_DIMS).toBe(162);
+test("NNUE_INPUT_DIMS equals 216 (18 piece slots x 12 dense features)", () => {
+  expect(FEATURES_PER_PIECE).toBe(12);
+  expect(NNUE_INPUT_DIMS).toBe(216);
 });
 
-test("encodePosition produces a 162-len dense vector with exactly the alive pieces set", () => {
+test("encodePosition produces a 216-len dense vector with exactly the alive pieces set", () => {
   const g = makeGame();
   const vec = encodePosition(g, FACTION.FIRE);
-  expect(vec.length).toBe(162);
+  expect(vec.length).toBe(216);
   // Number of slots with alive flag = 1 must equal number of alive pieces (4).
   let aliveSlots = 0;
-  for (let s = 0; s < 18; s++) aliveSlots += vec[s * 9 + 8]!; // F_ALIVE offset
+  for (let s = 0; s < 18; s++) aliveSlots += vec[s * FEATURES_PER_PIECE + 8]!; // F_ALIVE offset
   expect(aliveSlots).toBe(4);
 });
 
@@ -59,18 +62,18 @@ test("evaluateNNUE returns a finite number for a real position", () => {
 test("nnue training step reduces loss on a toy batch", () => {
   const w = randomWeights();
   const batch = [
-    { vec: new Float32Array(660).fill(0.1), label: 1 },
-    { vec: new Float32Array(660).fill(-0.1), label: -1 },
+    { vec: new Float32Array(NNUE_INPUT_DIMS).fill(0.1), label: 1 },
+    { vec: new Float32Array(NNUE_INPUT_DIMS).fill(-0.1), label: -1 },
   ];
   const before = loss(w, batch);
   const after = trainStep(w, batch, 0.01);
   expect(after).toBeLessThan(before);
 });
 
-test("nnue-weights.json parses and loads if present", () => {
+test("nnue-weights.json parses and loads if present and shape-compatible", () => {
   try {
     const raw = JSON.parse(
-      readFileSync("js/weights/nnue-weights.json", "utf-8"),
+      readFileSync("public/js/weights/nnue-weights.json", "utf-8"),
     );
     const w: NNUEWeights = {
       w1: Float32Array.from(raw.w1),
@@ -80,11 +83,18 @@ test("nnue-weights.json parses and loads if present", () => {
       w3: Float32Array.from(raw.w3),
       b3: Float32Array.from(raw.b3),
     };
+    // Stale v1 weights (162-in) must throw; v2 (216-in) must load.
+    if (w.w1.length !== 128 * NNUE_INPUT_DIMS) {
+      expect(() => loadNNUEWeights(w)).toThrow(/w1 length/);
+      return;
+    }
     loadNNUEWeights(w);
     const g = makeGame();
     expect(Number.isFinite(evaluateNNUE(g, FACTION.FIRE))).toBe(true);
-  } catch {
-    // Weights not trained yet — skip
+  } catch (e) {
+    // File missing is fine during early dev
+    if ((e as Error).message?.includes("ENOENT")) return;
+    throw e;
   }
 });
 
@@ -114,8 +124,7 @@ test("evaluateBoardNNUE uses NNUE path when enabled (weights loaded)", () => {
 // ─── Branch-coverage hardening (nnue.ts gaps) ──────────────────────────
 
 test("evaluateNNUE throws when weights are not loaded", () => {
-  // Ensure no stale weights from a previous test persist.
-  loadNNUEWeights(null as unknown as NNUEWeights);
+  clearNNUEWeights();
   const g = makeGame();
   expect(() => evaluateNNUE(g, FACTION.FIRE)).toThrow(
     /NNUE weights not loaded/,
@@ -129,7 +138,7 @@ test("encodePosition skips dead (not alive) pieces", () => {
   const vec = encodePosition(g, FACTION.FIRE);
   // alive-slot count must drop from 4 to 3 (dead piece not encoded).
   let aliveSlots = 0;
-  for (let s = 0; s < 18; s++) aliveSlots += vec[s * 9 + 8]!;
+  for (let s = 0; s < 18; s++) aliveSlots += vec[s * FEATURES_PER_PIECE + 8]!;
   expect(aliveSlots).toBe(3);
 });
 
@@ -139,18 +148,32 @@ test("encodePosition sets valid type/faction codes per slot", () => {
   // Every alive slot must have a type in 0..5 and faction in 0..2, and the
   // alive flag = 1; dead slots must be all-zero.
   for (let s = 0; s < 18; s++) {
-    const base = s * 9;
+    const base = s * FEATURES_PER_PIECE;
     const alive = vec[base + 8];
     if (alive === 1) {
       expect(vec[base + 0]).toBeGreaterThanOrEqual(0);
       expect(vec[base + 0]).toBeLessThanOrEqual(5);
       expect(vec[base + 1]).toBeGreaterThanOrEqual(0);
       expect(vec[base + 1]).toBeLessThanOrEqual(2);
+      // RPS / support / pressure are finite in [-1,1]
+      expect(Math.abs(vec[base + 9]!)).toBeLessThanOrEqual(1.0001);
+      expect(Math.abs(vec[base + 10]!)).toBeLessThanOrEqual(1.0001);
+      expect(Math.abs(vec[base + 11]!)).toBeLessThanOrEqual(1.0001);
     } else {
       // dead slot: all features zero
-      for (let f = 0; f < 9; f++) expect(vec[base + f]).toBe(0);
+      for (let f = 0; f < FEATURES_PER_PIECE; f++)
+        expect(vec[base + f]).toBe(0);
     }
   }
+});
+
+test("encodePosition is stable under piece array order permutation", () => {
+  const g = makeGame();
+  const a = Array.from(encodePosition(g, FACTION.FIRE));
+  // Reverse piece list — slots must still match (sorted encoding).
+  g.pieces = g.pieces.slice().reverse();
+  const b = Array.from(encodePosition(g, FACTION.FIRE));
+  expect(b).toEqual(a);
 });
 
 test("relu forwards positive values and clamps negatives to zero", () => {

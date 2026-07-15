@@ -4,26 +4,25 @@
  * Input-Encoding: PIECE-CENTRIC (dense, always fully populated). Instead of a
  * 660-D one-hot over 66 cells (only ~4 cells ever occupied → sparse, dead
  * hidden layer), we encode up to MAX_PIECES pieces, each as a dense feature
- * vector (type, faction, normalised coords, distance to own/enemy kings,
- * promo rank, material value, alive flag). Every input dimension is always
- * non-zero, so the hidden layers receive real signal for every position.
+ * vector (type, faction, coords, king distances, promo, material, alive,
+ * RPS advantage, local support, RPS-pressure). Alive pieces are sorted for a
+ * stable slot order. Empty slots stay zero.
  *
  * Netz: NNUE_INPUT_DIMS → 128 (ReLU) → 32 (ReLU) → 1 (tanh × 1000 / T).
  * Inference via Float32Array MatMul (~0.02ms/Eval).
  *
- * Training erfolgt offline (scripts/train-nnue.ts, Self-Play). Gewichte
- * werden zur Laufzeit aus js/weights/nnue-weights.json geladen.
+ * Training: offline TD self-play (`scripts/train-nnue-td.ts`) + benchmark gate.
+ * Weights: `public/js/weights/nnue-weights.json` (copied to dist on build).
  */
 
-import { FACTION } from "./board.ts";
-import type { Faction, IGame } from "./types.ts";
-import { PIECE_TYPE } from "./pieces.ts";
+import { FACTION, getRPSResult } from "./board.ts";
+import type { Faction, IGame, Piece } from "./types.ts";
 import { Hex } from "./hex.ts";
 
-// Piece-centric dense encoding. Every slot is always populated (alive flag =
-// 1), so no input dimension is ever "dark" — this is what lets the net learn.
+// Piece-centric dense encoding. Every occupied slot has alive=1 so the net
+// always receives real signal for living pieces.
 const MAX_PIECES = 18;
-const FEATURES_PER_PIECE = 9;
+export const FEATURES_PER_PIECE = 12;
 // feature offsets within a slot
 const F_TYPE = 0; // 0..5 (king..pawn)
 const F_FACTION = 1; // 0..2
@@ -33,10 +32,15 @@ const F_OWNKING = 4; // distance to own king, normalised [0,1] (0=on king)
 const F_ENEMYKING = 5; // distance to nearest enemy king, normalised [0,1]
 const F_PROMO = 6; // 1 if on its last promotion rank, else 0
 const F_MATERIAL = 7; // material value normalised [-1,1]
-const F_ALIVE = 8; // always 1
+const F_ALIVE = 8; // always 1 for occupied slots
+const F_RPS = 9; // mean RPS advantage of piece's faction vs remaining enemies
+const F_SUPPORT = 10; // friendly pieces within dist≤2, /6
+const F_PRESSURE = 11; // RPS-aware local pressure vs nearby enemies, /4
 export const NNUE_INPUT_DIMS = MAX_PIECES * FEATURES_PER_PIECE;
 const H1 = 128;
 const H2 = 32;
+export const NNUE_H1 = H1;
+export const NNUE_H2 = H2;
 // Temperature: keeps the output pre-activation in the near-linear tanh region.
 // Shared by forward AND backward — the backward pass MUST divide the output
 // gradient by T (and multiply by the tanh derivative), otherwise the gradient
@@ -77,8 +81,79 @@ export interface NNUEWeights {
 
 let WEIGHTS: NNUEWeights | null = null;
 
+/** Expected w1 length for the current architecture (guards stale weight files). */
+export function expectedW1Length(): number {
+  return H1 * NNUE_INPUT_DIMS;
+}
+
+export function assertWeightShapes(w: NNUEWeights): void {
+  if (w.w1.length !== H1 * NNUE_INPUT_DIMS) {
+    throw new Error(
+      `NNUE w1 length ${w.w1.length} != expected ${H1 * NNUE_INPUT_DIMS} (encoding v2 / ${FEATURES_PER_PIECE} feats)`,
+    );
+  }
+  if (w.b1.length !== H1 || w.w2.length !== H2 * H1 || w.b2.length !== H2) {
+    throw new Error("NNUE hidden-layer weight shapes mismatch");
+  }
+  if (w.w3.length !== H2 || w.b3.length !== 1) {
+    throw new Error("NNUE output-layer weight shapes mismatch");
+  }
+}
+
 export function loadNNUEWeights(w: NNUEWeights): void {
+  assertWeightShapes(w);
   WEIGHTS = w;
+}
+
+/** Clear loaded weights (tests). */
+export function clearNNUEWeights(): void {
+  WEIGHTS = null;
+}
+
+function rpsMeanAdvantage(faction: Faction, livingFactions: Faction[]): number {
+  let sum = 0;
+  let n = 0;
+  for (const other of livingFactions) {
+    if (other === faction) continue;
+    const r = getRPSResult(faction, other);
+    sum += r === "advantage" ? 1 : r === "disadvantage" ? -1 : 0;
+    n++;
+  }
+  return n > 0 ? sum / n : 0;
+}
+
+function localSupport(piece: Piece, alive: Piece[]): number {
+  let c = 0;
+  for (const o of alive) {
+    if (o === piece || o.faction !== piece.faction) continue;
+    if (piece.pos.distance(o.pos) <= 2) c++;
+  }
+  return Math.min(1, c / 6);
+}
+
+/** RPS-aware pressure: nearby enemies we beat (+) vs enemies that beat us (−). */
+function localPressure(piece: Piece, alive: Piece[]): number {
+  let s = 0;
+  for (const o of alive) {
+    if (o.faction === piece.faction) continue;
+    if (piece.pos.distance(o.pos) > 2) continue;
+    const r = getRPSResult(piece.faction, o.faction);
+    s += r === "advantage" ? 1 : r === "disadvantage" ? -1 : 0;
+  }
+  return Math.max(-1, Math.min(1, s / 4));
+}
+
+function sortPiecesStable(alive: Piece[]): Piece[] {
+  return alive.slice().sort((a, b) => {
+    const fa = FACTIONS.indexOf(a.faction);
+    const fb = FACTIONS.indexOf(b.faction);
+    if (fa !== fb) return fa - fb;
+    const ta = PIECE_TYPES.indexOf(a.type as (typeof PIECE_TYPES)[number]);
+    const tb = PIECE_TYPES.indexOf(b.type as (typeof PIECE_TYPES)[number]);
+    if (ta !== tb) return ta - tb;
+    if (a.pos.q !== b.pos.q) return a.pos.q - b.pos.q;
+    return a.pos.r - b.pos.r;
+  });
 }
 
 export function encodePosition(
@@ -86,7 +161,10 @@ export function encodePosition(
   perspective: Faction,
 ): Float32Array {
   const vec = new Float32Array(NNUE_INPUT_DIMS);
-  const alive = game.pieces.filter((p) => p.alive);
+  const alive = sortPiecesStable(game.pieces.filter((p) => p.alive));
+  const livingFactions = FACTIONS.filter((f) =>
+    alive.some((p) => p.faction === f),
+  );
   // King positions per faction (for distance features).
   const kingPos: Partial<Record<string, Hex>> = {};
   for (const p of alive) {
@@ -98,21 +176,17 @@ export function encodePosition(
     const base = s * FEATURES_PER_PIECE;
     const ti = PIECE_TYPES.indexOf(p.type as (typeof PIECE_TYPES)[number]);
     const fi = FACTIONS.indexOf(p.faction);
-    // Perspective-relative sign: own pieces are encoded positively, enemy
-    // pieces negatively. Without this the eval is identical for both sides
-    // (perspective-blind), which breaks alpha-beta search direction and
-    // costs ~800 Elo. This is the standard NNUE convention.
+    // Perspective-relative sign: own pieces positive, enemy negative.
+    // Without this the eval is perspective-blind (~-800 Elo in search).
     const sign = p.faction === perspective ? 1 : -1;
     vec[base + F_TYPE] = ti >= 0 ? ti : 0;
     vec[base + F_FACTION] = fi >= 0 ? fi : 0;
     vec[base + F_Q] = sign * Math.max(-1, Math.min(1, p.pos.q / 7));
     vec[base + F_R] = sign * Math.max(-1, Math.min(1, p.pos.r / 7));
-    // distance to own king
     const ok = kingPos[p.faction];
     vec[base + F_OWNKING] = ok
       ? Math.max(0, Math.min(1, ok.distance(p.pos) / 12))
       : 0;
-    // distance to nearest enemy king
     let dk = 12;
     for (const f of FACTIONS) {
       if (f === p.faction) continue;
@@ -123,9 +197,10 @@ export function encodePosition(
     vec[base + F_PROMO] = p.pos.r === promoRank(p.faction) ? 1 : 0;
     vec[base + F_MATERIAL] = sign * (MATERIAL[p.type] ?? 0);
     vec[base + F_ALIVE] = 1;
+    vec[base + F_RPS] = sign * rpsMeanAdvantage(p.faction, livingFactions);
+    vec[base + F_SUPPORT] = sign * localSupport(p, alive);
+    vec[base + F_PRESSURE] = sign * localPressure(p, alive);
   }
-  // Remaining slots stay at 0 except alive flag 0 (already 0) — fully
-  // determined by n above; no extra work needed.
   return vec;
 }
 

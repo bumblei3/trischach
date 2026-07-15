@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **NNUE encoding v2 (Phase B).** Piece features 9→12: RPS-Vorteil, Support
+  (nahe Freunde), RPS-Pressure; stabile Piece-Slot-Sortierung. Input-Dim
+  162→216. Shape-Check beim Laden (verhindert stille Mismatches).
+- **NNUE Elo-Pipeline.** Shared Helpers (`scripts/nnue-common.ts`), härterer
+  Benchmark (Seiten-Rotation, Score=W+0.5D, `--gate=N`), Verify mit Exit-Code,
+  TD-Trainer mit Resume/Fresh, Mixed-Games und Checkpoints. npm scripts:
+  `nnue:train`, `nnue:verify`, `nnue:benchmark`, `nnue:gate`.
+
 - **Tutorial (First-Run).** Drei Screens — Brett, Schere-Stein-Papier, Siegbedingung.
   Erscheint beim ersten Besuch; jederzeit über ❓ oder Einstellungen → „Nochmal
   anzeigen“ erneut startbar. Fortschritt in `localStorage`

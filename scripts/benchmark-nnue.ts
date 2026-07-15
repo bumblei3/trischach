@@ -1,10 +1,13 @@
 /**
- * Elo benchmark: NNUE (enabled) vs Handcrafted (disabled) over N games.
- * Run: npx tsx scripts/benchmark-nnue.ts [games]
- * Prints win/draw/loss for the NNUE side + approximate Elo from win-rate.
+ * Elo benchmark: NNUE vs Handcrafted over N games.
  *
- * Used to measure whether a trained NNUE is actually stronger than the
- * handcrafted eval (real Elo gain), instead of just mirroring it.
+ * Run:
+ *   npx tsx scripts/benchmark-nnue.ts [games] [depth]
+ *   npx tsx scripts/benchmark-nnue.ts 60 3 --gate=0
+ *
+ * Rotates the NNUE side across Fire/Water/Nature so results are not
+ * faction-biased. Score = (W + 0.5D) / N → Elo via logistic mapping.
+ * With --gate=N exit 1 if Elo < N (default no gate).
  */
 
 import { Game } from "../js/game.ts";
@@ -16,46 +19,50 @@ import {
   setNNUEEnabled,
   loadNNUEWeights,
 } from "../js/ai-core.ts";
-import { readFileSync } from "fs";
 import type { NNUEWeights } from "../js/nnue.ts";
+import {
+  eloFromScore,
+  loadWeightsFromDisk,
+  scoreFromWDL,
+  describeArch,
+} from "./nnue-common.ts";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
-function loadWeights(): NNUEWeights {
-  const raw = JSON.parse(
-    readFileSync("public/js/weights/nnue-weights.json", "utf8"),
-  );
-  return {
-    w1: Float32Array.from(raw.w1),
-    b1: Float32Array.from(raw.b1),
-    w2: Float32Array.from(raw.w2),
-    b2: Float32Array.from(raw.b2),
-    w3: Float32Array.from(raw.w3),
-    b3: Float32Array.from(raw.b3),
-  };
-}
-
 export type BenchmarkResult = "win" | "draw" | "loss";
 
+export interface BenchmarkSummary {
+  win: number;
+  draw: number;
+  loss: number;
+  games: number;
+  score: number;
+  elo: number;
+  depth: number;
+}
+
 /**
- * Play one game where `nnueSide` uses the NNUE eval and the other sides use the
- * classic handcrafted eval. Returns the result from nnueSide's perspective.
+ * Play one game where `nnueSide` uses NNUE and the others use handcrafted eval.
  */
-export function playGame(nnueSide: Faction, depth = 3): BenchmarkResult {
+export function playGame(
+  nnueSide: Faction,
+  depth = 3,
+  weights?: NNUEWeights,
+  maxPlies = 200,
+): BenchmarkResult {
   const g = new Game();
   g.init(generateBoard());
   setAIDepth(depth);
-  loadNNUEWeights(loadWeights());
+  loadNNUEWeights(weights ?? loadWeightsFromDisk());
 
   let ply = 0;
-  while (ply < 200) {
+  while (ply < maxPlies) {
     const alive = TURNS.filter((f) => !g.eliminatedFactions.has(f));
     if (alive.length <= 1) {
       setNNUEEnabled(false);
       return g.eliminatedFactions.has(nnueSide) ? "loss" : "win";
     }
     const faction = TURNS[g.currentFactionIdx]!;
-    // NNUE only on its own turns; opponents use handcrafted eval.
     setNNUEEnabled(faction === nnueSide);
     const mv = calculateBestMove(g, faction);
     if (!mv) {
@@ -71,34 +78,64 @@ export function playGame(nnueSide: Faction, depth = 3): BenchmarkResult {
   return "draw";
 }
 
-function eloFromWinRate(wr: number): number {
-  if (wr <= 0) return -800;
-  if (wr >= 1) return 800;
-  return Math.round(-400 * Math.log(1 / wr - 1));
-}
-
-function main(): void {
-  const N = Number(process.argv[2] ?? 40);
+export function runBenchmark(
+  games: number,
+  depth = 3,
+  weights?: NNUEWeights,
+): BenchmarkSummary {
   let win = 0;
   let draw = 0;
   let loss = 0;
-  for (let i = 0; i < N; i++) {
-    const r = playGame(FACTION.FIRE); // NNUE = FIRE
+  for (let i = 0; i < games; i++) {
+    const nnueSide = TURNS[i % TURNS.length]!;
+    const r = playGame(nnueSide, depth, weights);
     if (r === "win") win++;
     else if (r === "draw") draw++;
     else loss++;
   }
-  const wr = win / N;
-  console.log(
-    `NNUE(FIRE) vs Handcrafted: W${win} D${draw} L${loss} | winrate ${(wr * 100).toFixed(1)}% | ~Elo ${eloFromWinRate(wr)}`,
-  );
+  const score = scoreFromWDL(win, draw, loss);
+  return {
+    win,
+    draw,
+    loss,
+    games,
+    score,
+    elo: eloFromScore(score),
+    depth,
+  };
 }
 
-// Only run the 40-game benchmark when executed directly as a script — NOT when
-// imported (tests import `playGame` for a single-game smoke check). Running
-// main() on import made the unit-tests CI job play 40 full depth-3 games during
-// module load; once the NNUE weights were fixed (no longer saturating → games
-// no longer end instantly) this exceeded the 15-min job timeout and hung CI.
+function parseGate(argv: string[]): number | null {
+  for (const a of argv) {
+    if (a.startsWith("--gate=")) {
+      return Number(a.slice("--gate=".length));
+    }
+    if (a === "--gate") return 0;
+  }
+  return null;
+}
+
+function main(): void {
+  const positional = process.argv.slice(2).filter((a) => !a.startsWith("--"));
+  const N = Number(positional[0] ?? 40);
+  const depth = Number(positional[1] ?? 3);
+  const gate = parseGate(process.argv);
+
+  console.log(`${describeArch()} | games=${N} depth=${depth}`);
+  const s = runBenchmark(N, depth);
+  console.log(
+    `NNUE vs Handcrafted: W${s.win} D${s.draw} L${s.loss} | score ${(s.score * 100).toFixed(1)}% | ~Elo ${s.elo}`,
+  );
+
+  if (gate !== null && s.elo < gate) {
+    console.error(`GATE FAIL: Elo ${s.elo} < ${gate}`);
+    process.exit(1);
+  }
+  if (gate !== null) {
+    console.log(`GATE OK: Elo ${s.elo} ≥ ${gate}`);
+  }
+}
+
 const isDirectRun =
   typeof process !== "undefined" &&
   Array.isArray(process.argv) &&
