@@ -547,16 +547,21 @@ describe("AI Core: Pondering", () => {
     });
 
     startPondering(game, FACTION.FIRE);
-    // Poll until a best move has been committed (which triggers the progress
-    // callback branch), or give up after ~2s.
-    const deadline = Date.now() + 2000;
+    // Poll until the progress callback has actually fired — it fires
+    // immediately after depth 1 of the ponder search (~1.3s even under
+    // coverage instrumentation). We deliberately do NOT wait on getPonderMove()
+    // here: the committed move is only set after a full depth completes, and
+    // the synchronous minimax blocks the event loop, so relying on it made
+    // this test time out (8168ms vs the 5000ms limit) under coverage. Waiting
+    // on the callback itself is what the test asserts anyway.
+    const deadline = Date.now() + 4000;
     while (Date.now() < deadline) {
-      if (getPonderMove()) break;
-      await new Promise((r) => setTimeout(r, 50));
+      if (calls.length > 0) break;
+      await new Promise((r) => setTimeout(r, 25));
     }
     await stopPondering();
 
-    // Callback must have fired at least once with a committed move.
+    // Callback must have fired at least once with a valid progress report.
     expect(calls.length).toBeGreaterThan(0);
     for (const c of calls) {
       expect(c.depth).toBeGreaterThanOrEqual(1);
@@ -566,7 +571,7 @@ describe("AI Core: Pondering", () => {
 
     // Cleanup: clear the callback so other tests are unaffected.
     setPonderProgressCallback(null);
-  }, 5000);
+  }, 15000);
 
   test("pondering works when opponent has no legal moves", () => {
     // Create a position where opponent has no moves
