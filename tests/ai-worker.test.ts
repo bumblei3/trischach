@@ -1034,9 +1034,10 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(posted.find((m) => m.type === "ponderReady")).toBeDefined();
 
       // Poll until the ponder progress callback has fired (after depth 1 of
-      // the search, ~1.3s). This is the protocol the main thread relies on to
-      // show live ponder stats.
-      const deadlineProgress = Date.now() + 4000;
+      // the search). The search is deterministic but its wall-clock duration
+      // depends on runner load; give it a generous window so the test is not
+      // flaky under CI contention (the suite's test timeout is 15000ms).
+      const deadlineProgress = Date.now() + 10000;
       while (Date.now() < deadlineProgress) {
         if (posted.find((m) => m.type === "ponderProgress")) break;
         await new Promise((r) => setTimeout(r, 25));
