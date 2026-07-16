@@ -10,7 +10,8 @@ import {
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import { setAIDepth, getAIDepth } from "../js/ai.ts";
-import type { AIAction } from "../js/types.ts";
+import { calculateBestMove, simulateMove } from "../js/ai-core.ts";
+import type { AIAction, Faction } from "../js/types.ts";
 import { Hex } from "../js/hex.ts";
 
 describe("formatEvalScore", () => {
@@ -69,6 +70,41 @@ describe("analyzePosition", () => {
     expect(result.bestMove).not.toBeNull();
     expect(result.san).toMatch(/,/);
     expect(result.depth).toBe(1);
+    // New: PV line and RPS explanation are populated.
+    expect(Array.isArray(result.pv)).toBe(true);
+    expect(result.pv.length).toBeGreaterThanOrEqual(1);
+    expect(typeof result.rpsExplanation).toBe("string");
+    expect(result.rpsExplanation!.length).toBeGreaterThan(0);
+  });
+
+  test("does not mutate the game state while building the PV", () => {
+    const game = new Game();
+    game.init(generateBoard());
+    const before = JSON.stringify(
+      game.getAlivePieces().map((p) => [p.id, p.pos.q, p.pos.r, p.alive]),
+    );
+    analyzePosition(game, 3);
+    const after = JSON.stringify(
+      game.getAlivePieces().map((p) => [p.id, p.pos.q, p.pos.r, p.alive]),
+    );
+    expect(after).toBe(before);
+    // Side to move must be unchanged too.
+    expect(game.currentFaction).toBe(FACTION.FIRE);
+  });
+
+  test("PV has multiple plies at higher depth from a midgame position", () => {
+    const game = new Game();
+    game.init(generateBoard());
+    // Advance a few plies so there is a real tactical tree.
+    setAIDepth(2);
+    for (let i = 0; i < 4; i++) {
+      const mv = calculateBestMove(game, game.currentFaction as Faction);
+      if (!mv) break;
+      simulateMove(game, mv.piece, mv.target);
+    }
+    const result = analyzePosition(game, 2);
+    expect(result.pv.length).toBeGreaterThanOrEqual(2);
+    result.pv.forEach((m) => expect(m).toMatch(/,/));
   });
 
   test("restores AI depth after analysis", () => {

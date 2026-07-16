@@ -231,15 +231,19 @@ jobs:
           echo "ai.js: ${CORE_JS_SIZE} bytes (${CORE_JS_GZIP} gzipped)"
           echo "ai-worker.js: ${WORKER_JS_SIZE} bytes (${WORKER_JS_GZIP} gzipped)"
 
-          # Save for comparison (baseline: main ~19.5KB gzip, ai ~7.8KB gzip, ai-worker ~0.6KB gzip)
+          # Save for comparison (baseline: main ~25.3KB gzip after v1.4.0
+          # [NNUE v2 + Parallel Search + Tutorial + Replay], ai ~9.3KB gzip,
+          # ai-worker ~0.8KB gzip)
           echo "BUNDLE_MAIN_GZIP=${MAIN_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_CORE_GZIP=${CORE_JS_GZIP}" >> $GITHUB_ENV
           echo "BUNDLE_WORKER_GZIP=${WORKER_JS_GZIP}" >> $GITHUB_ENV
 
           # Guard against large regressions (thresholds sized for current feature set:
-          # Dark Mode / Auto-Battle / Replay / TSPN viewer in main; full AI engine in ai.js)
+          # Dark Mode / Auto-Battle / Replay / TSPN viewer / Analysis-PV+RPS in main;
+          # full AI engine in ai.js). main threshold raised to 27000 after v1.4.0
+          # legitimately grew main.js to ~25.3KB gzip.
           node -e "
-            const limits = { main: 25000, core: 18000, worker: 2000 };
+            const limits = { main: 27000, core: 18000, worker: 2000 };
             const sizes  = { main: ${MAIN_JS_GZIP}, core: ${CORE_JS_GZIP}, worker: ${WORKER_JS_GZIP} };
             let failed = false;
             for (const k of Object.keys(limits)) {

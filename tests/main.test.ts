@@ -396,4 +396,24 @@ describe("Main UI & Events", () => {
     // import()/worker promises inside the callback resolve.
     await vi.advanceTimersByTimeAsync(1000);
   });
+
+  test("replay analysis renders PV line and RPS explanation", async () => {
+    const { analyzePosition, renderAnalysisToHTML } =
+      await import("../js/analysis.ts");
+    const { Game } = await import("../js/game.ts");
+    const { generateBoard, FACTION } = await import("../js/board.ts");
+
+    const game = new Game();
+    game.init(generateBoard());
+
+    const result = analyzePosition(game, 2);
+    expect(result.pv.length).toBeGreaterThanOrEqual(1);
+    expect(result.rpsExplanation!.length).toBeGreaterThan(0);
+
+    // The exact renderer main.ts uses for the replay panel.
+    const html = renderAnalysisToHTML(result);
+    expect(html).toContain("analysis-pv");
+    expect(html).toContain("analysis-rps");
+    expect(html).toContain("→"); // PV separator
+  });
 });

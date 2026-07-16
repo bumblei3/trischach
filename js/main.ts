@@ -70,7 +70,7 @@ import {
   shouldShowTutorialOnStartup,
   resetTutorial,
 } from "./tutorial.ts";
-import { analyzePosition } from "./analysis.ts";
+import { analyzePosition, renderAnalysisToHTML } from "./analysis.ts";
 import { Hex } from "./hex.ts";
 import { Piece, PIECE_TYPE } from "./pieces.ts";
 
@@ -1652,23 +1652,7 @@ function initEventListeners(): void {
       try {
         const depth = Math.min(3, getAIDepth());
         const result = analyzePosition(game, depth);
-        if (result.gameOver) {
-          text.innerHTML = `<span class="analysis-label">Status:</span> Partie beendet`;
-          return;
-        }
-        const factionName =
-          FACTION_COLORS[result.faction as Faction]?.name ?? result.faction;
-        if (result.san) {
-          text.innerHTML =
-            `<span class="analysis-label">Engine empfiehlt</span>` +
-            `<span class="analysis-san">${escapeHtml(result.san)}</span>` +
-            `<span class="analysis-score">(${escapeHtml(result.scoreLabel)} · ${escapeHtml(factionName)} · d${result.depth})</span>`;
-        } else {
-          text.innerHTML =
-            `<span class="analysis-label">Eval</span>` +
-            `<span class="analysis-score">${escapeHtml(result.scoreLabel)}</span>` +
-            `<span class="analysis-label"> · kein Zug · ${escapeHtml(factionName)}</span>`;
-        }
+        text.innerHTML = renderAnalysisToHTML(result);
       } catch (err) {
         console.error("Analysis failed:", err);
         text.textContent = "Analyse fehlgeschlagen";
