@@ -10,6 +10,7 @@ import {
   generateBoard,
 } from "./board.ts";
 import type { Faction, IGame, GameState } from "./types.ts";
+import { loadTablebaseFromJSON } from "./tablebase.ts";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
@@ -403,6 +404,27 @@ async function initNNUE(): Promise<void> {
   }
 }
 
+// Load endgame tablebase (async, non-blocking) for perfect-play in K+Q vs K
+// endgames. Loaded into the main thread AND pushed to the AI workers so the
+// parallel search path also benefits.
+async function initTablebase(): Promise<void> {
+  try {
+    const res = await fetch("./js/tablebases/kq-vs-k.json");
+    if (!res.ok) throw new Error(`tablebase fetch failed: ${res.status}`);
+    const raw = (await res.json()) as Record<
+      string,
+      { r: "win" | "loss" | "draw"; dtz: number }
+    >;
+    loadTablebaseFromJSON(raw);
+    // Push to workers (if any) so the parallel search path uses it too.
+    const msg = { type: "initTablebase", tablebase: raw };
+    if (aiWorker && workerReady) aiWorker.postMessage(msg);
+    for (const w of workerPool) w.postMessage(msg);
+  } catch (e) {
+    console.warn("Tablebase not available, endgame play uses heuristic:", e);
+  }
+}
+
 function calculateBestMoveWorker(
   game: Game,
   faction: string,
@@ -632,6 +654,7 @@ function init(): void {
     loadLearnedDataFromStorage(); // Merge localStorage learned data (non-fatal)
     initAIWorker();
     initNNUE();
+    initTablebase();
     const settings = loadSettings();
     applySettings(settings);
 
