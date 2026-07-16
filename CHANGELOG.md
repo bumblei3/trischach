@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Analyse-Modus vertieft (Replay).** Die Engine-Analyse im Replay zeigt jetzt
+  eine **PV-Linie** (erwartete Zugfolge, 2–4 Plies, iterative Best-Move-Suche
+  via `simulateMove`/`undoMove` — der Spielzustand wird nicht verändert) sowie
+  eine **RPS-Erklärung** zum empfohlenen Zug (Vorteil/Nachteil im
+  Stein-Schere-Papier-Zyklus). Neue CSS-Klassen `.analysis-pv` / `.analysis-rps`.
+  Render-Logik in `renderAnalysisToHTML()` (analysis.ts) ausgelagert.
+
 ## [1.4.0] - 2026-07-16
 
 ### Added
