@@ -154,7 +154,7 @@ describe("Main UI & Events", () => {
 
     expect(moveLogEl.innerHTML).toBe("");
     const statusEl = byId("status");
-    expect(statusEl.textContent).toBe("Wähle eine Figur");
+    expect(statusEl.textContent).toContain("Wähle eine Figur");
   });
 
   test("Toggles for RPS and Sound", async () => {

@@ -61,7 +61,7 @@ test.describe("TriSchach - Critical User Flows", () => {
     expect(foundValidMoves).toBeTruthy();
 
     // Check status changes to show valid moves
-    await expect(page.locator("#status")).toContainText("Wähle ein Ziel");
+    await expect(page.locator("#status")).toContainText("Ziel wählen");
 
     // Wait for valid move indicators to appear - these are highlighted hex cells
     await page.waitForFunction(
@@ -96,9 +96,28 @@ test.describe("TriSchach - Critical User Flows", () => {
     await expect(feuerPieces.first()).toBeVisible();
     await expect(wasserPieces.first()).toBeVisible();
 
-    // Select a Feuer piece
-    await feuerPieces.first().click({ force: true });
-    await expect(page.locator("#status")).toContainText("Wähle ein Ziel");
+    // Select a Feuer piece that actually has moves/attacks (the first one in
+    // the initial position may have none — e.g. an edge rook).
+    const feuerCount = await feuerPieces.count();
+    let foundSelectable = false;
+    for (let i = 0; i < feuerCount; i++) {
+      const piece = feuerPieces.nth(i);
+      await piece.click({ force: true });
+      await page.waitForTimeout(200);
+      const highlights = page.locator(
+        "#board-svg .highlight-move, #board-svg .highlight-attack, #board-svg .highlight-attack-advantage, #board-svg .highlight-attack-disadvantage",
+      );
+      if ((await highlights.count()) > 0) {
+        foundSelectable = true;
+        break;
+      }
+      await piece.click({ force: true });
+      await page.waitForTimeout(100);
+    }
+    expect(foundSelectable).toBeTruthy();
+
+    // After selecting, the status enters the target-selection state.
+    await expect(page.locator("#status")).toContainText("Ziel wählen");
 
     // After selecting, attack indicators (advantage/neutral/disadvantage) may
     // appear. In the initial position there may be none — assert the count is a
