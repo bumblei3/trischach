@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Analyse-Modus vertieft (Replay).** Die Engine-Analyse im Replay zeigt jetzt
-  eine **PV-Linie** (erwartete Zugfolge, 2–4 Plies, iterative Best-Move-Suche
-  via `simulateMove`/`undoMove` — der Spielzustand wird nicht verändert) sowie
-  eine **RPS-Erklärung** zum empfohlenen Zug (Vorteil/Nachteil im
-  Stein-Schere-Papier-Zyklus). Neue CSS-Klassen `.analysis-pv` / `.analysis-rps`.
-  Render-Logik in `renderAnalysisToHTML()` (analysis.ts) ausgelagert.
+  eine **PV-Linie** (erwartete Zugfolge, bis zu 4 Plies, iterative
+  Best-Move-Suche via `simulateMove`/`undoMove` — der Spielzustand wird dabei
+  nicht verändert, durch Test abgesichert) sowie eine **RPS-Erklärung** zum
+  empfohlenen Zug (Vorteil/Nachteil im Stein-Schere-Papier-Zyklus bei Angriffen,
+  sonst die allgemeine RPS-Lage der Seite). Neue CSS-Klassen `.analysis-pv` /
+  `.analysis-rps`. Die Render-Logik wurde in `renderAnalysisToHTML()`
+  (analysis.ts) ausgelagert und von `main.ts` übernommen.
 
 ## [1.4.0] - 2026-07-16
 
