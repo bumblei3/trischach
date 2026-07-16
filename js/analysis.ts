@@ -127,8 +127,7 @@ export function renderAnalysisToHTML(result: PositionAnalysis): string {
   if (result.gameOver) {
     return `<span class="analysis-label">Status:</span> Partie beendet`;
   }
-  const factionName =
-    FACTION_NAME[result.faction] ?? result.faction;
+  const factionName = FACTION_NAME[result.faction] ?? result.faction;
   if (result.san) {
     const pvLine = result.pv.length
       ? `<div class="analysis-pv">${result.pv
@@ -177,7 +176,8 @@ function buildPrincipalVariation(
   const line: string[] = [formatEngineMove(firstMove)];
   const undos: ReturnType<typeof simulateMove>[] = [];
   let undoAll = (): void => {
-    for (let i = undos.length - 1; i >= 0; i--) undoMove(game as any, undos[i]!);
+    for (let i = undos.length - 1; i >= 0; i--)
+      undoMove(game as any, undos[i]!);
   };
   try {
     // Apply the first move so we can search the reply.
@@ -218,14 +218,20 @@ function explainRPS(game: IGame, move: AIAction): string | null {
   const living = game.getAlivePieces().filter((p: Piece) => p.alive);
   const livingFactions = Array.from(new Set(living.map((p) => p.faction)));
   const adv = livingFactions.filter(
-    (f) => f !== move.piece.faction && getRPSResult(move.piece.faction, f) === "advantage",
+    (f) =>
+      f !== move.piece.faction &&
+      getRPSResult(move.piece.faction, f) === "advantage",
   );
   const dis = livingFactions.filter(
-    (f) => f !== move.piece.faction && getRPSResult(move.piece.faction, f) === "disadvantage",
+    (f) =>
+      f !== move.piece.faction &&
+      getRPSResult(move.piece.faction, f) === "disadvantage",
   );
   const parts: string[] = [];
-  if (adv.length) parts.push(`schlägst ${adv.map((f) => FACTION_NAME[f]).join("/")}`);
-  if (dis.length) parts.push(`unterliegst ${dis.map((f) => FACTION_NAME[f]).join("/")}`);
+  if (adv.length)
+    parts.push(`schlägst ${adv.map((f) => FACTION_NAME[f]).join("/")}`);
+  if (dis.length)
+    parts.push(`unterliegst ${dis.map((f) => FACTION_NAME[f]).join("/")}`);
   if (!parts.length) return `RPS-Lage ausgeglichen.`;
   return `Deine ${FACTION_NAME[move.piece.faction]}-Seite ${parts.join(", ")} im RPS-Zyklus.`;
 }

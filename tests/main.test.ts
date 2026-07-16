@@ -398,9 +398,8 @@ describe("Main UI & Events", () => {
   });
 
   test("replay analysis renders PV line and RPS explanation", async () => {
-    const { analyzePosition, renderAnalysisToHTML } = await import(
-      "../js/analysis.ts"
-    );
+    const { analyzePosition, renderAnalysisToHTML } =
+      await import("../js/analysis.ts");
     const { Game } = await import("../js/game.ts");
     const { generateBoard, FACTION } = await import("../js/board.ts");
 
@@ -418,4 +417,3 @@ describe("Main UI & Events", () => {
     expect(html).toContain("→"); // PV separator
   });
 });
-
