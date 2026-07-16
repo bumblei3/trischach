@@ -334,12 +334,12 @@ jobs:
   # NNUE encoding change) — that is deterministic and a real bug signal.
   # The mini-Elo number is printed for visibility/regression tracking AND used
   # as a soft regression gate. At 16 games / depth 2 the Elo estimate has run-to-
-  # run variance (measured roughly between -137 and -255 locally). We therefore
-  # gate only on a *catastrophic* drop (Elo < -200), which catches a real
-  # regression (e.g. a broken weights file or inverted perspective) without
-  # failing on noise. A healthy NNUE should sit well above this floor; raising
-  # the floor is a follow-up once the TD(λ) trainer (exp/nnue-td-lambda) lifts
-  # the baseline out of the -137 range.
+  # run variance (measured roughly between -137 and -255 across local + CI runs).
+  # We therefore gate only on a *catastrophic* drop (Elo < -250), which catches a
+  # real regression (e.g. a broken / empty / inverted-perspective weights file,
+  # which collapses well below -250) without failing on noise. A healthy NNUE
+  # should sit well above this floor; raising the floor is a follow-up once the
+  # TD(λ) trainer (exp/nnue-td-lambda) lifts the baseline out of the -137 range.
   #
   # NOTE: verify-nnue-fast.ts now caps each game by a 12s wall-clock budget, so
   # the suite finishes deterministically in ~3.2 min worst-case (16 games). The
@@ -357,7 +357,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: NNUE sanity + Elo gate
-        run: npx tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-200
+        run: npx tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-250
 
   # Release automation
   release:

@@ -103,7 +103,10 @@ export function miniElo(
     }
     setNNUEEnabled(false);
     if (g.eliminatedFactions.has(nnueSide)) loss++;
-    else if (timedOut || TURNS.filter((f) => !g.eliminatedFactions.has(f)).length > 1)
+    else if (
+      timedOut ||
+      TURNS.filter((f) => !g.eliminatedFactions.has(f)).length > 1
+    )
       draw++;
     else win++;
   }
