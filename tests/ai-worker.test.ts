@@ -672,7 +672,6 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(result.action?.piece.type).toBe("queen");
       expect(result.action?.target.equals(new Hex(0, 0))).toBe(true);
     });
-
     test("minimax prefers a stronger position over a weaker one", () => {
       // Same side to move; the position with an extra friendly queen must
       // evaluate higher than the one without it. This asserts real search
