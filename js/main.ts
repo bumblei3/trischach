@@ -177,7 +177,9 @@ function saveSettings(settings: GameSettings): void {
 const svg = document.getElementById("board-svg") as unknown as SVGSVGElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const turnEl = document.getElementById("turn-indicator") as HTMLElement;
-const coachStripEl = document.getElementById("coach-strip") as HTMLElement | null;
+const coachStripEl = document.getElementById(
+  "coach-strip",
+) as HTMLElement | null;
 
 /** Last select's RPS buckets — used for disadvantage confirm + hex titles */
 let lastRpsAttacks: RpsBuckets | null = null;
@@ -712,9 +714,12 @@ function applyRpsHexTitles(
   attacker: { faction: Faction } | null | undefined,
   rpsAttacks: RpsBuckets | null | undefined,
 ): void {
-  // Clear previous titles on all cells first
+  // Reset every cell to its coord title first, then overwrite the RPS attack
+  // cells. We must NOT drop the base "Coord: q,r" title (used by tooltips and
+  // E2E locators) — only augment attack cells with the RPS outcome.
   for (const [, el] of renderer.hexElements) {
-    el.polygon.removeAttribute("title");
+    const c = el.cell?.hex;
+    el.polygon.setAttribute("title", `Coord: ${c?.q ?? "?"},${c?.r ?? "?"}`);
   }
   if (!attacker || !rpsAttacks || !game.rpsEnabled) return;
 
@@ -871,12 +876,13 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
   if (game.state === GAME_STATE.SELECT_TARGET && game.selectedPiece) {
     const isMove = game.validMoves.some((m) => m.equals(hexObj));
     const isAttack = game.validAttacks.some((a) => a.equals(hexObj));
-    const isOwn =
-      game.getPieceAt(hexObj)?.faction === game.currentFaction;
+    const isOwn = game.getPieceAt(hexObj)?.faction === game.currentFaction;
     if (!isMove && !isAttack && !isOwn) {
       if (coachStripEl) {
-        coachStripEl.textContent = "Ungültiges Feld — wähle ein markiertes Ziel";
-        coachStripEl.className = "coach-strip coach-strip--warn coach-strip--flash";
+        coachStripEl.textContent =
+          "Ungültiges Feld — wähle ein markiertes Ziel";
+        coachStripEl.className =
+          "coach-strip coach-strip--warn coach-strip--flash";
       }
       // still fall through to deselect via game logic
     }
