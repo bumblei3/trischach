@@ -56,11 +56,21 @@ export type MiniResult = {
   elo: number;
 };
 
+/**
+ * Wall-clock budget per game (ms). 3-player trischach games rarely end by
+ * elimination, so a fixed `maxPlies` cap lets the verify suite run forever
+ * once positions get deep (search slows to ~4s/ply). Cap each game by real
+ * time: once the budget is spent the game is scored as a draw and we move on.
+ * 16 games × 12s = ~192s worst-case — deterministic and CI-friendly.
+ */
+const GAME_WALL_MS = 12_000;
+
 export function miniElo(
   games = 10,
   depth = 2,
   maxPlies = 40,
   weights?: NNUEWeights,
+  gameWallMs = GAME_WALL_MS,
 ): MiniResult {
   let win = 0;
   let draw = 0;
@@ -72,7 +82,9 @@ export function miniElo(
     g.init(generateBoard());
     setAIDepth(depth);
     loadNNUEWeights(w);
+    const gameStart = Date.now();
     let ply = 0;
+    let timedOut = false;
     while (ply < maxPlies) {
       const alive = TURNS.filter((f) => !g.eliminatedFactions.has(f));
       if (alive.length <= 1) break;
@@ -84,12 +96,19 @@ export function miniElo(
       g.handleCellClick(mv.target);
       if (g.pendingPromotion) g.completePromotion("queen");
       ply++;
+      if (Date.now() - gameStart > gameWallMs) {
+        timedOut = true;
+        break;
+      }
     }
     setNNUEEnabled(false);
     if (g.eliminatedFactions.has(nnueSide)) loss++;
-    else if (TURNS.filter((f) => !g.eliminatedFactions.has(f)).length <= 1)
-      win++;
-    else draw++;
+    else if (
+      timedOut ||
+      TURNS.filter((f) => !g.eliminatedFactions.has(f)).length > 1
+    )
+      draw++;
+    else win++;
   }
   const score = scoreFromWDL(win, draw, loss);
   return { win, draw, loss, score, elo: eloFromScore(score) };
