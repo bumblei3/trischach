@@ -332,13 +332,21 @@ jobs:
   # (public/js/weights/nnue-weights.json — no build needed). It hard-fails
   # only on a perspective-sanity break (eval not side-relative, e.g. after an
   # NNUE encoding change) — that is deterministic and a real bug signal.
-  # The mini-Elo number is printed for visibility/regression tracking but is
-  # NOT used as a hard gate: at 16 games / depth 2 the Elo estimate has huge
-  # variance run-to-run (measured between ~-160 and ~-255 in CI vs local),
-  # so a hard Elo threshold would fail on noise, not on regressions.
+  # The mini-Elo number is printed for visibility/regression tracking AND used
+  # as a soft regression gate. At 16 games / depth 2 the Elo estimate has run-to-
+  # run variance (measured roughly between -137 and -255 locally). We therefore
+  # gate only on a *catastrophic* drop (Elo < -200), which catches a real
+  # regression (e.g. a broken weights file or inverted perspective) without
+  # failing on noise. A healthy NNUE should sit well above this floor; raising
+  # the floor is a follow-up once the TD(λ) trainer (exp/nnue-td-lambda) lifts
+  # the baseline out of the -137 range.
+  #
+  # NOTE: verify-nnue-fast.ts now caps each game by a 12s wall-clock budget, so
+  # the suite finishes deterministically in ~3.2 min worst-case (16 games). The
+  # job timeout below must stay above that.
   nnue-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - name: Setup Node 24
@@ -348,8 +356,8 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
-      - name: NNUE sanity + Elo report
-        run: npx tsx scripts/verify-nnue-fast.ts 16 2 60
+      - name: NNUE sanity + Elo gate
+        run: npx tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-200
 
   # Release automation
   release:
