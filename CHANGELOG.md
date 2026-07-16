@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **RPS-Preview + Coach-Strip (Solo UX).** Beim Auswählen einer Figur:
+  native Tooltips auf Angriffs-Hexes erklären Vorteil/Nachteil/Neutral
+  (`🔥 → 🌊: Nachteil — DU wirst geschlagen!`). Klick auf Nachteil-Schlag
+  verlangt Confirm. Coach-Zeile unter der Zugleiste zeigt priorisiert
+  „Was jetzt?“ (Schach, RPS-Warnung, Ziel wählen, …). Ungültige Felder
+  flashen eine kurze Warnung. Multiplayer bleibt bewusst out of scope
+  (README aktualisiert). Modul: `js/coach.ts` + Tests.
+
 - **Endgame Tablebases (Syzygy-Style, Phase 1).** Die Engine nutzt jetzt
   perfekte Endspiel-Evaluation für das Endspiel **K+Queen vs K** (eine
   Faction König+Dame, eine nur König, dritte Faction eliminiert). Ein Generator

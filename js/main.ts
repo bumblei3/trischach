@@ -10,6 +10,12 @@ import {
   generateBoard,
 } from "./board.ts";
 import type { Faction, IGame, GameState } from "./types.ts";
+import {
+  getCoachMessage,
+  isDisadvantageHex,
+  rpsCaptureTitleFromPieces,
+  type RpsBuckets,
+} from "./coach.ts";
 import { loadTablebaseFromJSON } from "./tablebase.ts";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
@@ -171,6 +177,10 @@ function saveSettings(settings: GameSettings): void {
 const svg = document.getElementById("board-svg") as unknown as SVGSVGElement;
 const statusEl = document.getElementById("status") as HTMLElement;
 const turnEl = document.getElementById("turn-indicator") as HTMLElement;
+const coachStripEl = document.getElementById("coach-strip") as HTMLElement | null;
+
+/** Last select's RPS buckets — used for disadvantage confirm + hex titles */
+let lastRpsAttacks: RpsBuckets | null = null;
 const rpsInfoEl = document.getElementById("rps-info") as HTMLElement;
 const promotionOverlay = document.getElementById(
   "promotion-overlay",
@@ -670,6 +680,61 @@ function init(): void {
   })();
 }
 
+function updateCoachStrip(flash = false): void {
+  if (!coachStripEl) return;
+  const msg = getCoachMessage({
+    state: game.state,
+    currentFaction: game.currentFaction,
+    rpsEnabled: game.rpsEnabled,
+    selectedPiece: game.selectedPiece,
+    validMoves: game.validMoves,
+    validAttacks: game.validAttacks,
+    isKingInCheck: (fac) => game.isKingInCheck(fac),
+    getPieceAt: (h) => game.getPieceAt(h),
+  });
+  coachStripEl.textContent = msg.text;
+  coachStripEl.className = `coach-strip coach-strip--${msg.tone}`;
+  if (flash) {
+    coachStripEl.classList.remove("coach-strip--flash");
+    void coachStripEl.offsetWidth;
+    coachStripEl.classList.add("coach-strip--flash");
+  }
+  // Keep compact status in sync for accessibility
+  if (statusEl && game.state !== GAME_STATE.GAME_OVER) {
+    statusEl.textContent = msg.text;
+    statusEl.style.color =
+      msg.tone === "check" || msg.tone === "rps-bad" ? "#ff8888" : "";
+  }
+}
+
+/** Native tooltips on attack hexes explaining RPS before the click. */
+function applyRpsHexTitles(
+  attacker: { faction: Faction } | null | undefined,
+  rpsAttacks: RpsBuckets | null | undefined,
+): void {
+  // Clear previous titles on all cells first
+  for (const [, el] of renderer.hexElements) {
+    el.polygon.removeAttribute("title");
+  }
+  if (!attacker || !rpsAttacks || !game.rpsEnabled) return;
+
+  const apply = (hexes: Hex[], _kind: string) => {
+    for (const h of hexes) {
+      const def = game.getPieceAt(h);
+      if (!def) continue;
+      const el = renderer.hexElements.get(h.key);
+      if (!el) continue;
+      el.polygon.setAttribute(
+        "title",
+        rpsCaptureTitleFromPieces(attacker as import("./types.ts").Piece, def),
+      );
+    }
+  };
+  apply(rpsAttacks.advantage, "advantage");
+  apply(rpsAttacks.neutral, "neutral");
+  apply(rpsAttacks.disadvantage, "disadvantage");
+}
+
 function updateUI(): void {
   const f = game.currentFaction;
   const fc = FACTION_COLORS[f];
@@ -682,19 +747,8 @@ function updateUI(): void {
 
   if (game.state === GAME_STATE.GAME_OVER) {
     // keep existing game over text
-  } else if (game.isKingInCheck(f)) {
-    if (statusEl) {
-      statusEl.textContent = "⚠️ Schach!";
-      statusEl.style.color = "#ff4444";
-    }
   } else {
-    if (statusEl) {
-      statusEl.textContent =
-        game.state === GAME_STATE.SELECT_PIECE
-          ? "Wähle eine Figur"
-          : "Wähle ein Ziel";
-      statusEl.style.color = "";
-    }
+    updateCoachStrip();
   }
 
   clearCheckHighlight();
@@ -792,6 +846,42 @@ function addToLog(result: GameResult): void {
 
 renderer.onCellClick = (hex: { q: number; r: number }) => {
   const hexObj = new Hex(hex.q, hex.r);
+
+  // Confirm suicidal RPS captures before the engine applies them
+  if (
+    game.state === GAME_STATE.SELECT_TARGET &&
+    game.rpsEnabled &&
+    game.selectedPiece &&
+    isDisadvantageHex(hexObj, lastRpsAttacks)
+  ) {
+    const def = game.getPieceAt(hexObj);
+    const title = def
+      ? rpsCaptureTitleFromPieces(game.selectedPiece, def)
+      : "RPS-Nachteil";
+    const ok = window.confirm(
+      `${title}\n\nBei Nachteil stirbt DEINE Figur — der Verteidiger bleibt.\nTrotzdem angreifen?`,
+    );
+    if (!ok) {
+      updateCoachStrip(true);
+      return;
+    }
+  }
+
+  // Soft feedback when clicking an illegal target while a piece is selected
+  if (game.state === GAME_STATE.SELECT_TARGET && game.selectedPiece) {
+    const isMove = game.validMoves.some((m) => m.equals(hexObj));
+    const isAttack = game.validAttacks.some((a) => a.equals(hexObj));
+    const isOwn =
+      game.getPieceAt(hexObj)?.faction === game.currentFaction;
+    if (!isMove && !isAttack && !isOwn) {
+      if (coachStripEl) {
+        coachStripEl.textContent = "Ungültiges Feld — wähle ein markiertes Ziel";
+        coachStripEl.className = "coach-strip coach-strip--warn coach-strip--flash";
+      }
+      // still fall through to deselect via game logic
+    }
+  }
+
   const result = game.handleCellClick(hexObj);
   if (!result) return;
 
@@ -802,6 +892,7 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
     sounds.playSelect();
     renderer.selectCell(hexObj);
     renderer.highlightCells(result.moves ?? [], "highlight-move");
+    lastRpsAttacks = (result.rpsAttacks as RpsBuckets) || null;
     if (game.rpsEnabled && result.rpsAttacks) {
       renderer.highlightCells(
         result.rpsAttacks.advantage ?? [],
@@ -815,12 +906,18 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
         result.rpsAttacks.neutral ?? [],
         "highlight-attack",
       );
+      applyRpsHexTitles(result.piece ?? game.selectedPiece, lastRpsAttacks);
     } else {
+      lastRpsAttacks = null;
+      applyRpsHexTitles(null, null);
       renderer.highlightCells(result.attacks ?? [], "highlight-attack");
     }
   } else if (result.action === "deselect") {
-    // nothing
+    lastRpsAttacks = null;
+    applyRpsHexTitles(null, null);
   } else if (result.action === "move") {
+    lastRpsAttacks = null;
+    applyRpsHexTitles(null, null);
     sounds.playMove();
     addToLog(result);
     if (result.piece) renderer.renderPiece(result.piece);
@@ -839,6 +936,8 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
       updateUI();
     }
   } else if (result.action === "combat") {
+    lastRpsAttacks = null;
+    applyRpsHexTitles(null, null);
     addToLog(result);
     showCombat(result);
 
@@ -982,6 +1081,7 @@ function handleContextMenuAction(
         renderer.clearHighlights();
         renderer.selectCell(piece.pos);
         renderer.highlightCells(selectResult.moves ?? [], "highlight-move");
+        lastRpsAttacks = (selectResult.rpsAttacks as RpsBuckets) || null;
         if (game.rpsEnabled && selectResult.rpsAttacks) {
           renderer.highlightCells(
             selectResult.rpsAttacks.advantage ?? [],
@@ -995,7 +1095,13 @@ function handleContextMenuAction(
             selectResult.rpsAttacks.neutral ?? [],
             "highlight-attack",
           );
+          applyRpsHexTitles(
+            selectResult.piece ?? game.selectedPiece,
+            lastRpsAttacks,
+          );
         } else {
+          lastRpsAttacks = null;
+          applyRpsHexTitles(null, null);
           renderer.highlightCells(
             selectResult.attacks ?? [],
             "highlight-attack",

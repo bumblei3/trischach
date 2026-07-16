@@ -192,10 +192,12 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 - [✅] **Puzzle Uniqueness + Daily Streak** – eindeutiger Eröffnungszug, Streak-Tracking
 - [✅] **Replay-Analyse** – „Engine empfiehlt…“ mit Eval an der aktuellen Position
 
-### Offen
+### Offen (Solo-Fokus — kein Multiplayer)
 
-- [ ] **Online Multiplayer (WebRTC)** – Echtzeit 3-Spieler-Schach
 - [ ] **NNUE default-on** – erst nach messbarem Elo-Gewinn vs. Handcrafted
-- [ ] **Distributed Match Runner** – Koordinierte Engine-Matches über mehrere Clients
-- [ ] **Endgame Tablebases** – Syzygy-Style für 3-Spieler-Endspiele (3–4 Steine zuerst)
-- [ ] **Analyse-Modus vertiefen** – PV-Linie, RPS-Erklärung, Auto-Analyse beim Replay-Schritt
+- [ ] **Endgame Tablebases Phase 2+** – weitere 3–4-Stein-Endspiele (Phase 1: K+D vs K ✅)
+- [ ] **RPS-Taktik-Puzzles** – Konter-Schläge trainieren
+- [x] **Analyse-Modus vertiefen** – PV-Linie + RPS-Erklärung (v1.4.x)
+- [x] **RPS-Preview + Coach-Strip** – Tooltip/Confirm bei Nachteil, „Was jetzt?“-Zeile
+
+**Bewusst nicht geplant:** Online Multiplayer (WebRTC), Distributed Match Runner.
