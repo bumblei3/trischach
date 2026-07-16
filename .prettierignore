@@ -6,3 +6,5 @@ dist/
 node_modules/
 # Trained NNUE weights (large generated JSON, not hand-formatted)
 public/js/weights/nnue-weights.json
+# Endgame tablebase (large generated JSON, not hand-formatted)
+public/js/tablebases/kq-vs-k.json

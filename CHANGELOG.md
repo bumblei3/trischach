@@ -9,7 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Analyse-Modus vertieft (Replay).** Die Engine-Analyse im Replay zeigt jetzt
+- **Endgame Tablebases (Syzygy-Style, Phase 1).** Die Engine nutzt jetzt
+  perfekte Endspiel-Evaluation für das Endspiel **K+Queen vs K** (eine
+  Faction König+Dame, eine nur König, dritte Faction eliminiert). Ein Generator
+  (`scripts/gen-tablebase.ts`, retrograde/perfekte Suche über das echte
+  `Game`) baut eine Position→Ergebnis-Map (49.763 Einträge, ~2.1MB JSON in
+  `public/js/tablebases/kq-vs-k.json`). In `minimax` (ai-core.ts) greift vor
+  jeder Suche ein O(1)-Lookup (`probeTablebase`): bei Treffer wird die perfekte
+  Eval (statt Heuristik) zurückgegeben. Geladen wird die Tabelle in `main.ts`
+  (`initTablebase()`, fetch + an AI-Worker gepusht), analog zu `initNNUE`.
+  Gated durch `isTablebasePosition` (≤4 Steine, ≥1 Faction eliminiert), also
+  kein Einfluss auf Mittelspiele. Tests: `tests/tablebase.test.ts` (7, inkl.
+  Engine-Integration dass `minimax` die TB-Eval nutzt).
   eine **PV-Linie** (erwartete Zugfolge, bis zu 4 Plies, iterative
   Best-Move-Suche via `simulateMove`/`undoMove` — der Spielzustand wird dabei
   nicht verändert, durch Test abgesichert) sowie eine **RPS-Erklärung** zum

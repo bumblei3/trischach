@@ -62,11 +62,16 @@ test("built site renders the board under a subpath (base './')", async ({
   page.on("pageerror", (e) => failed.push("pageerror: " + e.message));
 
   const resp = await page.goto(url, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
     timeout: 30000,
   });
   expect(resp?.status(), "HTTP status").toBeLessThan(400);
-  await page.waitForTimeout(2500);
+  // Wait for the board to render. Use a fixed settle window rather than
+  // networkidle: the app lazily fetches optional assets (e.g.
+  // opening-book.learned.json) that never reach a fully-idle network state,
+  // which made the networkidle wait flaky under CI load.
+  await page.waitForSelector("#board-svg [class*='piece']", { timeout: 10000 });
+  await page.waitForTimeout(500);
 
   const pieceCount = await page.locator("#board-svg [class*='piece']").count();
 
