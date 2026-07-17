@@ -1,19 +1,26 @@
 /**
  * Tablebase generator for trischach endgames (Syzygy-style result map).
  *
- * Phase 1: solves the K+Queen vs K endgame (one faction has King+Queen, one
- * faction has only its King, the third faction is already eliminated). The
- * generator enumerates all placements, reduces by faction-rotation symmetry,
- * and solves each position with perfect play (full minimax over the real Game
- * rules, including RPS king-capture). Result is written as a hash →
- * {result, dtz} JSON map loaded at runtime by js/tablebase.ts.
+ * Phase 1: solves K+Queen vs K (one faction has King+Queen, one has only its
+ *   King, the third faction is already eliminated).
+ * Phase 2: solves K+Rook vs K and K+Pawn vs K with the same machinery — only
+ *   the piece placement changes. The solver uses the real Game rules, so pawn
+ *   promotion (K+Pawn → K+Queen) is handled correctly.
  *
- * Win rule (pragmatic for 3-player RPS): the last surviving faction wins;
- * a move that captures the side-to-move's king eliminates that faction.
+ * The generator enumerates all placements, reduces by faction-rotation symmetry
+ * (strong=FIRE, weak=WATER, eliminated=NATURE), and solves each position with
+ * perfect play (full minimax over the real Game rules, including RPS
+ * king-capture). Result is written as a hash → {result, dtz} JSON map loaded at
+ * runtime by js/tablebase.ts.
+ *
+ * Win rule (pragmatic for 3-player RPS): the last surviving faction wins; a move
+ * that captures the side-to-move's king eliminates that faction.
  *
  * Run:
- *   npx tsx scripts/gen-tablebase.ts
- *   npx tsx scripts/gen-tablebase.ts --out public/js/tablebases/kq-vs-k.json
+ *   npx tsx scripts/gen-tablebase.ts                 # default: kq (K+Queen vs K)
+ *   npx tsx scripts/gen-tablebase.ts --endgame=kr    # K+Rook vs K
+ *   npx tsx scripts/gen-tablebase.ts --endgame=kpk   # K+Pawn vs K
+ *   npx tsx scripts/gen-tablebase.ts --out public/js/tablebases/kr-vs-k.json --endgame=kr
  */
 
 import { Game } from "../js/game.ts";
@@ -27,6 +34,7 @@ import {
 import { Piece } from "../js/pieces.ts";
 import { Hex } from "../js/hex.ts";
 import type { Faction } from "../js/types.ts";
+import type { PieceType } from "../js/types.ts";
 import { writeFileSync, mkdirSync } from "node:fs";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
@@ -36,10 +44,39 @@ interface Solved {
   dtz: number;
 }
 
+type EndgameKind = "kq" | "kr" | "kpk";
+
+interface PieceSpec {
+  type: PieceType;
+  faction: Faction;
+}
+
+/** Pieces for the strong (attacking) and weak (defending) factions. */
+const ENDGAMES: Record<
+  EndgameKind,
+  { strong: PieceType[]; weak: PieceType[]; out: string }
+> = {
+  kq: {
+    strong: ["king", "queen"],
+    weak: ["king"],
+    out: "public/js/tablebases/kq-vs-k.json",
+  },
+  kr: {
+    strong: ["king", "rook"],
+    weak: ["king"],
+    out: "public/js/tablebases/kr-vs-k.json",
+  },
+  kpk: {
+    strong: ["king", "pawn"],
+    weak: ["king"],
+    out: "public/js/tablebases/kpk.json",
+  },
+};
+
 /**
  * Perfect-play solver. `result` is from the side-to-move perspective.
  * Memoized over Zobrist hash. `depth` caps runaway search (should never be
- * hit for K+Q vs K, which terminates by repetition-move cap or mate).
+ * hit for K+Q/K+R/K+P vs K, which terminates by repetition-move cap or mate).
  */
 function solve(game: Game, memo: Map<string, Solved>, depth: number): Solved {
   const hash = computeZobristHash(game).toString();
@@ -127,28 +164,25 @@ function allCellKeys(boardCells: Map<string, { zone: string }>): string[] {
 }
 
 /**
- * Build a Game for a specific placement: strongFaction gets K+Q, weakFaction
- * gets only K, third faction eliminated. `sideToMoveIdx` selects who moves.
+ * Build a Game for a specific placement. `pieces` lists every piece to place
+ * (with faction); the remaining faction is marked eliminated. `sideToMoveIdx`
+ * selects who moves.
  */
 function buildPosition(
   boardCells: Map<string, { hex: Hex; zone: string; faction: Faction | null }>,
-  strong: Faction,
-  weak: Faction,
+  pieces: PieceSpec[],
   eliminated: Faction,
-  qKey: string,
-  kStrongKey: string,
-  kWeakKey: string,
   sideToMoveIdx: number,
 ): Game {
   const g = new Game();
   g.init(boardCells as Map<string, any>);
   g.pieces = [];
   g.eliminatedFactions = new Set<Faction>([eliminated]);
-  const mk = (type: any, fac: Faction, key: string) =>
+  const mk = (type: PieceType, fac: Faction, key: string) =>
     new Piece(type, fac, boardCells.get(key)!.hex);
-  g.pieces.push(mk("queen", strong, qKey));
-  g.pieces.push(mk("king", strong, kStrongKey));
-  g.pieces.push(mk("king", weak, kWeakKey));
+  for (const spec of pieces) {
+    g.pieces.push(mk(spec.type, spec.faction, spec.key));
+  }
   g.currentFactionIdx = sideToMoveIdx;
   g.currentFaction = TURNS[sideToMoveIdx]!;
   g.state = "select_piece" as any;
@@ -158,78 +192,102 @@ function buildPosition(
 
 function main(): void {
   const outArg = process.argv.find((a) => a.startsWith("--out="));
-  const outPath = outArg
-    ? outArg.slice("--out=".length)
-    : "public/js/tablebases/kq-vs-k.json";
+  const endgameArg = process.argv.find((a) => a.startsWith("--endgame="));
+  const eg = (
+    endgameArg ? endgameArg.slice("--endgame=".length) : "kq"
+  ) as EndgameKind;
+  if (!ENDGAMES[eg]) {
+    console.error(
+      `unknown --endgame=${eg}; use one of: ${Object.keys(ENDGAMES).join(", ")}`,
+    );
+    process.exit(1);
+  }
+  const outPath = outArg ? outArg.slice("--out=".length) : ENDGAMES[eg].out;
   const limitArg = process.argv.find((a) => a.startsWith("--limit="));
   const limit = limitArg ? Number(limitArg.slice("--limit=".length)) : Infinity;
+
+  // Faction rotation symmetry: strong=FIRE, weak=WATER, eliminated=NATURE.
+  const STRONG = FACTION.FIRE;
+  const WEAK = FACTION.WATER;
+  const ELIM = FACTION.NATURE;
 
   const boardCells = generateBoard();
   const cells = allCellKeys(boardCells);
   if (cells.length > limit) cells.length = Math.floor(limit);
 
-  // Faction rotation symmetry: pick strong=FIRE, weak=WATER, eliminated=NATURE.
-  // (Other rotations are equivalent by the RPS-fair board, so we solve one.)
-  const STRONG = FACTION.FIRE;
-  const WEAK = FACTION.WATER;
-  const ELIM = FACTION.NATURE;
-
   const memo = new Map<string, Solved>();
   const result: Record<string, { r: "win" | "loss" | "draw"; dtz: number }> =
     {};
 
+  // Assign keys to strong/weak piece slots. The number of keys scales with the
+  // piece count of the endgame (2 pieces each side for kq/kr/kpk → 4 keys).
+  const strongTypes = ENDGAMES[eg].strong;
+  const weakTypes = ENDGAMES[eg].weak;
+  const nStrong = strongTypes.length;
+  const nWeak = weakTypes.length;
+  // All distinct cell keys used for the attacking side's pieces + king, plus
+  // the defending king. We enumerate every distinct placement of those pieces.
+  const slots = nStrong + nWeak; // total non-king pieces + kings
+
+  // Build the piece-spec per placement generically from key assignments.
+  const buildSpec = (keys: string[]): PieceSpec[] => {
+    const spec: PieceSpec[] = [];
+    strongTypes.forEach((t, i) =>
+      spec.push({ type: t, faction: STRONG, key: keys[i]! }),
+    );
+    weakTypes.forEach((t, i) =>
+      spec.push({ type: t, faction: WEAK, key: keys[nStrong + i]! }),
+    );
+    return spec;
+  };
+
   let count = 0;
-  const total = cells.length * (cells.length - 1) * (cells.length - 2);
-  for (const qKey of cells) {
-    for (const kStrongKey of cells) {
-      if (kStrongKey === qKey) continue;
-      for (const kWeakKey of cells) {
-        if (kWeakKey === qKey || kWeakKey === kStrongKey) continue;
-        for (let side = 0; side < 3; side++) {
-          // Only positions where the side to move is STRONG or WEAK (ELIM has no pieces).
-          if (TURNS[side] === ELIM) continue;
-          const g = buildPosition(
-            boardCells as any,
-            STRONG,
-            WEAK,
-            ELIM,
-            qKey,
-            kStrongKey,
-            kWeakKey,
-            side,
-          );
-          // Only count positions that are tablebase-relevant (≤4 pieces always true here).
-          if (g.getAlivePieces().filter((p) => p.alive).length > 4) continue;
-          const hash = computeZobristHash(g).toString();
-          if (result[hash]) continue;
-          const solved = solve(g, memo, 40);
-          // Store only decisive results (win/loss). Draws are left as
-          // "unknown" so the engine falls back to its heuristic (a draw is a
-          // draw either way, and omitting them shrinks the file ~8x).
-          if (solved.result !== "draw") {
-            result[hash] = { r: solved.result, dtz: solved.dtz };
-          }
-          count++;
+  // Enumerate all ordered placements of `slots` distinct cells.
+  const place = (depth: number, chosen: string[], seen: Set<string>): void => {
+    if (depth === slots) {
+      for (let side = 0; side < 3; side++) {
+        if (TURNS[side] === ELIM) continue; // ELIM has no pieces
+        const g = buildPosition(
+          boardCells as any,
+          buildSpec(chosen),
+          ELIM,
+          side,
+        );
+        if (g.getAlivePieces().filter((p) => p.alive).length > 4) continue;
+        const hash = computeZobristHash(g).toString();
+        if (result[hash]) continue;
+        const solved = solve(g, memo, 60);
+        // Store only decisive results (win/loss). Draws omitted → engine
+        // falls back to heuristic (shrink file ~8x).
+        if (solved.result !== "draw") {
+          result[hash] = { r: solved.result, dtz: solved.dtz };
         }
+        count++;
       }
+      return;
     }
-    // Incremental flush so partial progress survives timeouts.
-    if (count % 500 === 0) {
-      mkdirSync("public/js/tablebases", { recursive: true });
-      writeFileSync(outPath, JSON.stringify(result));
+    for (const key of cells) {
+      if (seen.has(key)) continue;
+      chosen.push(key);
+      seen.add(key);
+      place(depth + 1, chosen, seen);
+      chosen.pop();
+      seen.delete(key);
     }
-  }
+  };
+
+  place(0, [], new Set<string>());
 
   mkdirSync("public/js/tablebases", { recursive: true });
   writeFileSync(outPath, JSON.stringify(result));
   console.log(`Solved ${count} unique positions; memo=${memo.size}`);
-  console.log(`Wrote ${Object.keys(result).length} entries → ${outPath}`);
+  console.log(
+    `Wrote ${Object.keys(result).length} entries → ${outPath} (endgame=${eg})`,
+  );
   const wins = Object.values(result).filter((v) => v.r === "win").length;
   const losses = Object.values(result).filter((v) => v.r === "loss").length;
   const draws = Object.values(result).filter((v) => v.r === "draw").length;
-  console.log(
-    `Distribution: win=${wins} loss=${losses} draw=${draws} (of ${total} raw placements)`,
-  );
+  console.log(`Distribution: win=${wins} loss=${losses} draw=${draws}`);
 }
 
 main();

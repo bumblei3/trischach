@@ -17,7 +17,29 @@ import {
   tablebaseToScore,
 } from "../js/tablebase.ts";
 import type { Faction } from "../js/types.ts";
+import type { PieceType } from "../js/types.ts";
 import { readFileSync } from "node:fs";
+
+function buildEndgame(
+  strongPieces: [PieceType, string][],
+  weakPieces: [PieceType, string][],
+  eliminated: Faction,
+  sideIdx: number,
+): Game {
+  const boardCells = generateBoard();
+  const g = new Game();
+  g.init(boardCells as any);
+  g.pieces = [];
+  g.eliminatedFactions = new Set<Faction>([eliminated]);
+  const mk = (type: PieceType, fac: Faction, key: string) =>
+    new Piece(type, fac, boardCells.get(key)!.hex);
+  strongPieces.forEach(([t, k]) => g.pieces.push(mk(t, FACTION.FIRE, k)));
+  weakPieces.forEach(([t, k]) => g.pieces.push(mk(t, FACTION.WATER, k)));
+  g.currentFactionIdx = sideIdx;
+  g.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][sideIdx]!;
+  (g as any)._positionHash = undefined;
+  return g;
+}
 
 function buildKQvK(
   qKey: string,
@@ -25,20 +47,15 @@ function buildKQvK(
   kWeakKey: string,
   sideIdx: number,
 ): Game {
-  const boardCells = generateBoard();
-  const g = new Game();
-  g.init(boardCells as any);
-  g.pieces = [];
-  g.eliminatedFactions = new Set<Faction>([FACTION.NATURE]);
-  const mk = (type: any, fac: Faction, key: string) =>
-    new Piece(type, fac, boardCells.get(key)!.hex);
-  g.pieces.push(mk("queen", FACTION.FIRE, qKey));
-  g.pieces.push(mk("king", FACTION.FIRE, kStrongKey));
-  g.pieces.push(mk("king", FACTION.WATER, kWeakKey));
-  g.currentFactionIdx = sideIdx;
-  g.currentFaction = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE][sideIdx]!;
-  (g as any)._positionHash = undefined;
-  return g;
+  return buildEndgame(
+    [
+      ["queen", qKey],
+      ["king", kStrongKey],
+    ],
+    [["king", kWeakKey]],
+    FACTION.NATURE,
+    sideIdx,
+  );
 }
 
 describe("tablebase: K+Q vs K endgame", () => {
@@ -136,3 +153,72 @@ describe("tablebase: K+Q vs K endgame", () => {
     }
   });
 });
+
+// Shared assertions for the generated 4-piece tablebases (KQ, KR, KPK).
+// Each proves: (1) the endgame is recognised as a tablebase position, (2) the
+// generated JSON loads and contains decisive entries, and (3) the common probe
+// path round-trips a stored hash. The minimax short-circuit is covered once by
+// the K+Q vs K suite below (identical code path for every endgame).
+function describeEndgame(
+  label: string,
+  file: string,
+  strong: [PieceType, string][],
+  weak: [PieceType, string][],
+): void {
+  describe(`tablebase: ${label}`, () => {
+    let raw: Record<string, { r: "win" | "loss" | "draw"; dtz: number }>;
+
+    beforeEach(() => {
+      clearTablebase();
+      raw = JSON.parse(readFileSync(file, "utf8"));
+      loadTablebaseFromJSON(raw);
+    });
+
+    it("isTablebasePosition true (≤4 pieces, 1 eliminated)", () => {
+      const g = buildEndgame(strong, weak, FACTION.NATURE, 0);
+      expect(isTablebasePosition(g)).toBe(true);
+    });
+
+    it("generated JSON loads with decisive entries", () => {
+      const keys = Object.keys(raw);
+      expect(keys.length).toBeGreaterThan(0);
+      // Only decisive results are stored (draws omitted) — verify shape.
+      const sample = raw[keys[0]!];
+      expect(sample).toBeDefined();
+      expect(["win", "loss"]).toContain(sample!.r);
+      expect(typeof sample!.dtz).toBe("number");
+    });
+
+    it("probeTablebase round-trips a stored hash", () => {
+      const g = buildEndgame(strong, weak, FACTION.NATURE, 0);
+      const hash = computeZobristHash(g).toString();
+      // Force a known entry for this exact position and confirm probe returns it.
+      clearTablebase();
+      loadTablebaseFromJSON({ [hash]: { r: "win", dtz: 3 } });
+      const entry = probeTablebase(g);
+      expect(entry).not.toBeNull();
+      expect(entry!.result).toBe("win");
+      expect(entry!.dtz).toBe(3);
+    });
+  });
+}
+
+describeEndgame(
+  "K+R vs K endgame",
+  "public/js/tablebases/kr-vs-k.json",
+  [
+    ["king", "1,1"],
+    ["rook", "0,0"],
+  ],
+  [["king", "2,2"]],
+);
+
+describeEndgame(
+  "K+P vs K endgame",
+  "public/js/tablebases/kpk.json",
+  [
+    ["king", "1,1"],
+    ["pawn", "0,0"],
+  ],
+  [["king", "2,2"]],
+);
