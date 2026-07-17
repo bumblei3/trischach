@@ -15,8 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--a/--b=nnue|classic`, `--a-weights/--b-weights=<path>` (weight-file
   comparison), seeded determinism, and `--gate=N`. Fills the gap that
   `benchmark-nnue.ts` only measured NNUE vs handcrafted, not NNUE-vX vs
-  NNUE-vY or depth N vs N+1. Baseline (40 games, depth 2): NNUE d2 vs classic
-  d2 → Elo −26 [95% CI −134..+82] (not significant at low depth).
+  NNUE-vY or depth N vs N+1.
+
+- **NNUE Elo study (concluded — parked).** Measured NNUE vs classic with the
+  new bench: depth 2 → Elo −26 [95% CI −134..+82]; depth 3 → Elo −17
+  [95% CI −125..+91]. Neither is significant (CIs overlap 0). The current
+  NNUE architecture (216→128→32→1) yields **no measurable Elo over the
+  handcrafted eval** at either depth. Retraining/layer-tuning is NOT justified
+  — further eval work would be training without signal. Engine strength now
+  comes from tablebases (see below) and search quality, not the NNUE eval.
 
 - **Tutorial storage/automation tests.** `tests/tutorial.test.ts` now covers
   private-mode/quota resilience (storage errors swallowed) and `e2e`/`notutorial`
