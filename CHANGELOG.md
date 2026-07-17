@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reproducible NNUE compare-bench (`scripts/compare-nnue.ts`).** Plays two
+  engine configurations (A vs B) over N games and reports score, Elo, and a 95%
+  confidence interval on the Elo estimate (via score standard error). Supports
+  `--a/--b=nnue|classic`, `--a-weights/--b-weights=<path>` (weight-file
+  comparison), seeded determinism, and `--gate=N`. Fills the gap that
+  `benchmark-nnue.ts` only measured NNUE vs handcrafted, not NNUE-vX vs
+  NNUE-vY or depth N vs N+1. Baseline (40 games, depth 2): NNUE d2 vs classic
+  d2 → Elo −26 [95% CI −134..+82] (not significant at low depth).
+
+- **Tutorial storage/automation tests.** `tests/tutorial.test.ts` now covers
+  private-mode/quota resilience (storage errors swallowed) and `e2e`/`notutorial`
+  query-param detection in `isAutomatedBrowser`. `js/tutorial.ts` coverage
+  raised 62% → 90% stm / 83% branch. (PR #97)
+
 - **RPS-Preview + Coach-Strip (Solo UX).** Beim Auswählen einer Figur:
   native Tooltips auf Angriffs-Hexes erklären Vorteil/Nachteil/Neutral
   (`🔥 → 🌊: Nachteil — DU wirst geschlagen!`). Klick auf Nachteil-Schlag
