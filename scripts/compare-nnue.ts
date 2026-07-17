@@ -40,6 +40,7 @@ import {
   setAIDepth,
   setNNUEEnabled,
   loadNNUEWeights,
+  setTieBreakMode,
 } from "../js/ai-core.ts";
 import type { NNUEWeights } from "../js/nnue.ts";
 import {
@@ -51,9 +52,11 @@ import {
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
 export type EngineKind = "nnue" | "classic";
+export type TieBreakMode = "deterministic" | "random";
 export interface EngineConfig {
   kind: EngineKind;
   weights?: NNUEWeights;
+  tiebreak?: TieBreakMode;
 }
 export type Side = "A" | "B";
 export type GameOutcome = "A" | "B" | "draw";
@@ -105,6 +108,9 @@ function applyConfig(cfg: EngineConfig, depth: number): void {
   } else {
     setNNUEEnabled(false);
   }
+  // Tie-break mode: default deterministic (reproducible, noise-free). The
+  // legacy random mode is kept only so A/B benches can compare the two.
+  setTieBreakMode(cfg.tiebreak !== "random");
 }
 
 /**
@@ -242,6 +248,8 @@ function parseFlags(argv: string[]): {
   seed: number;
   gate: number | null;
   maxPlies: number;
+  aTiebreak: TieBreakMode;
+  bTiebreak: TieBreakMode;
 } {
   let a: EngineKind = "nnue";
   let b: EngineKind = "classic";
@@ -249,6 +257,8 @@ function parseFlags(argv: string[]): {
   let bWeights: string | undefined;
   let aDepth: number | undefined;
   let bDepth: number | undefined;
+  let aTiebreak: TieBreakMode = "deterministic";
+  let bTiebreak: TieBreakMode = "deterministic";
   let seed = 12345;
   let gate: number | null = null;
   let maxPlies = 200;
@@ -260,12 +270,28 @@ function parseFlags(argv: string[]): {
     else if (arg.startsWith("--b-weights=")) bWeights = arg.slice(12);
     else if (arg.startsWith("--a-depth=")) aDepth = Number(arg.slice(10));
     else if (arg.startsWith("--b-depth=")) bDepth = Number(arg.slice(10));
+    else if (arg.startsWith("--a-tiebreak="))
+      aTiebreak = arg.slice(13) as TieBreakMode;
+    else if (arg.startsWith("--b-tiebreak="))
+      bTiebreak = arg.slice(13) as TieBreakMode;
     else if (arg.startsWith("--seed=")) seed = Number(arg.slice(7));
     else if (arg.startsWith("--max-plies=")) maxPlies = Number(arg.slice(12));
     else if (arg.startsWith("--gate=")) gate = Number(arg.slice(7));
     else if (arg === "--gate") gate = 0;
   }
-  return { a, b, aWeights, bWeights, aDepth, bDepth, seed, gate, maxPlies };
+  return {
+    a,
+    b,
+    aWeights,
+    bWeights,
+    aDepth,
+    bDepth,
+    aTiebreak,
+    bTiebreak,
+    seed,
+    gate,
+    maxPlies,
+  };
 }
 
 function main(): void {
@@ -279,14 +305,16 @@ function main(): void {
   const cfgA: EngineConfig = {
     kind: flags.a,
     weights: flags.aWeights ? loadWeightsFromDisk(flags.aWeights) : undefined,
+    tiebreak: flags.aTiebreak,
   };
   const cfgB: EngineConfig = {
     kind: flags.b,
     weights: flags.bWeights ? loadWeightsFromDisk(flags.bWeights) : undefined,
+    tiebreak: flags.bTiebreak,
   };
 
   console.log(
-    `${describeArch()} | A=${cfgA.kind}${flags.aWeights ? "(custom)" : ""} depth=${depthA}  vs  B=${cfgB.kind}${flags.bWeights ? "(custom)" : ""} depth=${depthB} | games=${N} seed=${flags.seed}`,
+    `${describeArch()} | A=${cfgA.kind}${flags.aWeights ? "(custom)" : ""} depth=${depthA} tie=${cfgA.tiebreak ?? "deterministic"}  vs  B=${cfgB.kind}${flags.bWeights ? "(custom)" : ""} depth=${depthB} tie=${cfgB.tiebreak ?? "deterministic"} | games=${N} seed=${flags.seed}`,
   );
   const s = runCompare(
     N,
