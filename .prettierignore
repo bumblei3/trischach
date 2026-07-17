@@ -8,3 +8,5 @@ node_modules/
 public/js/weights/nnue-weights.json
 # Endgame tablebase (large generated JSON, not hand-formatted)
 public/js/tablebases/kq-vs-k.json
+public/js/tablebases/kr-vs-k.json
+public/js/tablebases/kpk.json

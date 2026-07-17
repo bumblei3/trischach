@@ -416,20 +416,46 @@ async function initNNUE(): Promise<void> {
   }
 }
 
-// Load endgame tablebase (async, non-blocking) for perfect-play in K+Q vs K
-// endgames. Loaded into the main thread AND pushed to the AI workers so the
-// parallel search path also benefits.
+// Load endgame tablebases (async, non-blocking) for perfect-play in
+// K+Q vs K, K+R vs K, and K+P vs K endgames. Each file is fetched
+// independently and merged into the shared tablebase store; a missing file
+// only disables that endgame (the others still load). The combined map is
+// also pushed to the AI workers so the parallel search path benefits.
+const TABLEBASE_FILES = [
+  "./js/tablebases/kq-vs-k.json",
+  "./js/tablebases/kr-vs-k.json",
+  "./js/tablebases/kpk.json",
+];
+
 async function initTablebase(): Promise<void> {
   try {
-    const res = await fetch("./js/tablebases/kq-vs-k.json");
-    if (!res.ok) throw new Error(`tablebase fetch failed: ${res.status}`);
-    const raw = (await res.json()) as Record<
-      string,
-      { r: "win" | "loss" | "draw"; dtz: number }
-    >;
-    loadTablebaseFromJSON(raw);
+    const merged: Record<string, { r: "win" | "loss" | "draw"; dtz: number }> =
+      {};
+    let loadedAny = false;
+    for (const path of TABLEBASE_FILES) {
+      try {
+        const res = await fetch(path);
+        if (!res.ok) {
+          console.warn(`tablebase fetch skipped (${res.status}): ${path}`);
+          continue;
+        }
+        const raw = (await res.json()) as Record<
+          string,
+          { r: "win" | "loss" | "draw"; dtz: number }
+        >;
+        Object.assign(merged, raw);
+        loadedAny = true;
+      } catch (e) {
+        console.warn(`tablebase not available: ${path}`, e);
+      }
+    }
+    if (!loadedAny) {
+      console.warn("No tablebase files loaded; endgame play uses heuristic.");
+      return;
+    }
+    loadTablebaseFromJSON(merged);
     // Push to workers (if any) so the parallel search path uses it too.
-    const msg = { type: "initTablebase", tablebase: raw };
+    const msg = { type: "initTablebase", tablebase: merged };
     if (aiWorker && workerReady) aiWorker.postMessage(msg);
     for (const w of workerPool) w.postMessage(msg);
   } catch (e) {
