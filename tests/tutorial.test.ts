@@ -1,7 +1,7 @@
 /**
  * Tutorial state helpers (localStorage + step content).
  */
-import { expect, test, describe, beforeEach } from "vitest";
+import { expect, test, describe, beforeEach, vi } from "vitest";
 import {
   getTutorialSteps,
   isTutorialDone,
@@ -55,7 +55,6 @@ describe("tutorial persistence", () => {
   });
 
   test("isAutomatedBrowser detects e2e / notutorial query params", () => {
-    const origSearch = window.location.search;
     // Force webdriver off so the query-param branch is actually exercised
     // (vitest/happy-dom otherwise short-circuits via navigator.webdriver).
     const nav = window.navigator as unknown as { webdriver?: boolean };
@@ -65,15 +64,17 @@ describe("tutorial persistence", () => {
       configurable: true,
     });
     try {
-      window.location.search = "?e2e=1";
+      // Stub the global `location` so we don't depend on happy-dom's
+      // Location.search setter (behaves differently across Node versions).
+      vi.stubGlobal("location", { search: "?e2e=1" });
       expect(isAutomatedBrowser()).toBe(true);
-      window.location.search = "?notutorial";
+      vi.stubGlobal("location", { search: "?notutorial" });
       expect(isAutomatedBrowser()).toBe(true);
-      window.location.search = "?foo=bar";
+      vi.stubGlobal("location", { search: "?foo=bar" });
       // neutral param, webdriver off → not automated
       expect(isAutomatedBrowser()).toBe(false);
     } finally {
-      window.location.search = origSearch;
+      vi.unstubAllGlobals();
       Object.defineProperty(nav, "webdriver", {
         value: origWebdriver,
         configurable: true,
