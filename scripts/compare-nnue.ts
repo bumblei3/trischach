@@ -42,7 +42,11 @@ import {
   loadNNUEWeights,
 } from "../js/ai-core.ts";
 import type { NNUEWeights } from "../js/nnue.ts";
-import { eloFromScore, loadWeightsFromDisk, describeArch } from "./nnue-common.ts";
+import {
+  eloFromScore,
+  loadWeightsFromDisk,
+  describeArch,
+} from "./nnue-common.ts";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
@@ -284,10 +288,16 @@ function main(): void {
   console.log(
     `${describeArch()} | A=${cfgA.kind}${flags.aWeights ? "(custom)" : ""} depth=${depthA}  vs  B=${cfgB.kind}${flags.bWeights ? "(custom)" : ""} depth=${depthB} | games=${N} seed=${flags.seed}`,
   );
-  const s = runCompare(N, cfgA, cfgB, depthA, depthB, flags.seed, flags.maxPlies);
-  console.log(
-    `A wins ${s.aWins} | B wins ${s.bWins} | draws ${s.draws}`,
+  const s = runCompare(
+    N,
+    cfgA,
+    cfgB,
+    depthA,
+    depthB,
+    flags.seed,
+    flags.maxPlies,
   );
+  console.log(`A wins ${s.aWins} | B wins ${s.bWins} | draws ${s.draws}`);
   console.log(
     `A score ${(s.scoreA * 100).toFixed(1)}% | Elo(A vs B) ${s.eloA}  [95% CI ${s.eloLo}..${s.eloHi}]`,
   );
