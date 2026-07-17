@@ -132,6 +132,18 @@ export function setAITimeLimit(ms: number): void {
   TIME_LIMIT_MS = Math.max(100, Math.min(8000, ms));
 }
 
+// Tie-break mode for equally-scored root moves in greedyBestMove. When true
+// (default), the first equally-good move is chosen deterministically (games
+// are reproducible, Elo measurements are noise-free). When false, a random
+// tie-break is used — kept only for A/B benchmarking against the old behavior.
+let TIEBREAK_DETERMINISTIC = true;
+export function setTieBreakMode(deterministic: boolean): void {
+  TIEBREAK_DETERMINISTIC = deterministic;
+}
+export function getTieBreakMode(): boolean {
+  return TIEBREAK_DETERMINISTIC;
+}
+
 export function getAIDepth(): number {
   return MAX_DEPTH;
 }
@@ -2286,16 +2298,22 @@ export function greedyBestMove(
       );
       score = (distFromCenter - distToCenter) * 10 + pv * 2;
     }
-    score += Math.random() * 0.5;
+    // Default: deterministic tie-break (no noise, reproducible games, clean
+    // Elo measurement). If TIEBREAK_DETERMINISTIC is off (benchmark legacy
+    // mode only), keep the old random perturbation for A/B comparison.
+    if (!TIEBREAK_DETERMINISTIC) score += Math.random() * 0.5;
     if (score > bestScore) {
       bestScore = score;
       bestActions = [action];
-    } else if (Math.abs(score - bestScore) < 0.01) {
-      bestActions.push(action);
+    } else if (score > bestScore - 0.01) {
+      // Within rounding tolerance of the best: keep the existing best (first
+      // one found), i.e. a stable, deterministic choice.
     }
   }
   if (bestActions.length === 0) return null;
-  return bestActions[Math.floor(Math.random() * bestActions.length)] ?? null;
+  // Deterministic: return the single best action (ties already resolved to the
+  // first equally-good move by the loop above).
+  return bestActions[0] ?? null;
 }
 
 // ─── Entry Point ────────────────────────────────────────────────

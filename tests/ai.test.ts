@@ -84,10 +84,7 @@ describe("AI Decision Making (Minimax)", () => {
     expect(distToCenter).toBeLessThan(distFromCenter);
   });
 
-  test("handles tied scores by picking randomly from best actions", () => {
-    const originalRandom = Math.random;
-    Math.random = () => 0;
-
+  test("handles tied scores deterministically (first equally-good move)", () => {
     const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
     game.pieces = [fireKing];
     game._rebuildOccupiedMap();
@@ -97,8 +94,23 @@ describe("AI Decision Making (Minimax)", () => {
     expect(action).not.toBeNull();
     expect(action.type).toBe("move");
     expect(action.target.distance(new Hex(0, 0))).toBe(1);
+  });
 
-    Math.random = originalRandom;
+  test("calculateBestMove is deterministic for the same position", () => {
+    // Regression: the tie-break must not use Math.random, so identical
+    // positions yield identical moves across calls.
+    const fireKing = new Piece(PIECE_TYPE.KING, FACTION.FIRE, new Hex(0, 0));
+    const waterKing = new Piece(PIECE_TYPE.KING, FACTION.WATER, new Hex(2, 0));
+    game.pieces = [fireKing, waterKing];
+    game._rebuildOccupiedMap();
+
+    const a = calculateBestMove(game, FACTION.FIRE);
+    const b = calculateBestMove(game, FACTION.FIRE);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(a!.piece.id).toBe(b!.piece.id);
+    expect(a!.target.key).toBe(b!.target.key);
+    expect(a!.type).toBe(b!.type);
   });
 
   test("handles tied attack scores", () => {
