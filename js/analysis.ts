@@ -201,7 +201,7 @@ function buildPrincipalVariation(
  * - Attack moves: explain whether the target is won/lost in the RPS cycle.
  * - Non-attack moves: summarise the side's overall RPS standing.
  */
-function explainRPS(game: IGame, move: AIAction): string | null {
+export function explainRPS(game: IGame, move: AIAction): string | null {
   if (move.type === "attack") {
     const target = game.getPieceAt(move.target);
     if (!target) return null;

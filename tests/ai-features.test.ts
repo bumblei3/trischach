@@ -398,10 +398,13 @@ describe("Auto-Battle Integration", () => {
     });
     game._rebuildOccupiedMap();
 
-    // AI should skip Nature's turn
-    void calculateBestMove(game, FACTION.NATURE);
-    // Should either return null or a move for next active faction
-    // The game logic handles turn skipping
+    // An eliminated faction has no living pieces, so the engine must return no
+    // move for it (null) — never a move on behalf of a faction that is out.
+    const move = calculateBestMove(game, FACTION.NATURE);
+    expect(move).toBeNull();
+    // A still-living faction must still get a move.
+    const liveMove = calculateBestMove(game, FACTION.FIRE);
+    expect(liveMove).not.toBeNull();
   });
 
   test("Game ends correctly when one faction remains", () => {
