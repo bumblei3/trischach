@@ -94,11 +94,7 @@ const ENDGAMES: Record<
  * Memoized over Zobrist hash. `depth` caps runaway search (should never be
  * hit for K+Q/K+R/K+P vs K, which terminates by repetition-move cap or mate).
  */
-function solve(
-  game: Game,
-  memo: Map<string, Solved>,
-  depth: number,
-): Solved {
+function solve(game: Game, memo: Map<string, Solved>, depth: number): Solved {
   const hash = computeZobristHash(game).toString();
   const cached = memo.get(hash);
   if (cached) return cached;

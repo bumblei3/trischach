@@ -9,7 +9,7 @@ with zero Elo risk (no search heuristic touched).
 
 **Architecture:** The existing generator `scripts/gen-tablebase.ts` enumerates
 all placements, builds a `Game` per placement, and solves each position with a
-memoized full-minimax over the *real* Game rules (so RPS king-capture + pawn
+memoized full-minimax over the _real_ Game rules (so RPS king-capture + pawn
 promotion are already correct). The runtime maps hash→result in
 `js/tablebase.ts`, probed from `minimax` in `js/ai-core.ts:1719`, gated by
 `isTablebasePosition` (≤4 alive pieces AND ≥1 eliminated faction). The 3 new
@@ -43,7 +43,7 @@ wiring it into the runtime.
 - Worker push: main.ts:458-460 also pushes merged map to `aiWorker` + `workerPool`.
   Merging the new files into `merged` covers both paths automatically.
 - Tests pattern: `tests/tablebase.test.ts` has a `describeEndgame(label, file,
-  strong, weak)` helper (line 162) — reuse it for each new file. The minimax
+strong, weak)` helper (line 162) — reuse it for each new file. The minimax
   short-circuit is asserted once via the K+Q suite, so new suites only need the
   3 shared assertions.
 
@@ -55,6 +55,7 @@ wiring it into the runtime.
 `ENDGAMES` so the generator can build them.
 
 **Files:**
+
 - Modify: `scripts/gen-tablebase.ts:55-74` (the `ENDGAMES` record)
 
 **Step 1: Read the current ENDGAMES block (already verified above).**
@@ -126,6 +127,7 @@ git commit -m "feat(tablebase): register KR-vs-KP, KQ-vs-KR, KBN-vs-K endgames i
 positions aren't silently marked draw.
 
 **Files:**
+
 - Modify: `scripts/gen-tablebase.ts:259` (the `solve(g, memo, 60)` call)
 - Modify: `scripts/gen-tablebase.ts:193-208` (argument parsing, add `--depth=`)
 
@@ -147,12 +149,15 @@ const searchDepth = depthArg
 **Step 2: Use `searchDepth` in the solve call (line 259).**
 
 Replace:
+
 ```ts
-        const solved = solve(g, memo, 60);
+const solved = solve(g, memo, 60);
 ```
+
 with:
+
 ```ts
-        const solved = solve(g, memo, searchDepth);
+const solved = solve(g, memo, searchDepth);
 ```
 
 **Step 3: Run generator for the cheap endgames to confirm still works.**
@@ -176,6 +181,7 @@ git commit -m "feat(tablebase): make solver depth configurable; KBN needs >60 pl
 table before committing to full generation (catches symmetry/rule bugs early).
 
 **Files:**
+
 - Run (no file change): `npx tsx scripts/gen-tablebase.ts --endgame=<eg> --limit=3000`
 
 **Step 1: Generate a partial KBN-vs-K table and inspect distribution.**
@@ -189,10 +195,12 @@ Risk note in Task 4). Report back before proceeding.
 **Step 2: Same smoke for KR-vs-KP and KQ-vs-KR.**
 
 Run (each):
+
 ```
 npx tsx scripts/gen-tablebase.ts --endgame=krvk --limit=3000
 npx tsx scripts/gen-tablebase.ts --endgame=kqvkr --limit=3000
 ```
+
 Expected: each prints a positive entry count and a win/loss distribution.
 
 **Step 3: Commit the smoke output reasoning to the plan log (no code commit yet
@@ -208,6 +216,7 @@ entries or crashed, that endgame is excluded and the plan is adjusted.
 **Objective:** Generate the complete, production JSON files for all 3 endgames.
 
 **Files:**
+
 - Create (generated): `public/js/tablebases/kr-vs-kp.json`
 - Create (generated): `public/js/tablebases/kq-vs-kr.json`
 - Create (generated): `public/js/tablebases/kbn-vs-k.json`
@@ -250,11 +259,13 @@ git commit -m "feat(tablebase): generate KR-vs-KP, KQ-vs-KR, KBN-vs-K perfect-pl
 uses them in games.
 
 **Files:**
+
 - Modify: `js/main.ts:420-428` (TABLEBASE_FILES array + comment)
 
 **Step 1: Append the three new paths.**
 
 Replace the block:
+
 ```ts
 const TABLEBASE_FILES = [
   "./js/tablebases/kq-vs-k.json",
@@ -262,7 +273,9 @@ const TABLEBASE_FILES = [
   "./js/tablebases/kpk.json",
 ];
 ```
+
 with:
+
 ```ts
 const TABLEBASE_FILES = [
   "./js/tablebases/kq-vs-k.json",
@@ -273,6 +286,7 @@ const TABLEBASE_FILES = [
   "./js/tablebases/kbn-vs-k.json",
 ];
 ```
+
 (Only include files that actually exist from Task 4 — if KBN was parked,
 omit `kbn-vs-k.json` from this list.)
 
@@ -297,11 +311,13 @@ git commit -m "feat(tablebase): load KR-vs-KP, KQ-vs-KR, KBN-vs-K in runtime"
 **Objective:** Prove each new tablebase loads, is recognised, and round-trips.
 
 **Files:**
+
 - Modify: `tests/tablebase.test.ts:206-224` (add `describeEndgame` calls)
 
 **Step 1: Add three describeEndgame invocations at the end of the file.**
 
 Append:
+
 ```ts
 describeEndgame(
   "K+R vs K+P endgame",
@@ -340,6 +356,7 @@ describeEndgame(
   [["king", "2,2"]],
 );
 ```
+
 (Only add the `describeEndgame` calls for files that exist from Task 4.)
 
 **Step 2: Run the tablebase tests.**
@@ -363,6 +380,7 @@ git commit -m "test(tablebase): cover KR-vs-KP, KQ-vs-KR, KBN-vs-K endgames"
 **Objective:** Confirm the new data files ship and the whole suite stays green.
 
 **Files:**
+
 - Run: `npm run build` then `npx vitest run` then `npx tsc --noEmit` then `npx eslint .`
 
 **Step 1: Build (copies JSONs into dist/).**
@@ -386,6 +404,7 @@ git checkout -b feat/tablebase-phase3
 git push -u origin feat/tablebase-phase3
 gh pr create --title "feat: extend endgame tablebases to KR-vs-KP, KQ-vs-KR, KBN-vs-K" --body "Phase 3 tablebases. Perfect-play in 3 new 4-stone endgames. Zero Elo risk (search heuristic untouched)."
 ```
+
 Expected: PR opens; CI green (unit-tests, e2e, typecheck, lint, nnue-gate,
 benchmark). Merge after CI passes.
 
@@ -394,10 +413,10 @@ benchmark). Merge after CI passes.
 ## Risks / decision gates
 
 - **KBN-vs-K may be infeasible** on the 21-cell triangle board: either OOM,
-  >minutes-per-batch, or produces 0 decisive entries. The 60→90 ply cap helps
-  but doesn't guarantee termination within budget. **Gate:** Task 3 smoke must
-  show >0 decisive entries; Task 4 full gen must finish without OOM. If KBN
-  fails, park it (note in CHANGELOG) and ship KR-vs-KP + KQ-vs-KR only.
+  > minutes-per-batch, or produces 0 decisive entries. The 60→90 ply cap helps
+  > but doesn't guarantee termination within budget. **Gate:** Task 3 smoke must
+  > show >0 decisive entries; Task 4 full gen must finish without OOM. If KBN
+  > fails, park it (note in CHANGELOG) and ship KR-vs-KP + KQ-vs-KR only.
 - **4-stone tables are larger than 3-stone.** Watch file sizes (Task 4, step 4).
   The GitHub Pages deploy budget is the only hard limit; existing kq file is
   ~2.1 MB so 4-stone ~5-10 MB is acceptable.
@@ -422,7 +441,7 @@ Three claims in the plan above did not match reality. Corrected approach:
    (cube-coordinate keys like `0,0`, `-1,1`, `3,-1`). The plan's "21-cell
    triangle" assumption is stale. Full enumeration is P(66,4) ≈ 11.6M
    placements × 3 sides — NOT feasible with forward minimax (see #2). The
-   `--limit=` flag caps the *number of cells* used, not placements. We generate
+   `--limit=` flag caps the _number of cells_ used, not placements. We generate
    with `--limit=8` (P(8,4)=1680 placements) which yields good coverage in
    ~3 min per endgame — same incomplete-but-useful scope as the existing
    kq/kr/kpk files (those were also generated with a limited cell set).
