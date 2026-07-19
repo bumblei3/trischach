@@ -16,14 +16,18 @@ import { Hex } from "../js/hex.ts";
 import type { AIAction, Faction } from "../js/types.ts";
 
 /** Build a minimal 2-faction game with pieces on the given cells. */
-function buildGame(specs: { type: string; faction: Faction; key: string }[]): Game {
+function buildGame(
+  specs: { type: string; faction: Faction; key: string }[],
+): Game {
   const boardCells = generateBoard();
   const g = new Game();
   g.init(boardCells as never);
   g.pieces = [];
   g.eliminatedFactions = new Set<Faction>([FACTION.NATURE]); // only FIRE+WATER alive
   for (const s of specs) {
-    g.pieces.push(new Piece(s.type as never, s.faction, boardCells.get(s.key)!.hex));
+    g.pieces.push(
+      new Piece(s.type as never, s.faction, boardCells.get(s.key)!.hex),
+    );
   }
   g.currentFactionIdx = 0;
   g.currentFaction = FACTION.FIRE;
@@ -39,16 +43,29 @@ function attackAction(
 ): AIAction {
   const boardCells = generateBoard();
   return {
-    piece: { type: type as never, faction, pos: boardCells.get(from)!.hex } as never,
+    piece: {
+      type: type as never,
+      faction,
+      pos: boardCells.get(from)!.hex,
+    } as never,
     target: boardCells.get(to)!.hex,
     type: "attack",
   } as AIAction;
 }
 
-function moveAction(from: string, to: string, faction: Faction, type = "pawn"): AIAction {
+function moveAction(
+  from: string,
+  to: string,
+  faction: Faction,
+  type = "pawn",
+): AIAction {
   const boardCells = generateBoard();
   return {
-    piece: { type: type as never, faction, pos: boardCells.get(from)!.hex } as never,
+    piece: {
+      type: type as never,
+      faction,
+      pos: boardCells.get(from)!.hex,
+    } as never,
     target: boardCells.get(to)!.hex,
     type: "move",
   } as AIAction;
@@ -135,9 +152,7 @@ describe("explainRPS — non-attack moves summarise the side's RPS standing", ()
     // neither beats nor loses to — but the cycle is total, so instead remove
     // the other living faction by eliminating it. Here: FIRE + (eliminated WATER)
     // leaves only FIRE among the living → no adv/dis → 'ausgeglichen'.
-    const g = buildGame([
-      { type: "pawn", faction: FACTION.FIRE, key: "0,0" },
-    ]);
+    const g = buildGame([{ type: "pawn", faction: FACTION.FIRE, key: "0,0" }]);
     g.eliminatedFactions = new Set<Faction>([FACTION.WATER, FACTION.NATURE]);
     const out = explainRPS(g, moveAction("0,0", "0,1", FACTION.FIRE));
     expect(out).not.toBeNull();
