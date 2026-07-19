@@ -44,7 +44,7 @@ interface Solved {
   dtz: number;
 }
 
-type EndgameKind = "kq" | "kr" | "kpk";
+type EndgameKind = "kq" | "kr" | "kpk" | "krvk" | "kqvkr" | "kbnvk";
 
 interface PieceSpec {
   type: PieceType;
@@ -70,6 +70,22 @@ const ENDGAMES: Record<
     strong: ["king", "pawn"],
     weak: ["king"],
     out: "public/js/tablebases/kpk.json",
+  },
+  // Phase 3 additions: 4-stone endgames (two pieces per side).
+  krvk: {
+    strong: ["king", "rook"],
+    weak: ["king", "pawn"],
+    out: "public/js/tablebases/kr-vs-kp.json",
+  },
+  kqvkr: {
+    strong: ["king", "queen"],
+    weak: ["king", "rook"],
+    out: "public/js/tablebases/kq-vs-kr.json",
+  },
+  kbnvk: {
+    strong: ["king", "bishop", "knight"],
+    weak: ["king"],
+    out: "public/js/tablebases/kbn-vs-k.json",
   },
 };
 
@@ -206,6 +222,20 @@ function main(): void {
   const limitArg = process.argv.find((a) => a.startsWith("--limit="));
   const limit = limitArg ? Number(limitArg.slice("--limit=".length)) : Infinity;
 
+  // Per-endgame search depth. 4-stone endgames (krvk/kqvkr/kbnvk) have a huge
+  // branching factor; a deep search (the old default 60) explodes and never
+  // terminates. A shallow depth finds the short forced mates and terminates
+  // fast — consistent with the "good, not provably perfect" tablebase design.
+  const depthArg = process.argv.find((a) => a.startsWith("--depth="));
+  const ENDGAME_DEPTH: Partial<Record<EndgameKind, number>> = {
+    krvk: 6,
+    kqvkr: 4,
+    kbnvk: 8,
+  };
+  const searchDepth = depthArg
+    ? Number(depthArg.slice("--depth=".length))
+    : (ENDGAME_DEPTH[eg] ?? 60);
+
   // Faction rotation symmetry: strong=FIRE, weak=WATER, eliminated=NATURE.
   const STRONG = FACTION.FIRE;
   const WEAK = FACTION.WATER;
@@ -256,7 +286,7 @@ function main(): void {
         if (g.getAlivePieces().filter((p) => p.alive).length > 4) continue;
         const hash = computeZobristHash(g).toString();
         if (result[hash]) continue;
-        const solved = solve(g, memo, 60);
+        const solved = solve(g, memo, searchDepth);
         // Store only decisive results (win/loss). Draws omitted → engine
         // falls back to heuristic (shrink file ~8x).
         if (solved.result !== "draw") {

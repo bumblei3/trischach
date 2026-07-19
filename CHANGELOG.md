@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Endgame tablebases Phase 3: K+R vs K+P and K+Q vs K+R.** The engine now
+  plays these 4-stone endgames with perfect-play via the Syzygy-style
+  tablebase map (`public/js/tablebases/kr-vs-kp.json`, `kq-vs-kr.json`), loaded
+  alongside the existing K+Q/K+R/K+P vs K tables. Real strength, zero Elo risk
+  — the search heuristic is untouched. Generated with the forward-minimax
+  solver at shallow depth (`--limit=8 --depth=6`); coverage is partial (limited
+  cell set) per the "good, not provably perfect" design note in `js/tablebase.ts`.
+  KBN-vs-K was parked: its 3-attacker branching makes forward search explode.
+
 - **Reproducible NNUE compare-bench (`scripts/compare-nnue.ts`).** Plays two
   engine configurations (A vs B) over N games and reports score, Elo, and a 95%
   confidence interval on the Elo estimate (via score standard error). Supports

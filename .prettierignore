@@ -10,3 +10,5 @@ public/js/weights/nnue-weights.json
 public/js/tablebases/kq-vs-k.json
 public/js/tablebases/kr-vs-k.json
 public/js/tablebases/kpk.json
+public/js/tablebases/kq-vs-kr.json
+public/js/tablebases/kr-vs-kp.json
