@@ -17,6 +17,11 @@ import {
   type RpsBuckets,
 } from "./coach.ts";
 import { loadTablebaseFromJSON } from "./tablebase.ts";
+import {
+  generateRpsPuzzles,
+  deserializeRpsPosition,
+  evaluateRpsMove,
+} from "./rps-puzzle.ts";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
 import {
@@ -2136,6 +2141,7 @@ function initEventListeners(): void {
         <div class="puzzle-actions">
           <button class="puzzle-btn primary" id="puzzle-daily-btn">${dailyDone ? "📅 Tagespuzzle (nochmal)" : "📅 Tagespuzzle"}</button>
           <button class="puzzle-btn secondary" id="puzzle-generate-btn">🔄 Neu generieren</button>
+          <button class="puzzle-btn secondary" id="puzzle-rps-btn">🎯 RPS-Taktik</button>
           <button class="puzzle-btn secondary" id="puzzle-continue-btn" style="display: none">▶️ Fortsetzen</button>
         </div>
       </div>
@@ -2159,6 +2165,10 @@ function initEventListeners(): void {
       ?.addEventListener("click", async () => {
         await generateAndShowPuzzles();
       });
+
+    document.getElementById("puzzle-rps-btn")?.addEventListener("click", () => {
+      showRpsTacticPuzzle();
+    });
 
     document
       .getElementById("puzzle-continue-btn")
@@ -2235,6 +2245,92 @@ function initEventListeners(): void {
         const puzzle = puzzles[index];
         if (puzzle) showPuzzleBoard(puzzle!);
       });
+    });
+  }
+
+  function showRpsTacticPuzzle(): void {
+    const puzzles = generateRpsPuzzles(1);
+    const puzzle = puzzles[0];
+    if (!puzzle) {
+      showError("Keine RPS-Taktik-Puzzles verfügbar.");
+      return;
+    }
+    const game = deserializeRpsPosition(puzzle.fen);
+    if (!game) {
+      showError("Ungültige Puzzle-Position.");
+      return;
+    }
+
+    puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title">🎯 RPS-Taktik</h2>
+          <button class="puzzle-close-btn" id="rps-close-btn" title="Abbrechen">✕</button>
+        </div>
+        <div class="puzzle-info">
+          <span class="puzzle-difficulty ${puzzle.difficulty}">${puzzle.difficulty.toUpperCase()}</span>
+          <span class="puzzle-info-item">Am Zug: <strong>${FACTION_COLORS[puzzle.sideToMove].name}</strong></span>
+        </div>
+        <div id="rps-board-wrapper" class="puzzle-board-container"></div>
+        <div class="puzzle-info" id="rps-feedback">Wähle eine Figur und schlage die richtige gegnerische Figur (RPS-Vorteil!).</div>
+        <div class="puzzle-actions">
+          <button class="puzzle-btn secondary" id="rps-new-btn">🔄 Neues Puzzle</button>
+          <button class="puzzle-btn secondary" id="rps-menu-btn">📋 Menü</button>
+        </div>
+      </div>
+    `;
+    puzzleOverlay.classList.add("visible");
+
+    const boardWrapper = document.getElementById("rps-board-wrapper")!;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.id = "rps-board-svg";
+    boardWrapper.appendChild(svg);
+
+    const rpsRenderer = new BoardRenderer(svg);
+    rpsRenderer.render();
+    for (const p of game.getAlivePieces()) rpsRenderer.renderPiece(p);
+
+    let selectedPieceKey: string | null = null;
+
+    rpsRenderer.onCellClick = (hex: { q: number; r: number }) => {
+      const cell = rpsRenderer.cells.get(`${hex.q},${hex.r}`);
+      if (!cell) return;
+      const piece = game.getPieceAt(cell.hex);
+      if (piece && piece.faction === puzzle.sideToMove) {
+        selectedPieceKey = piece.pos.key;
+        rpsRenderer.clearSelection();
+        rpsRenderer.selectCell(piece.pos);
+        rpsRenderer.clearHighlights();
+        rpsRenderer.highlightCells(
+          game
+            .getAlivePieces()
+            .filter((t) => t.alive && t.faction !== puzzle.sideToMove)
+            .map((t) => t.pos),
+          "highlight-attack",
+        );
+        return;
+      }
+      if (selectedPieceKey && piece && piece.faction !== puzzle.sideToMove) {
+        const result = evaluateRpsMove(puzzle, selectedPieceKey, piece.pos.key);
+        const fb = document.getElementById("rps-feedback")!;
+        if (result.correct) {
+          fb.innerHTML = `✅ <strong>Richtig!</strong> ${result.rationale}`;
+          rpsRenderer.clearHighlights();
+        } else {
+          fb.innerHTML = `❌ <strong>Falsch.</strong> ${result.rationale}`;
+        }
+        selectedPieceKey = null;
+      }
+    };
+
+    document.getElementById("rps-close-btn")?.addEventListener("click", () => {
+      puzzleOverlay.classList.remove("visible");
+    });
+    document.getElementById("rps-new-btn")?.addEventListener("click", () => {
+      showRpsTacticPuzzle();
+    });
+    document.getElementById("rps-menu-btn")?.addEventListener("click", () => {
+      showPuzzleMenu();
     });
   }
 
