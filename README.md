@@ -195,8 +195,13 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 ### Offen (Solo-Fokus — kein Multiplayer)
 
 - [ ] **NNUE default-on** – erst nach messbarem Elo-Gewinn vs. Handcrafted
-- [ ] **Endgame Tablebases Phase 2+** – weitere 3–4-Stein-Endspiele (Phase 1: K+D vs K ✅)
-- [ ] **RPS-Taktik-Puzzles** – Konter-Schläge trainieren
+      (Studie geparkt: depth 2 → Elo −26, depth 3 → Elo −17, beide CIs
+      überlappen 0 → kein Signal)
+- [x] **Endgame Tablebases Phase 2+** – K+Q vs K, K+R vs K, K+P vs K
+      (Phase 1) **und** Phase 3: K+R vs K+P, K+Q vs K+R (4-Stein, partiell
+      / limitierter Zell-Ausschnitt; KBN-vs-K geparkt — Branch explodiert)
+- [x] **RPS-Taktik-Puzzles** – 🎯 Solo-Modus: RPS-Konter-Schlag wählen
+      (Vorteil vs. Risiko), Generator + Evaluator auf der echten RPS-Core
 - [x] **Analyse-Modus vertiefen** – PV-Linie + RPS-Erklärung (v1.4.x)
 - [x] **RPS-Preview + Coach-Strip** – Tooltip/Confirm bei Nachteil, „Was jetzt?“-Zeile
 
