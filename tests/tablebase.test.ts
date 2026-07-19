@@ -222,3 +222,29 @@ describeEndgame(
   ],
   [["king", "2,2"]],
 );
+
+describeEndgame(
+  "K+R vs K+P endgame",
+  "public/js/tablebases/kr-vs-kp.json",
+  [
+    ["king", "-1,1"],
+    ["rook", "0,0"],
+  ],
+  [
+    ["king", "0,1"],
+    ["pawn", "-2,2"],
+  ],
+);
+
+describeEndgame(
+  "K+Q vs K+R endgame",
+  "public/js/tablebases/kq-vs-kr.json",
+  [
+    ["king", "-1,1"],
+    ["queen", "0,0"],
+  ],
+  [
+    ["king", "0,1"],
+    ["rook", "-2,2"],
+  ],
+);

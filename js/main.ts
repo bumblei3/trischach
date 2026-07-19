@@ -417,14 +417,17 @@ async function initNNUE(): Promise<void> {
 }
 
 // Load endgame tablebases (async, non-blocking) for perfect-play in
-// K+Q vs K, K+R vs K, and K+P vs K endgames. Each file is fetched
-// independently and merged into the shared tablebase store; a missing file
-// only disables that endgame (the others still load). The combined map is
-// also pushed to the AI workers so the parallel search path benefits.
+// K+Q vs K, K+R vs K, K+P vs K, K+R vs K+P, and K+Q vs K+R endgames. Each file
+// is fetched independently and merged into the shared tablebase store; a
+// missing file only disables that endgame (the others still load). The
+// combined map is also pushed to the AI workers so the parallel search path
+// benefits.
 const TABLEBASE_FILES = [
   "./js/tablebases/kq-vs-k.json",
   "./js/tablebases/kr-vs-k.json",
   "./js/tablebases/kpk.json",
+  "./js/tablebases/kr-vs-kp.json",
+  "./js/tablebases/kq-vs-kr.json",
 ];
 
 async function initTablebase(): Promise<void> {
