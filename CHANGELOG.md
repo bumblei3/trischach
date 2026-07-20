@@ -37,15 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Absolute engine-strength baseline (`scripts/engine-strength.ts`).**
   Measures the shipped engine's strength in *absolute* terms by pitting it
   (depth D) against controlled weak baselines — `random` (uniform random
-  legal move) and `depth1` (greedy 1-ply material) — rotating the engine side
-  across all three factions and reporting score + Elo + 95% CI (same
-  Wald/logistic method as `compare-nnue`). Baseline (depth 3, 40 games,
-  seed 12345):
-    - vs random: 27.5% score, Elo −168 [CI −289..−47]
-    - vs depth1: 48.8% score, Elo −9 [CI −117..+99]
-  A companion `scripts/engine-strength-debug.ts` replays lost games and logs
-  them, so a regression can be reproduced move-by-move. This baseline is the
-  reference every future engine change must be measured against.
+  legal move), `material` (RPS-blind capture grabber), and `depth1` (greedy
+  1-ply material) — rotating the engine side across all three factions and
+  reporting score + Elo + 95% CI (same Wald/logistic method as `compare-nnue`).
+  Baseline (depth 3, 40/12 games, seed 12345):
+    - vs random:   27.5% score, Elo −168 [CI −289..−47]
+    - vs material: 37.5% score, Elo −89  [CI −292..+114]
+    - vs depth1:   48.8% score, Elo −9   [CI −117..+99]
+  **Inversion (key finding):** the engine loses *more* against the *weaker*
+  opponent (random 27.5%) than the *stronger* one (depth1 48.8%) — it is not
+  pure RPS-overfitting. The engine has no robust middlegame: above 24 pieces
+  it falls back to 1-ply greedy, and the 1v1 evaluation is flat (material +
+  fixed RPS penalty only), so against an unpredictable random mover its RPS
+  logic misses and it bleeds material. A companion `scripts/engine-strength-
+  debug.ts` replays lost games and logs them for move-by-move reproduction.
+  This baseline is the reference every future engine change must be measured
+  against.
 
 - **3-player search bug investigated — PARKED (no quick fix).** The engine
   loses to a *weaker* opponent (random) worse than to a *stronger* one
