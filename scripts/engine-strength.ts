@@ -50,7 +50,7 @@ import { eloFromScore } from "./nnue-common.ts";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
-type Opponent = "random" | "depth1";
+type Opponent = "random" | "depth1" | "material";
 
 export interface StrengthSummary {
   games: number;
@@ -72,9 +72,26 @@ function mulberry32(seed: number): () => number {
     a |= 0;
     a = (a + 0x6d2b79f5) | 0;
     let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    t = (t + Math.imul(t ^ (a >>> 7), 61 | t)) ^ t;
+    return ((t ^ (a >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+function legalMovesFor(
+  g: Game,
+  faction: Faction,
+): { piece: Piece; target: Hex; isAttack: boolean }[] {
+  const pieces = g
+    .getAlivePieces()
+    .filter((p) => p.alive && p.faction === faction);
+  const moves: { piece: Piece; target: Hex; isAttack: boolean }[] = [];
+  for (const piece of pieces) {
+    const lm = getLegalMoves(g as any, piece);
+    for (const m of lm.moves) moves.push({ piece, target: m, isAttack: false });
+    for (const a of lm.attacks)
+      moves.push({ piece, target: a, isAttack: true });
+  }
+  return moves;
 }
 
 function randomLegalMove(
@@ -82,21 +99,55 @@ function randomLegalMove(
   faction: Faction,
   rng: () => number,
 ): { piece: Piece; target: Hex } | null {
-  const pieces = g
-    .getAlivePieces()
-    .filter((p) => p.alive && p.faction === faction);
-  const moves: { piece: Piece; target: Hex }[] = [];
-  for (const piece of pieces) {
-    const lm = getLegalMoves(g as any, piece);
-    for (const m of lm.moves) moves.push({ piece, target: m });
-    for (const a of lm.attacks) moves.push({ piece, target: a });
-  }
+  const moves = legalMovesFor(g, faction);
   if (moves.length === 0) return null;
   const idx = Math.floor(rng() * moves.length);
-  return moves[idx]!;
+  return { piece: moves[idx]!.piece, target: moves[idx]!.target };
 }
 
-/** Play one game: `engineFaction` uses the real engine; others use opponent. */
+// Material-aware but RPS-blind opponent: grabs the best capture (by raw piece
+// value, ignoring RPS), otherwise moves randomly. This isolates whether the
+// engine's weakness is specific to RPS-overfitting (it should still lose to a
+// material-greedy mover if it throws away material for RPS advantages) vs. a
+// general middlegame weakness.
+const PIECE_VAL: Record<string, number> = {
+  pawn: 1,
+  knight: 3,
+  bishop: 3,
+  rook: 5,
+  queen: 9,
+  king: 0,
+};
+
+function materialMove(
+  g: Game,
+  faction: Faction,
+  rng: () => number,
+): { piece: Piece; target: Hex } | null {
+  const moves = legalMovesFor(g, faction);
+  if (moves.length === 0) return null;
+  const captures = moves.filter((m) => m.isAttack);
+  if (captures.length > 0) {
+    // Pick the capture with the highest victim material value (RPS-blind).
+    let best = captures[0]!;
+    let bestVal = -1;
+    for (const c of captures) {
+      const victim = g
+        .getAlivePieces()
+        .find((p) => p.alive && p.pos.equals(c.target));
+      const v = victim ? PIECE_VAL[victim.type] ?? 0 : 0;
+      if (v > bestVal) {
+        bestVal = v;
+        best = c;
+      }
+    }
+    return { piece: best.piece, target: best.target };
+  }
+  const idx = Math.floor(rng() * moves.length);
+  return { piece: moves[idx]!.piece, target: moves[idx]!.target };
+}
+
+
 function playGame(
   engineFaction: Faction,
   depth: number,
@@ -123,6 +174,8 @@ function playGame(
       mv = calculateBestMove(g, faction);
     } else if (opponent === "random") {
       mv = randomLegalMove(g, faction, rng);
+    } else if (opponent === "material") {
+      mv = materialMove(g, faction, rng);
     } else {
       // depth1: greedy 1-ply via the engine at depth 1
       setAIDepth(1);
