@@ -113,7 +113,8 @@ function playGame(
   while (ply < maxPlies) {
     const alive = TURNS.filter((f) => !g.eliminatedFactions.has(f));
     if (alive.length <= 1) {
-      if (alive.length === 1) return alive[0] === engineFaction ? "engine" : "opp";
+      if (alive.length === 1)
+        return alive[0] === engineFaction ? "engine" : "opp";
       return "draw";
     }
     const faction = TURNS[g.currentFactionIdx]!;
@@ -202,8 +203,7 @@ function parseFlags(argv: string[]): {
   for (const a of argv) {
     if (a.startsWith("--games=")) games = Number(a.slice(8));
     else if (a.startsWith("--depth=")) depth = Number(a.slice(8));
-    else if (a.startsWith("--opponent="))
-      opponent = a.slice(11) as Opponent;
+    else if (a.startsWith("--opponent=")) opponent = a.slice(11) as Opponent;
     else if (a.startsWith("--seed=")) seed = Number(a.slice(7));
     else if (a.startsWith("--max-plies=")) maxPlies = Number(a.slice(12));
   }
@@ -222,9 +222,7 @@ function main(): void {
     `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed}`,
   );
   const s = runStrength(games, depth, opponent, flags.seed, flags.maxPlies);
-  console.log(
-    `Engine W${s.engineWins} | Opp W${s.engineLosses} | D${s.draws}`,
-  );
+  console.log(`Engine W${s.engineWins} | Opp W${s.engineLosses} | D${s.draws}`);
   console.log(
     `Engine score ${(s.score * 100).toFixed(1)}% | rel-Elo(engine vs ${opponent}) ${s.elo} [95% CI ${s.eloLo}..${s.eloHi}]`,
   );

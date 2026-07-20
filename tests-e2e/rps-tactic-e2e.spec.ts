@@ -24,9 +24,7 @@ test.describe("TriSchach - RPS-Tactic puzzle UI", () => {
     await expect(page.locator("#rps-feedback")).toBeVisible();
 
     // Initial prompt should be present before any interaction
-    const initialFeedback = await page
-      .locator("#rps-feedback")
-      .textContent();
+    const initialFeedback = await page.locator("#rps-feedback").textContent();
     expect(initialFeedback ?? "").toContain("Figur");
 
     // Drive the two-click flow: click every piece in turn. Because the
@@ -65,9 +63,7 @@ test.describe("TriSchach - RPS-Tactic puzzle UI", () => {
     await expect(page.locator("#rps-board-svg")).toBeVisible();
   });
 
-  test("returns to the puzzle menu via the menu button", async ({
-    page,
-  }) => {
+  test("returns to the puzzle menu via the menu button", async ({ page }) => {
     await page.click("#puzzle-btn");
     await page.click("#puzzle-rps-btn");
     await expect(page.locator("#rps-board-svg")).toBeVisible();
