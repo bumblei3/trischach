@@ -197,6 +197,13 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
 - [ ] **NNUE default-on** – erst nach messbarem Elo-Gewinn vs. Handcrafted
       (Studie geparkt: depth 2 → Elo −26, depth 3 → Elo −17, beide CIs
       überlappen 0 → kein Signal)
+- [ ] **3-Player Search-Stärke** – Engine verliert vs. random (27.5% Score,
+      Elo −168) *schlechter* als vs. depth1 (48.8%, Elo −9): Inversion deutet
+      auf RPS-Overfitting hin. Quick-Fixes (Greedy-Patch) vermessen, kein
+      Ertrag → geparkt. Echte Hebel: (A) echter minimax im Mittelspiel statt
+      1-Ply-Greedy >24 Steine, (B) 1v1-Eval echte Aktivität/Königssicherheit
+      geben, (C) Suchtiefe/Zeit im Mittelspiel erhöhen. Gemessen via
+      `scripts/engine-strength.ts` (Baseline vorhanden), nicht blind bauen.
 - [x] **Endgame Tablebases Phase 2+** – K+Q vs K, K+R vs K, K+P vs K
       (Phase 1) **und** Phase 3: K+R vs K+P, K+Q vs K+R (4-Stein, partiell
       / limitierter Zell-Ausschnitt; KBN-vs-K geparkt — Branch explodiert)

@@ -34,6 +34,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — further eval work would be training without signal. Engine strength now
   comes from tablebases (see below) and search quality, not the NNUE eval.
 
+- **Absolute engine-strength baseline (`scripts/engine-strength.ts`).**
+  Measures the shipped engine's strength in *absolute* terms by pitting it
+  (depth D) against controlled weak baselines — `random` (uniform random
+  legal move) and `depth1` (greedy 1-ply material) — rotating the engine side
+  across all three factions and reporting score + Elo + 95% CI (same
+  Wald/logistic method as `compare-nnue`). Baseline (depth 3, 40 games,
+  seed 12345):
+    - vs random: 27.5% score, Elo −168 [CI −289..−47]
+    - vs depth1: 48.8% score, Elo −9 [CI −117..+99]
+  A companion `scripts/engine-strength-debug.ts` replays lost games and logs
+  them, so a regression can be reproduced move-by-move. This baseline is the
+  reference every future engine change must be measured against.
+
+- **3-player search bug investigated — PARKED (no quick fix).** The engine
+  loses to a *weaker* opponent (random) worse than to a *stronger* one
+  (depth1): 27.5% vs 48.8%. That inversion points at RPS-overfitting — the
+  engine chases RPS advantages that cost material, and against an RPS-blind
+  random mover those advantages are worthless. Tried fixes (all measured, all
+  discarded): greedy move scoring via the full evaluation (state corruption:
+  `simulateMove` mutates `piece.pos` without `rebuildOccupiedMap`), PST-dominant
+  capture + advance/hang heuristics (no Elo gain, 17.5% vs 20% baseline), and
+  simulated full-eval with `rebuildOccupiedMap` (8% — worse). Root cause is
+  architectural, not a greedy-patch: the middlegame uses 1-ply greedy above
+  24 pieces and the 1v1 evaluation is flat (material + fixed RPS penalty only).
+  Real levers (future work, not quick fixes): (A) force real minimax in the
+  middlegame, (B) give the 1v1 eval genuine activity/king-safety terms, (C)
+  raise middlegame search depth/time. Tracked for a follow-up, gated on a
+  before/after `engine-strength.ts` measurement.
+
 - **Tutorial storage/automation tests.** `tests/tutorial.test.ts` now covers
   private-mode/quota resilience (storage errors swallowed) and `e2e`/`notutorial`
   query-param detection in `isAutomatedBrowser`. `js/tutorial.ts` coverage
