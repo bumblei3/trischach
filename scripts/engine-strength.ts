@@ -135,7 +135,7 @@ function materialMove(
       const victim = g
         .getAlivePieces()
         .find((p) => p.alive && p.pos.equals(c.target));
-      const v = victim ? PIECE_VAL[victim.type] ?? 0 : 0;
+      const v = victim ? (PIECE_VAL[victim.type] ?? 0) : 0;
       if (v > bestVal) {
         bestVal = v;
         best = c;
@@ -146,7 +146,6 @@ function materialMove(
   const idx = Math.floor(rng() * moves.length);
   return { piece: moves[idx]!.piece, target: moves[idx]!.target };
 }
-
 
 function playGame(
   engineFaction: Faction,

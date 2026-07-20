@@ -198,7 +198,7 @@ MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
       (Studie geparkt: depth 2 → Elo −26, depth 3 → Elo −17, beide CIs
       überlappen 0 → kein Signal)
 - [ ] **3-Player Search-Stärke** – Engine verliert vs. random (27.5% Score,
-      Elo −168) *schlechter* als vs. depth1 (48.8%, Elo −9): Inversion deutet
+      Elo −168) _schlechter_ als vs. depth1 (48.8%, Elo −9): Inversion deutet
       auf RPS-Overfitting hin. Quick-Fixes (Greedy-Patch) vermessen, kein
       Ertrag → geparkt. Echte Hebel: (A) echter minimax im Mittelspiel statt
       1-Ply-Greedy >24 Steine, (B) 1v1-Eval echte Aktivität/Königssicherheit

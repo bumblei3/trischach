@@ -41,7 +41,9 @@ function randomLegalMove(
   faction: Faction,
   rng: () => number,
 ): { piece: Piece; target: Hex } | null {
-  const pieces = g.getAlivePieces().filter((p) => p.alive && p.faction === faction);
+  const pieces = g
+    .getAlivePieces()
+    .filter((p) => p.alive && p.faction === faction);
   const moves: { piece: Piece; target: Hex }[] = [];
   for (const piece of pieces) {
     const lm = getLegalMoves(g as any, piece);
@@ -147,13 +149,17 @@ function main(): void {
   console.log(
     `DEBUG | depth=${depth} games=${games} seed=${seed} | W${eWins} L${eLosses} D${draws} | score ${(score * 100).toFixed(1)}%`,
   );
-  const lossLogs = allLogs.filter((l) => l.some((x) => x.startsWith("END") && x.includes("winner=opp")));
+  const lossLogs = allLogs.filter((l) =>
+    l.some((x) => x.startsWith("END") && x.includes("winner=opp")),
+  );
   if (lossLogs.length) {
     const out =
       lossLogs.map((l) => l.join("\n")).join("\n\n") +
       `\n\n=== SUMMARY W${eWins} L${eLosses} D${draws} ===\n`;
     fs.writeFileSync("scripts/engine-strength-debug.log", out);
-    console.log(`wrote ${lossLogs.length} lost-game logs -> scripts/engine-strength-debug.log`);
+    console.log(
+      `wrote ${lossLogs.length} lost-game logs -> scripts/engine-strength-debug.log`,
+    );
   }
 }
 
