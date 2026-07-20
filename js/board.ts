@@ -132,6 +132,7 @@ export class BoardRenderer {
   public readonly cells: Map<string, Cell>;
   public readonly hexElements: Map<string, HexElement>;
   public readonly pieceElements: Map<string, PieceElement>;
+  private boardGroup: SVGGElement | null = null;
   public onCellClick: ((hex: Hex, cell: Cell) => void) | null = null;
   public onPieceLongPress:
     | ((piece: Piece, position: { clientX: number; clientY: number }) => void)
@@ -297,6 +298,7 @@ export class BoardRenderer {
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("transform", `translate(${this._ox},${this._oy})`);
     g.id = "board-group";
+    this.boardGroup = g;
     for (const [key, cell] of this.cells) {
       const px = hexToPixel(cell.hex, this.hexSize);
       const pts = hexPolygonPoints(px, this.hexSize * 0.94);
@@ -445,7 +447,7 @@ export class BoardRenderer {
       }
     });
 
-    const boardGroup = document.getElementById("board-group");
+    const boardGroup = this.boardGroup;
     if (boardGroup) {
       boardGroup.appendChild(g);
       this.pieceElements.set(piece.id, { id: piece.id, element: g });
