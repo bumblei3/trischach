@@ -2363,7 +2363,7 @@ export function calculateBestMove(
   const usableActions = nonSuicide.length > 0 ? nonSuicide : actions;
   const pieceCount = game.pieces.filter((p) => p.alive).length;
 
-  if (pieceCount > 24 || usableActions.length > 40) {
+  if (pieceCount > 16 || usableActions.length > 30) {
     return greedyBestMove(game, faction, usableActions);
   }
 
