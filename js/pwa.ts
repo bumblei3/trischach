@@ -8,10 +8,7 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker
       .register("sw.js")
       .then((registration) => {
-        console.log(
-          "[PWA] Service Worker registered:",
-          registration.scope,
-        );
+        console.log("[PWA] Service Worker registered:", registration.scope);
 
         // Check for updates periodically
         setInterval(
