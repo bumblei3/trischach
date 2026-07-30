@@ -2268,7 +2268,7 @@ function initEventListeners(): void {
           <button class="puzzle-close-btn" id="rps-close-btn" title="Abbrechen">✕</button>
         </div>
         <div class="puzzle-info">
-          <span class="puzzle-difficulty ${puzzle.difficulty}">${puzzle.difficulty.toUpperCase()}</span>
+          <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(puzzle.difficulty.toUpperCase())}</span>
           <span class="puzzle-info-item">Am Zug: <strong>${FACTION_COLORS[puzzle.sideToMove].name}</strong></span>
         </div>
         <div id="rps-board-wrapper" class="puzzle-board-container"></div>
@@ -2373,7 +2373,7 @@ function initEventListeners(): void {
           <button class="puzzle-close-btn" id="puzzle-close-btn" title="Abbrechen">✕</button>
         </div>
         <div class="puzzle-info">
-          <span class="puzzle-difficulty ${puzzle.difficulty}">${puzzle.difficulty.toUpperCase()}</span>
+          <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(puzzle.difficulty.toUpperCase())}</span>
           <span class="puzzle-info-item">Am Zug: <strong>${FACTION_COLORS[puzzle.faction].name}</strong></span>
         </div>
         <div id="puzzle-board-wrapper" class="puzzle-board-container"></div>
