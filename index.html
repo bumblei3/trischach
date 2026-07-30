@@ -32,6 +32,12 @@
       content="black-translucent"
     />
     <meta name="apple-mobile-web-app-title" content="TriSchach" />
+    <!-- Security: strict CSP. Inline scripts are blocked (pwa bootstrap moved
+         to js/pwa.ts) so a stored-XSS payload cannot execute inline JS. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data:; font-src 'self' https://fonts.gstatic.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap"
@@ -501,63 +507,6 @@
     </div>
 
     <script type="module" src="js/main.ts"></script>
-    <script>
-      // Register Service Worker for PWA offline support
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("sw.js")
-            .then((registration) => {
-              console.log(
-                "[PWA] Service Worker registered:",
-                registration.scope,
-              );
-
-              // Check for updates periodically
-              setInterval(
-                () => {
-                  registration.update();
-                },
-                60 * 60 * 1000,
-              ); // Every hour
-            })
-            .catch((error) => {
-              console.warn("[PWA] Service Worker registration failed:", error);
-            });
-        });
-      }
-
-      // Handle install prompt
-      let deferredPrompt;
-      const installBtn = document.getElementById("install-btn");
-
-      window.addEventListener("beforeinstallprompt", (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        console.log("[PWA] Install prompt available");
-        if (installBtn) installBtn.style.display = "inline-block";
-      });
-
-      window.addEventListener("appinstalled", () => {
-        console.log("[PWA] App installed");
-        if (installBtn) installBtn.style.display = "none";
-        deferredPrompt = null;
-      });
-
-      // Install button click handler
-      installBtn?.addEventListener("click", async () => {
-        if (!deferredPrompt) {
-          console.log("[PWA] No deferred prompt available");
-          return;
-        }
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        console.log("[PWA] Install prompt outcome:", outcome);
-        if (outcome === "accepted") {
-          deferredPrompt = null;
-          if (installBtn) installBtn.style.display = "none";
-        }
-      });
-    </script>
+    <script type="module" src="js/pwa.ts"></script>
   </body>
 </html>
