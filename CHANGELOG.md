@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Anti-pendulum progress term (search-level).** Quiet move reversals
+  (A→B then B→A with the same piece) are penalised in `greedyBestMove` and
+  `minimax` (`REVERSAL_PENALTY=400`), plus a smaller penalty for re-entering
+  positions already in `_positionHistory`. Targets the measured failure vs
+  random where a single piece toggled for 30+ plies while material was
+  stripped. Captures are never penalised. Unit tests in
+  `tests/anti-pendulum.test.ts`.
+  **Measured (d3, 40 games, seed 12345) on top of Lever B:**
+  - vs random: 20.0% → **22.5%** (Elo −241 → **−215**, +26)
+  - vs material: 32.5% (flat)
+  - vs depth1: 32.5% (flat)
+    No regression on material/depth1; small real gain vs the unpredictable
+    mover (the pendulum pathology). Still well below 50% — structural 3P
+    search perspective remains the larger open lever.
+
 ### Changed
 
 - **Middlegame eval now routes through the full handcrafted eval (Lever B).**
