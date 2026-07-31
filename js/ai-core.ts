@@ -2252,6 +2252,26 @@ export function calculateBestMoveParallel(
   return best.action ?? null;
 }
 
+/**
+ * Middlegame move selection for the high-piece-count regime
+ * (`calculateBestMove` routes here when `pieceCount > 16` — i.e. for nearly
+ * the entire opening/middlegame, since a starting position has 45 pieces).
+ *
+ * This is a 1-ply search: each candidate is simulated, then scored with the
+ * full handcrafted `evaluateBoard` (material + PST + mobility + king safety +
+ * pawn structure + RPS endgame), and the highest-scoring move is chosen.
+ *
+ * Previously this used a crude linear formula (capture value + centralisation
+ * + PST-of-target-pawn) that never touched the rich eval — so the engine's
+ * carefully-tuned positional/king-safety terms were wasted above 16 pieces.
+ * Routing through `evaluateBoard` makes the middlegame use the same eval the
+ * endgame search already trusts.
+ *
+ * State handling: `simulateMove` mutates `piece.pos` without rebuilding the
+ * occupied map, so we call `rebuildOccupiedMap` after every simulate/undo to
+ * keep `evaluateBoard`'s `game._occupiedMap` consistent (a missing rebuild was
+ * the bug in an earlier attempt at this change).
+ */
 export function greedyBestMove(
   game: IGame,
   faction: Faction,
@@ -2261,43 +2281,12 @@ export function greedyBestMove(
   let bestScore = -Infinity;
 
   for (const action of actions) {
-    let score = 0;
-    if (action.type === "attack") {
-      const defender = game.pieces.find(
-        (p) => p.alive && p.pos.equals(action.target),
-      );
-      if (!defender) continue;
-      if (action.rps === "advantage" || action.rps === "neutral") {
-        score = 100 + PIECE_STRENGTH[defender.type] * 10;
-        score += 10 - PIECE_STRENGTH[action.piece.type];
-        if (defender.type === "king") score += 500;
-      } else {
-        score = -1000;
-      }
-    } else {
-      // Create a proper pawn piece for PST evaluation
-      const pawnPiece: Piece = {
-        id: "",
-        faction: "fire", // faction doesn't matter for PST, only type and pos
-        type: "pawn",
-        pos: action.target,
-        symbol: "P",
-        alive: true,
-        hasMoved: false,
-      };
-      const pv = getPSTValue(pawnPiece);
-      const distFromCenter = Math.max(
-        Math.abs(action.piece.pos.q),
-        Math.abs(action.piece.pos.r),
-        Math.abs(-action.piece.pos.q - action.piece.pos.r),
-      );
-      const distToCenter = Math.max(
-        Math.abs(action.target.q),
-        Math.abs(action.target.r),
-        Math.abs(-action.target.q - action.target.r),
-      );
-      score = (distFromCenter - distToCenter) * 10 + pv * 2;
-    }
+    const undo = simulateMove(game, action.piece, action.target);
+    rebuildOccupiedMap(game);
+    let score = evaluateBoard(game, faction);
+    undoMove(game, undo);
+    rebuildOccupiedMap(game);
+
     // Default: deterministic tie-break (no noise, reproducible games, clean
     // Elo measurement). If TIEBREAK_DETERMINISTIC is off (benchmark legacy
     // mode only), keep the old random perturbation for A/B comparison.

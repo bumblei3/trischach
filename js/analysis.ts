@@ -10,7 +10,7 @@ import {
   setAIDepth,
 } from "./ai.ts";
 import { getRPSResult } from "./board.ts";
-import { simulateMove, undoMove } from "./ai-core.ts";
+import { simulateMove, undoMove, rebuildOccupiedMap } from "./ai-core.ts";
 import type { AIAction, Faction, IGame, Piece } from "./types.ts";
 
 export interface PositionAnalysis {
@@ -182,6 +182,7 @@ function buildPrincipalVariation(
   try {
     // Apply the first move so we can search the reply.
     undos.push(simulateMove(game as any, firstMove.piece, firstMove.target));
+    rebuildOccupiedMap(game);
     for (let p = 1; p < plies; p++) {
       // After a move the side to move rotates (FIRE→WATER→NATURE).
       const nextFaction = game.currentFaction as Faction;
@@ -189,6 +190,7 @@ function buildPrincipalVariation(
       if (!mv) break;
       line.push(formatEngineMove(mv));
       undos.push(simulateMove(game as any, mv.piece, mv.target));
+      rebuildOccupiedMap(game);
     }
   } finally {
     undoAll();
