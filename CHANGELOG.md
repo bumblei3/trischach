@@ -23,18 +23,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Absolute strength re-measured (engine-strength, depth 3, seed 12345, 40
   games/opponent).** Measured with the new eval routing:
-  - vs random:   15.0% → **20.0%** (Elo −301 → **−241**, +60)
+  - vs random: 15.0% → **20.0%** (Elo −301 → **−241**, +60)
   - vs material: 32.5% → 32.5% (Elo −127, flat)
-  - vs depth1:   32.5% → 32.5% (Elo −127, flat)
+  - vs depth1: 32.5% → 32.5% (Elo −127, flat)
 
   The gain is concentrated exactly where the 3-player search investigation
-  flagged the weakness: against the *unpredictable* random mover (the engine
+  flagged the weakness: against the _unpredictable_ random mover (the engine
   previously bled material because its positional/RPS logic missed), not
   against RPS-blind/depth-1 movers. The engine is still below 50% against every
   opponent, so this is a real but partial step — the middlegame is not solved.
 
 - **Regression found while re-baselining.** The current `main` measures
-  *worse* than the baseline recorded earlier in this changelog (27.5% / 37.5%
+  _worse_ than the baseline recorded earlier in this changelog (27.5% / 37.5%
   / 48.8%). Current numbers are 15% / 32.5% / 32.5%. Something between that
   baseline and now regressed absolute strength (or the old baseline was taken
   under different conditions — seed/opponent/draw-handling). Before any further
