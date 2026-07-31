@@ -9,6 +9,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Anti-pendulum progress term (search-level).** Quiet move reversals
+  (A→B then B→A with the same piece) are penalised in `greedyBestMove` and
+  `minimax` (`REVERSAL_PENALTY=400`), plus a smaller penalty for re-entering
+  positions already in `_positionHistory`. Targets the measured failure vs
+  random where a single piece toggled for 30+ plies while material was
+  stripped. Captures are never penalised. Unit tests in
+  `tests/anti-pendulum.test.ts`.
+  **Measured (d3, 40 games, seed 12345) on top of Lever B:**
+  - vs random: 20.0% → **22.5%** (Elo −241 → **−215**, +26)
+  - vs material: 32.5% (flat)
+  - vs depth1: 32.5% (flat)
+    No regression on material/depth1; small real gain vs the unpredictable
+    mover (the pendulum pathology). Still well below 50% — structural 3P
+    search perspective remains the larger open lever.
+
+### Changed
+
+- **Middlegame eval now routes through the full handcrafted eval (Lever B).**
+  `calculateBestMove` switches to the 1-ply greedy path for all positions with
+  `pieceCount > 16` (i.e. nearly the entire opening/middlegame — a start
+  position has 45 pieces). That greedy path previously scored candidates with
+  a crude linear formula (capture value + centralisation + PST-of-target-pawn)
+  and never touched the rich `evaluateBoard` (material + PST + mobility +
+  king safety + pawn structure + RPS endgame). It now simulates each candidate,
+  scores it with `evaluateBoard`, and picks the best — so the middlegame finally
+  uses the same eval the endgame search already trusts. State is kept consistent
+  with `rebuildOccupiedMap` after every simulate/undo (a missing rebuild was the
+  bug that sank an earlier attempt at this change).
+
+- **Absolute strength re-measured (engine-strength, depth 3, seed 12345, 40
+  games/opponent).** Measured with the new eval routing:
+  - vs random: 15.0% → **20.0%** (Elo −301 → **−241**, +60)
+  - vs material: 32.5% → 32.5% (Elo −127, flat)
+  - vs depth1: 32.5% → 32.5% (Elo −127, flat)
+
+  The gain is concentrated exactly where the 3-player search investigation
+  flagged the weakness: against the _unpredictable_ random mover (the engine
+  previously bled material because its positional/RPS logic missed), not
+  against RPS-blind/depth-1 movers. The engine is still below 50% against every
+  opponent, so this is a real but partial step — the middlegame is not solved.
+
+- **Regression found while re-baselining.** The current `main` measures
+  _worse_ than the baseline recorded earlier in this changelog (27.5% / 37.5%
+  / 48.8%). Current numbers are 15% / 32.5% / 32.5%. Something between that
+  baseline and now regressed absolute strength (or the old baseline was taken
+  under different conditions — seed/opponent/draw-handling). Before any further
+  engine work, the baseline must be re-established against a known-good commit
+  so future deltas are honest. Tracked as a follow-up.
+
+- **`buildPrincipalVariation` (analysis) hardened.** It now calls
+  `rebuildOccupiedMap` after every `simulateMove` so the reply search sees a
+  consistent occupied map (the new eval routing made the old missing-rebuild
+  path return an empty PV line). `tests/analysis.test.ts` now advances the
+  position with the real `Game` API (`handleCellClick`) instead of ai-core
+  `simulateMove`, which never synced the `Game`-class internals and produced an
+  inconsistent state.
+
+### Added
+
 - **Endgame tablebases Phase 3: K+R vs K+P and K+Q vs K+R.** The engine now
   plays these 4-stone endgames with perfect-play via the Syzygy-style
   tablebase map (`public/js/tablebases/kr-vs-kp.json`, `kq-vs-kr.json`), loaded

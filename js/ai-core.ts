@@ -1499,6 +1499,118 @@ export function rebuildOccupiedMap(game: IGame): void {
   }
 }
 
+// ─── Progress / anti-pendulum (search-level) ─────────────────────
+//
+// Measured failure mode vs random (2026-07-20): once a faction is eliminated
+// the engine toggles one piece between two adjacent squares for 30+ plies
+// (queen (0,-1)↔(0,-2)) while the opponent strips material. There was no
+// repetition / no-progress term in greedy or minimax, so near-symmetric
+// positional scores left the engine looping.
+//
+// Fix: penalise *move reversals* (A→B then B→A with the same piece) at
+// search time — NOT a leaf ±1M survival bonus (those all regressed).
+// Scale: material is ~getMaterialValue*10 (queen ≈ 90); PST/mobility are
+// small. REVERSAL_PENALTY must beat pure positional noise but lose to a
+// real capture or promotion.
+
+/** Penalty applied to a pure A→B / B→A toggle (exported for tests). */
+export const REVERSAL_PENALTY = 400;
+/** Extra penalty per prior visit of the resulting position (threefold path). */
+export const SEEN_POSITION_PENALTY = 200;
+
+/** Coerce a GameResult from/to field to a cube key, or null. */
+export function resultHexKey(
+  h: Hex | string | { q: number; r: number; key?: string } | undefined,
+): string | null {
+  if (h == null) return null;
+  if (typeof h === "string") {
+    // Move results use "q,r" in notation only; from/to for promotions can be symbols.
+    if (/^-?\d+,-?\d+$/.test(h)) return h;
+    return null;
+  }
+  if (typeof h === "object") {
+    if ("key" in h && typeof h.key === "string") return h.key;
+    if ("q" in h && "r" in h) return `${h.q},${h.r}`;
+  }
+  return null;
+}
+
+/**
+ * True if `action` undoes the most recent committed move of the same piece
+ * (the pendulum pattern). Only considers move/combat entries in moveHistory.
+ */
+export function isActionReversal(game: IGame, action: AIAction): boolean {
+  const hist = game.moveHistory;
+  if (!hist || hist.length === 0) return false;
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const m = hist[i];
+    if (!m || !m.piece) continue;
+    if (m.action !== "move" && m.action !== "combat") continue;
+    if (m.piece.id !== action.piece.id) continue;
+    const lastFrom = resultHexKey(m.from as Hex | string | undefined);
+    const lastTo = resultHexKey(m.to as Hex | string | undefined);
+    if (!lastFrom || !lastTo) continue;
+    // Piece currently sits on lastTo; action.target is lastFrom → pure reverse.
+    return action.piece.pos.key === lastTo && action.target.key === lastFrom;
+  }
+  return false;
+}
+
+/**
+ * Compact position key (pieces + side to move) matching Game._positionHash
+ * so we can consult game._positionHistory during search simulation.
+ */
+export function searchPositionKey(game: IGame): string {
+  const pieces = game.pieces
+    .filter((p) => p.alive)
+    .map((p) => `${p.faction[0]}${p.type[0]}${p.pos.q},${p.pos.r}`)
+    .sort()
+    .join("|");
+  return `${pieces}#${game.currentFactionIdx}`;
+}
+
+/**
+ * Progress adjustment for a candidate after it has been simulated.
+ * Captures / promotions are never penalised as "seen" (halfmove resets).
+ */
+export function progressPenalty(
+  game: IGame,
+  action: AIAction,
+  wasCapture: boolean,
+): number {
+  let pen = 0;
+  if (isActionReversal(game, action) && !wasCapture) {
+    pen += REVERSAL_PENALTY;
+  }
+  if (!wasCapture && game._positionHistory) {
+    const key = searchPositionKey(game);
+    const visits = game._positionHistory.get(key) || 0;
+    if (visits > 0) pen += SEEN_POSITION_PENALTY * visits;
+  }
+  return pen;
+}
+
+/** In-search move stack: detects A→B / B→A toggles inside the minimax tree. */
+const searchMoveStack: Array<{ pieceId: string; from: string; to: string }> =
+  [];
+
+/** True if this action reverses any move already on the in-search path. */
+export function isPathReversal(action: AIAction): boolean {
+  const from = action.piece.pos.key;
+  const to = action.target.key;
+  for (let i = searchMoveStack.length - 1; i >= 0; i--) {
+    const m = searchMoveStack[i]!;
+    if (m.pieceId === action.piece.id && m.from === to && m.to === from) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function clearSearchMoveStack(): void {
+  searchMoveStack.length = 0;
+}
+
 export function simulateMove(
   game: IGame,
   piece: Piece,
@@ -1691,6 +1803,7 @@ export function beginSearch(timeBudgetMs = MAX_SEARCH_MS): void {
   ttClear();
   for (const k of Object.keys(killerMoves)) delete killerMoves[k];
   for (const k of Object.keys(historyTable)) delete historyTable[k];
+  clearSearchMoveStack();
 }
 
 /**
@@ -1937,9 +2050,28 @@ export function minimax(
     let searchDepth = depth - 1 - razorReduction - lmrReduction;
     let result: SearchResult;
 
+    // Anti-pendulum: quiet reversals of a prior move (game history or path).
+    const quietReversal =
+      currentFaction === maximizingFaction &&
+      action.type !== "attack" &&
+      (isActionReversal(game, action) || isPathReversal(action));
+    const pathPen = quietReversal ? REVERSAL_PENALTY : 0;
+
+    const pushPath = () => {
+      searchMoveStack.push({
+        pieceId: action.piece.id,
+        from: action.piece.pos.key,
+        to: action.target.key,
+      });
+    };
+    const popPath = () => {
+      searchMoveStack.pop();
+    };
+
     if (probcutScore !== null) {
-      result = { score: probcutScore };
+      result = { score: probcutScore - pathPen };
     } else {
+      pushPath();
       const undo = simulateMove(game, action.piece, action.target);
       const nextFaction = game.currentFaction;
       result = minimax(
@@ -1952,6 +2084,10 @@ export function minimax(
         effectiveDeadline,
       );
       undoMove(game, undo);
+      popPath();
+      if (pathPen && result.score != null) {
+        result = { ...result, score: result.score - pathPen };
+      }
     }
 
     // LMR re-search: if reduced search beats alpha, re-search at full depth
@@ -1962,6 +2098,7 @@ export function minimax(
       result.score > alpha &&
       result.score < beta
     ) {
+      pushPath();
       const undo = simulateMove(game, action.piece, action.target);
       const nextFaction = game.currentFaction;
       const fullDepthResult = minimax(
@@ -1974,8 +2111,12 @@ export function minimax(
         effectiveDeadline,
       );
       undoMove(game, undo);
+      popPath();
       if (!fullDepthResult.timeout) {
         result = fullDepthResult;
+        if (pathPen && result.score != null) {
+          result = { ...result, score: result.score - pathPen };
+        }
       }
     }
 
@@ -2252,6 +2393,26 @@ export function calculateBestMoveParallel(
   return best.action ?? null;
 }
 
+/**
+ * Middlegame move selection for the high-piece-count regime
+ * (`calculateBestMove` routes here when `pieceCount > 16` — i.e. for nearly
+ * the entire opening/middlegame, since a starting position has 45 pieces).
+ *
+ * This is a 1-ply search: each candidate is simulated, then scored with the
+ * full handcrafted `evaluateBoard` (material + PST + mobility + king safety +
+ * pawn structure + RPS endgame), and the highest-scoring move is chosen.
+ *
+ * Previously this used a crude linear formula (capture value + centralisation
+ * + PST-of-target-pawn) that never touched the rich eval — so the engine's
+ * carefully-tuned positional/king-safety terms were wasted above 16 pieces.
+ * Routing through `evaluateBoard` makes the middlegame use the same eval the
+ * endgame search already trusts.
+ *
+ * State handling: `simulateMove` mutates `piece.pos` without rebuilding the
+ * occupied map, so we call `rebuildOccupiedMap` after every simulate/undo to
+ * keep `evaluateBoard`'s `game._occupiedMap` consistent (a missing rebuild was
+ * the bug in an earlier attempt at this change).
+ */
 export function greedyBestMove(
   game: IGame,
   faction: Faction,
@@ -2261,43 +2422,24 @@ export function greedyBestMove(
   let bestScore = -Infinity;
 
   for (const action of actions) {
-    let score = 0;
-    if (action.type === "attack") {
-      const defender = game.pieces.find(
-        (p) => p.alive && p.pos.equals(action.target),
-      );
-      if (!defender) continue;
-      if (action.rps === "advantage" || action.rps === "neutral") {
-        score = 100 + PIECE_STRENGTH[defender.type] * 10;
-        score += 10 - PIECE_STRENGTH[action.piece.type];
-        if (defender.type === "king") score += 500;
-      } else {
-        score = -1000;
-      }
-    } else {
-      // Create a proper pawn piece for PST evaluation
-      const pawnPiece: Piece = {
-        id: "",
-        faction: "fire", // faction doesn't matter for PST, only type and pos
-        type: "pawn",
-        pos: action.target,
-        symbol: "P",
-        alive: true,
-        hasMoved: false,
-      };
-      const pv = getPSTValue(pawnPiece);
-      const distFromCenter = Math.max(
-        Math.abs(action.piece.pos.q),
-        Math.abs(action.piece.pos.r),
-        Math.abs(-action.piece.pos.q - action.piece.pos.r),
-      );
-      const distToCenter = Math.max(
-        Math.abs(action.target.q),
-        Math.abs(action.target.r),
-        Math.abs(-action.target.q - action.target.r),
-      );
-      score = (distFromCenter - distToCenter) * 10 + pv * 2;
+    const wasCapture = action.type === "attack";
+    // Reversal check uses pre-move piece.pos + moveHistory (not the sim).
+    const revPen =
+      isActionReversal(game, action) && !wasCapture ? REVERSAL_PENALTY : 0;
+
+    const undo = simulateMove(game, action.piece, action.target);
+    rebuildOccupiedMap(game);
+    let score = evaluateBoard(game, faction);
+    // Seen-position penalty needs post-move state (side-to-move advanced).
+    if (!wasCapture && game._positionHistory) {
+      const key = searchPositionKey(game);
+      const visits = game._positionHistory.get(key) || 0;
+      if (visits > 0) score -= SEEN_POSITION_PENALTY * visits;
     }
+    score -= revPen;
+    undoMove(game, undo);
+    rebuildOccupiedMap(game);
+
     // Default: deterministic tie-break (no noise, reproducible games, clean
     // Elo measurement). If TIEBREAK_DETERMINISTIC is off (benchmark legacy
     // mode only), keep the old random perturbation for A/B comparison.

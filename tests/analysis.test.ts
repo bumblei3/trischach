@@ -10,7 +10,7 @@ import {
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import { setAIDepth, getAIDepth } from "../js/ai.ts";
-import { calculateBestMove, simulateMove } from "../js/ai-core.ts";
+import { calculateBestMove } from "../js/ai-core.ts";
 import type { AIAction, Faction } from "../js/types.ts";
 import { Hex } from "../js/hex.ts";
 
@@ -96,11 +96,15 @@ describe("analyzePosition", () => {
     const game = new Game();
     game.init(generateBoard());
     // Advance a few plies so there is a real tactical tree.
+    // Use the real Game API (handleCellClick) to keep the Game-class state
+    // consistent — ai-core simulateMove does not sync the Game-class internals.
     setAIDepth(2);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const mv = calculateBestMove(game, game.currentFaction as Faction);
       if (!mv) break;
-      simulateMove(game, mv.piece, mv.target);
+      game.handleCellClick(mv.piece.pos);
+      game.handleCellClick(mv.target);
+      if (game.pendingPromotion) game.completePromotion("queen");
     }
     const result = analyzePosition(game, 2);
     expect(result.pv.length).toBeGreaterThanOrEqual(2);
