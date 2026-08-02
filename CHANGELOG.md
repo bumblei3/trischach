@@ -43,6 +43,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the next, larger lever but risks the 2p pruning infra (null-move/TT/LMR/
     probcut/quiescence); parked pending the regression-baseline re-establish.
 
+- **Root-Maxⁿ (3-vector search at the root) — MEASURED, PARKED (0 Elo).**
+  Follow-up attempt to the Opponent-Awareness term: at the root, score each
+  candidate by letting the _strongest_ enemy reply with a paranoid
+  `minimax(depth-1, open window)` and evaluating the resulting position from
+  our perspective (canonical Maxⁿ root rule). Built as a gated wrapper
+  (`MAXN_ROOT_ENABLED`), bounded to the Top-12 candidates by handcrafted eval.
+  **Measured (d3, 40 games, seed 12345) on top of Opp-Awareness:**
+  - vs random: 26.3% → 26.3% (Elo −179, flat)
+  - vs material: 32.5% (flat)
+  - vs depth1: 32.5% (flat)
+    **Zero Elo.** Cause: the 1-ply Opponent-Awareness term already supplies the
+    same root signal; the deeper enemy reply does not change the choice at
+    depth 3. Root-Maxⁿ would only pay off at higher depth or after an eval
+    change — as written it is redundant dead code, so it was **radically
+    removed** (not soft-disabled). Revisit only if a deeper search or a changed
+    eval makes the enemy-reply signal informative.
+
 ### Changed
 
 - **Middlegame eval now routes through the full handcrafted eval (Lever B).**
