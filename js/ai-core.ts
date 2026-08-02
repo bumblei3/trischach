@@ -281,6 +281,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 1.0,
       endgame: 1.0,
       mobility: 1.0,
+      oppAware: 1.0,
     },
     aggression: 0.0,
   },
@@ -296,6 +297,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 0.7,
       endgame: 1.2,
       mobility: 1.4,
+      oppAware: 1.0,
     },
     aggression: 0.3,
   },
@@ -310,6 +312,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 1.3,
       endgame: 0.9,
       mobility: 0.8,
+      oppAware: 1.0,
     },
     aggression: -0.3,
   },
@@ -324,6 +327,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 0.5,
       endgame: 1.1,
       mobility: 1.5,
+      oppAware: 1.0,
     },
     aggression: 0.5,
   },
@@ -1205,6 +1209,32 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   if (aliveEnemies.length === 1) {
     const rps = getRPSResult(faction, aliveEnemies[0]!);
     if (rps === "advantage") score += 20 * W.endgame;
+  }
+
+
+  // 8. Opponent awareness (3-player Kingmaker defence)
+  // In 3-player chess you win by being the strongest SURVIVING faction, not by
+  // maximising a 2-player material delta. The real threat is the STRONGEST
+  // enemy, not the sum of both (sum double-counts the weak enemy). Reward
+  // positions where our material dominates the strongest enemy — so we prefer
+  // to weaken the DANGEROUS enemy even at the cost of material vs the weak one.
+  // This is the Kingmaker insight classic 2p-alpha-beta (maximizingFaction)
+  // structurally cannot see.
+  const matByFaction: Record<string, number> = {};
+  for (const f of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+    let m = 0;
+    for (const p of pieces) {
+      if (p.faction === f && p.alive) m += getMaterialValue(p, faction) * 10;
+    }
+    matByFaction[f] = m;
+  }
+  const myMat = matByFaction[faction] ?? 0;
+  const enemyMats = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]
+    .filter((f) => f !== faction && !game.eliminatedFactions.has(f))
+    .map((f) => matByFaction[f] ?? 0);
+  if (enemyMats.length > 0) {
+    const strongestEnemy = Math.max(...enemyMats);
+    score += (myMat - strongestEnemy) * W.oppAware;
   }
 
   // 6. Pawn structure

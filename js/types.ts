@@ -352,6 +352,7 @@ export interface PersonalityWeights {
   pawnStructure: number;
   endgame: number;
   mobility: number;
+  oppAware: number;
 }
 
 export interface PersonalityConfig {
@@ -373,6 +374,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 1.0,
       endgame: 1.0,
       mobility: 1.0,
+      oppAware: 1.0,
     },
     aggression: 0.0,
   },
@@ -388,6 +390,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 0.7,
       endgame: 1.2,
       mobility: 1.4,
+      oppAware: 1.0,
     },
     aggression: 0.3,
   },
@@ -402,6 +405,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 1.3,
       endgame: 0.9,
       mobility: 0.8,
+      oppAware: 1.0,
     },
     aggression: -0.3,
   },
@@ -416,6 +420,7 @@ export const AI_PERSONALITIES: Record<AIPersonality, PersonalityConfig> = {
       pawnStructure: 0.5,
       endgame: 1.1,
       mobility: 1.5,
+      oppAware: 1.0,
     },
     aggression: 0.5,
   },
