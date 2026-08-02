@@ -5,23 +5,23 @@ Gehalten von Hermes; bei jeder "wie weiter verbessern"-Run neu verifiziert.
 
 ## Gesundheit (frisch verifiziert 2026-08-02)
 
-| Gate            | Befehl                | Ergebnis            |
-|-----------------|-----------------------|---------------------|
-| Tests           | `npx vitest run`      | 795/795 passed (47 files) |
-| Typecheck       | `npx tsc --noEmit`    | grün (exit 0)       |
-| Lint            | `npx eslint .`        | grün (exit 0)       |
-| Build           | `vite build`          | `dist/` vorhanden/ok |
+| Gate      | Befehl             | Ergebnis                  |
+| --------- | ------------------ | ------------------------- |
+| Tests     | `npx vitest run`   | 795/795 passed (47 files) |
+| Typecheck | `npx tsc --noEmit` | grün (exit 0)             |
+| Lint      | `npx eslint .`     | grün (exit 0)             |
+| Build     | `vite build`       | `dist/` vorhanden/ok      |
 
 Working Tree: sauber bis auf 4 untracked Artefakte —
 `bench-before.sh/.log`, `bench-after.sh/.log` (nur Mess-Skripte/Logs, kein Source).
 
 ## Engine-Stärke (absolut, depth 3, 40 games, seed 12345)
 
-| Gegner     | BEFORE (Lever B + anti-pendulum) | AFTER (+ Opponent-Awareness) | Δ Elo |
-|------------|----------------------------------|------------------------------|-------|
-| random     | 22.5% (−215)                     | **26.3% (−179)**             | **+36** |
-| material   | 32.5% (−127)                     | 32.5% (−127)                 | 0     |
-| depth1     | 32.5% (−127)                     | 32.5% (−127)                 | 0     |
+| Gegner   | BEFORE (Lever B + anti-pendulum) | AFTER (+ Opponent-Awareness) | Δ Elo   |
+| -------- | -------------------------------- | ---------------------------- | ------- |
+| random   | 22.5% (−215)                     | **26.3% (−179)**             | **+36** |
+| material | 32.5% (−127)                     | 32.5% (−127)                 | 0       |
+| depth1   | 32.5% (−127)                     | 32.5% (−127)                 | 0       |
 
 → Gewinn sitzt exakt dort, wo der Kingmaker-Effekt wirkt (gegen den
 unvorhersehbaren random-Mover). Gegen material/depth1 keine Regression.
@@ -29,13 +29,13 @@ Noch immer < 50% gegen jeden Gegner — Teilschritt, kein Durchbruch.
 
 ## Mess-Integrität (verifiziert 2026-08-02)
 
-- CHANGELOG `[Unreleased]` behauptet für *anti-pendulum* (auf Lever B):
+- CHANGELOG `[Unreleased]` behauptet für _anti-pendulum_ (auf Lever B):
   vs random 20.0% → **22.5%** (Elo −241 → −215, +26).
 - `bench-after.sh` frisch auf HEAD (commit 7661fe8, nach anti-pendulum-Merge)
   gestartet → liefert **22.5%** vs random (W7/D4, Elo −215). Die CHANGELOG-Zahl
   ist damit **belegt**.
-- Hinweis: das im Tree liegende *alte* `bench-after.log` (20.0%) war veraltet —
-  es stammte aus dem Lever-B-Run *vor* dem anti-pendulum-Merge. Der frische Run
+- Hinweis: das im Tree liegende _alte_ `bench-after.log` (20.0%) war veraltet —
+  es stammte aus dem Lever-B-Run _vor_ dem anti-pendulum-Merge. Der frische Run
   überschreibt es und bestätigt die neue Zahl.
 - `bench-before.log` (Lever B, 20.0% vs random) bleibt als echter BEFORE-Baseline.
 - **Regel:** Keine Engine-Stärke-Behauptung ohne Bench-Artefakt im Tree.

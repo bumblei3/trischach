@@ -27,8 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Opponent-Awareness term (3-player Kingmaker defence) in `evaluateBoard`.**
   Classic 2-player alpha-beta (`maximizingFaction`) structurally cannot model
   the third player: it optimises a single material delta and misses that, in
-  3-player chess, you win by being the strongest *surviving* faction — i.e. the
-  real threat is the *strongest* enemy, not the sum of both. New Term 8 scores
+  3-player chess, you win by being the strongest _surviving_ faction — i.e. the
+  real threat is the _strongest_ enemy, not the sum of both. New Term 8 scores
   `myMaterial − strongestEnemyMaterial` (RPS-aware) and is wired through
   `W.oppAware` (default 1.0) in all `AI_PERSONALITIES`. It acts on **both**
   search paths at once — `greedyBestMove` (1-ply middlegame) and `minimax`
@@ -38,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     exactly on the unpredictable mover, confirming the Kingmaker hypothesis
   - vs material: 32.5% (flat, no regression)
   - vs depth1: 32.5% (flat, no regression)
-    First measured lever that targets the *3-player* pathology directly rather
+    First measured lever that targets the _3-player_ pathology directly rather
     than a 2-player symptom. Still < 50% overall — full Maxⁿ (root + search) is
     the next, larger lever but risks the 2p pruning infra (null-move/TT/LMR/
     probcut/quiescence); parked pending the regression-baseline re-establish.

@@ -1211,7 +1211,6 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
     if (rps === "advantage") score += 20 * W.endgame;
   }
 
-
   // 8. Opponent awareness (3-player Kingmaker defence)
   // In 3-player chess you win by being the strongest SURVIVING faction, not by
   // maximising a 2-player material delta. The real threat is the STRONGEST
