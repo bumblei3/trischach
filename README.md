@@ -174,7 +174,7 @@ Dieses Projekt nutzt **GitHub Actions** mit parallelen Jobs:
 
 ## 📜 Lizenz
 
-MIT License – Erstellt von [bumblei3](https://github.com/bumblei3)
+WTFPL – Do What The F*** You Want To Public License. Erstellt von [bumblei3](https://github.com/bumblei3). Siehe [LICENSE](./LICENSE).
 
 ---
 
