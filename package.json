@@ -84,7 +84,7 @@
     "file-entry-cache": "^6.0.1",
     "find-up": "^5.0.0",
     "flat-cache": "^3.2.0",
-    "flatted": "^3.4.2",
+    "flatted": "^3.4.4",
     "fs.realpath": "^1.0.0",
     "get-func-name": "^2.0.2",
     "get-stream": "^8.0.1",
