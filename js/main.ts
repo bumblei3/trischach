@@ -2223,7 +2223,7 @@ function initEventListeners(): void {
               (p, i) => `
             <div class="puzzle-move" data-index="${i}">
               <span class="puzzle-move-number">${i + 1}.</span>
-              <span class="puzzle-move-san">Matt in ${p.mateIn} (${p.difficulty})</span>
+              <span class="puzzle-move-san">Matt in ${p.mateIn} (${escapeHtml(p.difficulty)})</span>
               <span class="puzzle-move-status pending">${p.faction}</span>
             </div>
           `,
