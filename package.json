@@ -25,7 +25,7 @@
     "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^8.57.1",
     "happy-dom": "^20.11.1",
-    "playwright": "^1.61.1",
+    "playwright": "^1.62.1",
     "prettier": "^3.9.5",
     "serve": "^14.2.6",
     "terser": "^5.49.0",
