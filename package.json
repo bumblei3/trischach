@@ -19,7 +19,7 @@
     "nnue:gate": "tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-250"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.1",
     "@types/node": "^25.9.5",
     "@vitest/coverage-istanbul": "^3.2.7",
     "@vitest/coverage-v8": "^3.2.7",
