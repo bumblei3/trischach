@@ -1,6 +1,6 @@
 {
   "name": "trischach",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "3-player hexagonal chess with RPS mechanics",
   "main": "js/main.js",
   "scripts": {
