@@ -15,15 +15,12 @@ Gehalten von Hermes; bei jeder "wie weiter verbessern"-Run neu verifiziert.
 | npm audit | `npm audit --json`       | 0 vulns                   |
 
 Working Tree: sauber auf `main`. Engine-Code seit Bench-Artefakt (`d232e70`)
-unverändert; `v1.5.0` ist CHANGELOG + Versionsbump.
-
-v1.5.0-CI war rot **nur** wegen Prettier auf `CHANGELOG.md` / `STATUS.md`
-(Release-Job + GitHub-Pages-Deploy übersprungen). Dieser Commit hebt den Block.
+unverändert. CI auf `main` grün inkl. Pages-Deploy
+(`7f07349`, Prettier-Unblock).
 
 ## Engine-Stärke (absolut, depth 3, 40 games, seed 12345)
 
-Quelle: `bench-current.log` (HEAD @ `d232e70`, weiterhin gültig für `main` /
-`v1.5.0`).
+Quelle: `bench-current.log` (HEAD @ `d232e70`, gültig für `main` / `v1.5.0`).
 
 | Gegner   | Score | Elo                     |
 | -------- | ----- | ----------------------- |
@@ -33,7 +30,9 @@ Quelle: `bench-current.log` (HEAD @ `d232e70`, weiterhin gültig für `main` /
 
 Engine liegt nach Opp-Awareness (+36 vs random) und anti-pendulum (+26 vs
 random) weiterhin unter 50% gegen jeden Gegner. Das strukturelle Loch ist das
-1-Ply-Greedy im Mittellspiel (oberhalb von 16 Steinen).
+1-Ply-Greedy im Mittellspiel (`pieceCount > 16`; Startposition hat 45 Steine).
+Iteratives Vertiefen läuft erst im Endspiel — Tiefe auf `main` anheben (d4)
+testet deshalb nicht das Kingmaker-Loch.
 
 ## Mess-Integrität
 
@@ -42,39 +41,65 @@ random) weiterhin unter 50% gegen jeden Gegner. Das strukturelle Loch ist das
 - **Regel:** Keine Engine-Stärke-Behauptung ohne Bench-Artefakt im Tree.
   Kein Merge von Such-/Eval-Änderungen auf `main` ohne diesen Nachweis.
 
+## Eval-Experiment (gemessen, Regression — nicht mergen)
+
+Branch `feat/middlegame-minimax-experiment` @ `7ec81ef`. Zwei unabhängige
+Änderungen, nur eine wirkt in `calculateBestMove`:
+
+1. **Eval-Refactor (lebt):** RPS-Term auf alle überlebenden Gegner (nicht nur
+   Endspiel), König-Bedrohung mit Nähe/Koordination, threat-aware Opp-Awareness
+   (König-Angriff +150 auf Gegner-Threat). Routing bleibt `greedyBestMove`.
+2. **`middlegameBestMove` (tot):** nirgends aus `calculateBestMove` aufgerufen.
+   Die Funktion selbst ist kein depth-2 (zwei `minimax(..., 1)` auf derselben
+   Child-Stellung). Ein Bench dieses Branches ist ein **Eval-A/B**, kein
+   Such-A/B.
+
+Quelle: `bench/eval-experiment.log` (d3, 40 Spiele, seed 12345, Experiment vs
+dieselbe Harness wie `bench-current.log`).
+
+| Gegner   | `main` | Experiment | Δ Elo vs main        |
+| -------- | ------ | ---------- | -------------------- |
+| random   | 26.3%  | **13.8%**  | **−140** (−179→−319) |
+| material | 32.5%  | 32.5%      | 0                    |
+| depth1   | 32.5%  | 32.5%      | 0                    |
+
+vs random: W8/L27/D5 → W4/L33/D3. 95%-CIs überlappen leicht
+(`main` −301..−57, Experiment −475..−163); der Punktschätzer fällt genau auf
+dem Kingmaker-Gegner, material/depth1 flach. **Nicht mergen.** Diese
+Eval-Terme nicht nochmal versuchen.
+
 ## Parkiertes Experiment (nicht auf main)
 
-| Branch                               | Inhalt                                                                |
-| ------------------------------------ | --------------------------------------------------------------------- |
-| `feat/middlegame-minimax-experiment` | `evaluateBoard`-Refactor + `middlegameBestMove` (depth-2, >16 Steine) |
+| Branch                               | Stand                                   |
+| ------------------------------------ | --------------------------------------- |
+| `feat/middlegame-minimax-experiment` | Eval = Regression; Minimax tot + falsch |
 
-Gepusht, kein PR, **kein Bench-Artefakt**. Merge erst nach d3-Bench vs `main`
-(40 Spiele, seed 12345).
+Kein PR. Branch darf stehen bleiben als Warnung, nicht als Merge-Kandidat.
+Echte Mittelfeld-Suche auf einem **neuen** Branch von `main`, ohne diese
+Eval-Terme und ohne die kaputte `middlegameBestMove`.
 
 ## Remote-Branches
 
-Stale gemergte PR-Zweige (anti-pendulum, security-escape, postcss-audit, …)
-sind gelöscht. Verbleiben:
-
 - `origin/main`
-- `origin/feat/middlegame-minimax-experiment`
+- `origin/feat/middlegame-minimax-experiment` (parked, negative eval result)
 
 ## Nächster sinnvoller Schritt (Selection)
 
-1. **d3-Bench des Experiments vs main** (40 Spiele, seed 12345). Ohne Messung
-   nicht mergen.
-2. **d4-Benchmark vs random** (schnell, oracle-Antwort):
-   `npx tsx scripts/engine-strength.ts 40 4 random --seed=12345`.
-3. **Mittellspiel → echte Minimax statt 1-Ply-Greedy** (schwer, nur wenn 1
-   Signal gibt und Timeout-Verhalten tragbar ist).
-4. **VecDestBrute Tests aufräumen** oder ganz löschen.
-5. **NNUE-Entscheidung**: aktivieren (mit aktualisierten Gewichten + Training)
-   oder sauber entfernen.
+1. **Mittelfeld-Suche sauber von `main`:** ein `minimax(depth=2)` (oder 1 Ply
+   Gegner + Eval) statt 1-Ply-Greedy bei `pieceCount > 16`, Reversal-Penalty
+   behalten, Timeout → greedy. Dann d3-Bench vs `main` (40, seed 12345).
+   Eval-Terme aus dem Experiment **nicht** mitnehmen.
+2. **d4 vs random auf `main`** nur als Endspiel-Oracle — bewegt das
+   Kingmaker-Loch nicht, weil die Eröffnung weiter greedy ist.
+3. **NNUE** — parken, bis das Mittelfeld überhaupt sucht.
+4. **VecDestBrute Tests** — aufräumen oder löschen (kein Stärke-Hebel).
 
 ## Roadmap-Hebel
 
 - [x] Anti-pendulum progress term — gemessen, +26 Elo vs random, im Tree.
 - [x] Opponent-Awareness term — gemessen, +36 Elo vs random, im Tree.
 - [x] Root-Maxⁿ — gemessen, 0 Elo, **radikal entfernt** (nicht soft-disabled).
-- [ ] Mittellspiel-Stärke — Experiment geparkt, ungemessen.
-- [ ] NNUE — geparkt (Elo CI überlappt 0); Gewichte fehlen, Entscheidung offen.
+- [x] Eval-Refactor (RPS-mg / King-proximity / threat-oppAware) — gemessen,
+      **−140 Elo vs random**, nicht mergen.
+- [ ] Mittellspiel-Suche (echtes depth-2, von `main`, ohne Eval-Mix) — offen.
+- [ ] NNUE — geparkt (Elo CI überlappt 0); erst nach Mittelfeld-Suche.
