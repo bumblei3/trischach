@@ -1,22 +1,23 @@
-
-# Accidental artifacts
+# Build/test artifacts
 coverage/
 dist/
+playwright-report/
+test-results/
+
+# Dependencies
+node_modules/
+
+# Editor / OS
 .DS_Store
-# Editor directories and files
 .env
 .idea/
+.vscode/
 *.njsproj
-node_modules/
 *.ntvs*
-playwright-report/
 *.sln
 *.suo
 *.sw?
-# Test artifacts
-test-results/node_modules
+
+# SSH keys (never commit)
 trischach
 trischach.pub
-.vscode/
-node_modules
-test-results/
