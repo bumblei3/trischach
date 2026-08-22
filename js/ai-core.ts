@@ -592,6 +592,7 @@ export function updateZobristHash(
   isPromotion: boolean,
   oldSideIdx: number,
   newSideIdx: number,
+  attackerDied = false,
 ): bigint {
   const ptIdx = ZOBRIST_PIECE_TYPES.indexOf(piece.type);
   const facIdx = ZOBRIST_FACTIONS.indexOf(piece.faction);
@@ -600,6 +601,15 @@ export function updateZobristHash(
   const fromIdx = SQUARE_TO_INDEX.get(fromKey);
   if (fromIdx !== undefined) {
     hash ^= getZobristPieceKeyAt(ptIdx, facIdx, fromIdx);
+  }
+
+  // RPS-losing attack: the attacker dies on its source square and never
+  // reaches the target; the defender survives. Only remove the attacker —
+  // do NOT place it on the target or remove the defender.
+  if (attackerDied) {
+    if (oldSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[oldSideIdx]!;
+    if (newSideIdx >= 0) hash ^= ZOBRIST_SIDE_KEYS[newSideIdx]!;
+    return hash;
   }
 
   // Add piece to destination square (handle promotion)
@@ -1695,8 +1705,15 @@ export function simulateMove(
       if (defender.type === "king") {
         undo.eliminatedFaction = defender.faction;
         game.eliminatedFactions.add(defender.faction);
+        // Record exactly the pieces THIS simulation kills, so undoMove
+        // revives only them — not pieces that were already dead before
+        // (resurrecting those corrupts board state and the Zobrist hash).
+        undo.killedByElimination = [];
         for (const p of game.pieces) {
-          if (p.faction === defender.faction) p.alive = false;
+          if (p.faction === defender.faction && p.alive) {
+            p.alive = false;
+            undo.killedByElimination.push(p);
+          }
         }
       }
     } else {
@@ -1742,7 +1759,14 @@ export function simulateMove(
     isPromotion,
     oldSideIdx,
     game.currentFactionIdx,
+    undo.attackerDied,
   );
+
+  // Keep the occupied map consistent with the simulated position. Without
+  // this, the next getPieceAt/getValidMoves/legality check in the search
+  // reads the PRE-move map: attacks on the vacated/occupied target are
+  // mis-detected (wrong defender -> wrong hash update and illegal moves).
+  rebuildOccupiedMap(game);
 
   return undo;
 }
@@ -1769,8 +1793,14 @@ export function undoMove(game: IGame, undo: AISnapshot): void {
       defender!.alive = true;
       if (eliminatedFaction) {
         game.eliminatedFactions.delete(eliminatedFaction);
+        // Revive ONLY the pieces this simulation killed — reviving pieces
+        // that were already dead before the simulation resurrects ghosts
+        // (wrong alive flags -> wrong evals and Zobrist divergence).
+        const killed = new Set(undo.killedByElimination ?? []);
         for (const p of game.pieces) {
-          if (p.faction === eliminatedFaction) p.alive = true;
+          if (p.faction === eliminatedFaction && killed.has(p)) {
+            p.alive = true;
+          }
         }
       }
     } else if (attackerDied) {
