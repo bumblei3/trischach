@@ -5,6 +5,7 @@
 
 import { Game, GAME_STATE, GameState } from "./game.ts";
 import { Hex } from "./hex.ts";
+import { generateBoard } from "./board.ts";
 import type { IGame, Piece, Faction, PieceType, Cell } from "./types.ts";
 import { calculateBestMove, setAIDepth, setAIPersonality } from "./ai.ts";
 import { boardHash, getBookMoves, OPENING_BOOK } from "./opening-book.ts";
@@ -108,6 +109,24 @@ export async function generatePuzzlesFromBook(
 /**
  * Reconstruct a Game instance from a book hash.
  */
+
+function typeFromChar(c: string | undefined): string {
+  switch (c) {
+    case "k":
+      return "king";
+    case "q":
+      return "queen";
+    case "r":
+      return "rook";
+    case "b":
+      return "bishop";
+    case "n":
+      return "knight";
+    default:
+      return "pawn";
+  }
+}
+
 function reconstructGameFromHash(hash: string): Game | null {
   try {
     const [piecesStr, factionIdxStr] = hash.split("#");
@@ -137,11 +156,19 @@ function reconstructGameFromHash(hash: string): Game | null {
             : factionChar === "W"
               ? "water"
               : "nature";
+        // Match by faction+type among currently-dead pieces, then MOVE the
+        // piece to the stored coordinates. Matching by position (the old code)
+        // only worked for unmoved pieces — every mid-game position reconstructed
+        // as an empty board, so hasUniqueSolution always returned false.
         const piece = game.pieces.find(
-          (p) => p.faction === faction && p.pos.q === q && p.pos.r === r,
+          (p) =>
+            !p.alive &&
+            p.faction === faction &&
+            p.type === typeFromChar(typeChar),
         );
         if (piece) {
           piece.alive = true;
+          piece.pos = new Hex(q, r);
         }
       }
     }
@@ -161,8 +188,6 @@ function reconstructGameFromHash(hash: string): Game | null {
  * Generate a simple board for puzzle reconstruction (no SVG needed).
  */
 function generateBoardForPuzzle(): Map<string, Cell> {
-  // Import here to avoid circular deps
-  const { generateBoard } = require("./board.ts");
   return generateBoard();
 }
 

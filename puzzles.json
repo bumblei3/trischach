@@ -1,6 +1,64 @@
 {
-  "version": "1.0",
-  "generated": "2026-06-13T18:06:04.227Z",
-  "totalPuzzles": 0,
-  "puzzles": []
+  "version": "1.1",
+  "generated": "2026-08-22T21:54:32.675Z",
+  "totalPuzzles": 2,
+  "source": "scripts/gen-puzzles.ts self-play (seed=12345, games=120)",
+  "puzzles": [
+    {
+      "id": "self-nature-nature_queen_33-0,3",
+      "fen": "Fr-7,7|Fn-6,7|Fb-5,7|Fq-3,4|Fk-3,7|Fb-2,7|Fr0,7|Fp-6,6|Fp-5,6|Fp-4,6|Fp-1,6|Wr2,-2|Wn2,-1|Wb0,1|Wq2,1|Wk2,2|Wb2,3|Wn0,5|Wr-1,5|Wp1,0|Wp1,1|Wp1,2|Wp1,3|Wp1,4|Wp0,6|Nr0,-2|Nn-1,-1|Nb-2,0|Nq0,4|Nk-4,2|Nn-6,4|Nr-7,5|Np1,-1|Np-1,0|Np-1,1|Np-3,2|Np-4,3|Np-5,4|Np-6,5#2",
+      "initialMoves": [],
+      "solution": [
+        {
+          "pieceId": "nature_queen_33",
+          "pieceType": "queen",
+          "faction": "nature",
+          "from": {
+            "q": 0,
+            "r": 4
+          },
+          "to": {
+            "q": 0,
+            "r": 3
+          },
+          "isCapture": false,
+          "isCheck": true,
+          "isMate": true,
+          "san": "Q0,40,3#"
+        }
+      ],
+      "mateIn": 1,
+      "difficulty": "easy",
+      "faction": "nature",
+      "createdAt": 1787434333791
+    },
+    {
+      "id": "self-water-water_bishop_20--2,5",
+      "fen": "Fr-7,7|Fn-6,7|Fb-5,7|Fq-2,1|Fk-3,7|Fb-2,7|Fn-1,7|Fr0,7|Fp-6,6|Fp-5,6|Fp-4,6|Fp-3,6|Fp-2,6|Fp-1,6|Fp0,6|Wr2,-2|Wn2,-1|Wb2,0|Wq2,1|Wk2,2|Wb2,3|Wn2,4|Wr2,5|Wp1,-1|Wp1,0|Wp0,1|Wp1,2|Wp1,3|Wp1,4|Wp1,5|Nr0,-2|Nn-1,-1|Nb-2,0|Nq-3,1|Nk-4,2|Nb-5,3|Nn-6,4|Nr-7,5|Np0,-1|Np-1,0|Np-3,2|Np-4,4|Np-5,4|Np-6,5#1",
+      "initialMoves": [],
+      "solution": [
+        {
+          "pieceId": "water_bishop_20",
+          "pieceType": "bishop",
+          "faction": "water",
+          "from": {
+            "q": 2,
+            "r": 3
+          },
+          "to": {
+            "q": -2,
+            "r": 5
+          },
+          "isCapture": false,
+          "isCheck": true,
+          "isMate": true,
+          "san": "B2,3-2,5#"
+        }
+      ],
+      "mateIn": 1,
+      "difficulty": "easy",
+      "faction": "water",
+      "createdAt": 1787435372981
+    }
+  ]
 }
