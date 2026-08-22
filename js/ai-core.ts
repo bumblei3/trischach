@@ -2423,6 +2423,50 @@ export function calculateBestMoveParallel(
 }
 
 /**
+ * One-ply capture-reply against the side that is about to move.
+ *
+ * After we simulate a candidate, `game.currentFaction` is the next player.
+ * In the RPS cycle that player always has advantage against us, so any of
+ * their legal-geometry captures of our pieces is a free take. Greedy 1-ply
+ * cannot see this; random opponents collect the hanging piece. Penalty is
+ * the SEE value of the most valuable hanging piece (queen=900, pawn=100).
+ * RPS-disadvantage replies (attacker would die) score 0.
+ *
+ * Attacks only — no quiet opponent moves. Raw `getValidMoves` (no check
+ * legality) so this stays cheap enough for the middlegame candidate loop.
+ */
+export function captureReplyPenalty(game: IGame, ourFaction: Faction): number {
+  const next = game.currentFaction;
+  if (!next || next === ourFaction) return 0;
+  if (game.eliminatedFactions.has(next)) return 0;
+
+  const occupied = game._occupiedMap;
+  const board = game.boardCells;
+  if (!occupied || !board) return 0;
+
+  let worst = 0;
+  for (const attacker of game.pieces) {
+    if (!attacker.alive || attacker.faction !== next) continue;
+    const { attacks } = getValidMoves(
+      attacker,
+      board as Map<string, { hex: Hex; zone: string; faction: Faction | null }>,
+      occupied as Map<string, Piece>,
+    );
+    for (const target of attacks) {
+      const victim = occupied.get(target.key);
+      if (!victim || !victim.alive || victim.faction !== ourFaction) continue;
+      const rps = game.rpsEnabled
+        ? getRPSResult(next, victim.faction)
+        : "advantage";
+      if (rps === "disadvantage") continue;
+      const val = getSeeValue(victim.type);
+      if (val > worst) worst = val;
+    }
+  }
+  return worst;
+}
+
+/**
  * Middlegame move selection for the high-piece-count regime
  * (`calculateBestMove` routes here when `pieceCount > 16` — i.e. for nearly
  * the entire opening/middlegame, since a starting position has 45 pieces).
@@ -2430,6 +2474,9 @@ export function calculateBestMoveParallel(
  * This is a 1-ply search: each candidate is simulated, then scored with the
  * full handcrafted `evaluateBoard` (material + PST + mobility + king safety +
  * pawn structure + RPS endgame), and the highest-scoring move is chosen.
+ *
+ * Capture-reply then subtracts the SEE value of our most valuable piece the
+ * next player can take for free — greedy otherwise hangs material vs random.
  *
  * Previously this used a crude linear formula (capture value + centralisation
  * + PST-of-target-pawn) that never touched the rich eval — so the engine's
@@ -2459,6 +2506,7 @@ export function greedyBestMove(
     const undo = simulateMove(game, action.piece, action.target);
     rebuildOccupiedMap(game);
     let score = evaluateBoard(game, faction);
+    score -= captureReplyPenalty(game, faction);
     // Seen-position penalty needs post-move state (side-to-move advanced).
     if (!wasCapture && game._positionHistory) {
       const key = searchPositionKey(game);

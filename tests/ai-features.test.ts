@@ -110,35 +110,24 @@ describe("AI Core: Adaptive Time Management", () => {
   });
 
   test("calculateBestMove works for all factions", () => {
-    // Test Fire
-    let action = calculateBestMove(game, FACTION.FIRE);
-    expect(action).toBeDefined();
-    if (!action) throw new Error("expected a move");
-    expect(action.piece.faction).toBe(FACTION.FIRE);
-
-    // Simulate Fire move
-    game.handleCellClick(action.piece.pos);
-    const result = game.handleCellClick(action.target);
-
-    if (result?.promotion) {
-      game.completePromotion("queen");
+    // Isolated start positions: sequential opening play can eliminate a
+    // faction (capture-reply no longer hangs the queen, so greedy may play
+    // a ply-1 mate). The contract here is just "each side can move".
+    const sides = [
+      { f: FACTION.FIRE, idx: 0 },
+      { f: FACTION.WATER, idx: 1 },
+      { f: FACTION.NATURE, idx: 2 },
+    ] as const;
+    for (const { f, idx } of sides) {
+      const g = new Game();
+      g.init(generateBoard());
+      g.currentFactionIdx = idx;
+      g.currentFaction = f;
+      const action = calculateBestMove(g, f);
+      expect(action).toBeDefined();
+      if (!action) throw new Error(`expected a move for ${f}`);
+      expect(action.piece.faction).toBe(f);
     }
-
-    // Test Water
-    action = calculateBestMove(game, FACTION.WATER);
-    expect(action).toBeDefined();
-    if (!action) throw new Error("expected a move");
-    expect(action.piece.faction).toBe(FACTION.WATER);
-
-    // Test Nature
-    game.handleCellClick(action.piece.pos);
-    const result2 = game.handleCellClick(action.target);
-    if (result2?.promotion) game.completePromotion("queen");
-
-    action = calculateBestMove(game, FACTION.NATURE);
-    expect(action).toBeDefined();
-    if (!action) throw new Error("expected a move");
-    expect(action.piece.faction).toBe(FACTION.NATURE);
   });
 
   test("setAIDepth changes search depth", () => {

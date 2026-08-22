@@ -1,38 +1,35 @@
-# trischach — Status (Stand: 2026-08-20)
+# trischach — Status (Stand: 2026-08-22)
 
-Laufender Zustand des Repos `bumblei3/trischach` (branch `main`, tag `v1.5.0`).
-Gehalten von Hermes; bei jeder "wie weiter verbessern"-Run neu verifiziert.
+Laufender Zustand des Repos `bumblei3/trischach`. `main` / tag `v1.5.0` ist
+die Release-Baseline. Capture-Reply liegt auf `feat/middlegame-capture-reply`
+(von `main`, ohne Eval-Mix / Paranoid / Maxⁿ).
 
-## Gesundheit (2026-08-20)
+## Gesundheit (2026-08-22, dieser Branch)
 
-| Gate      | Befehl                   | Ergebnis                  |
-| --------- | ------------------------ | ------------------------- |
-| Tests     | `npx vitest run`         | 795/795 passed (47 files) |
-| Typecheck | `npx tsc --noEmit`       | grün (exit 0)             |
-| Lint      | `npx eslint .`           | grün (exit 0)             |
-| Prettier  | `npx prettier --check .` | grün                      |
-| Build     | `vite build`             | `dist/` vorhanden/ok      |
-| npm audit | `npm audit --json`       | 0 vulns                   |
+| Gate      | Befehl                   | Ergebnis                         |
+| --------- | ------------------------ | -------------------------------- |
+| Tests     | `npx vitest run` (delta) | capture-reply + ai-features grün |
+| Typecheck | `npx tsc --noEmit`       | grün (exit 0)                    |
 
-Working Tree: sauber auf `main`. Engine-Code seit Bench-Artefakt (`d232e70`)
-unverändert. CI auf `main` grün inkl. Pages-Deploy
-(`7f07349`, Prettier-Unblock).
+`main` (v1.5.0): 795/795, lint/prettier/build/audit grün. CI auf `main` grün.
 
 ## Engine-Stärke (absolut, depth 3, 40 games, seed 12345)
 
-Quelle: `bench-current.log` (HEAD @ `d232e70`, gültig für `main` / `v1.5.0`).
+`main` Quelle: `bench-current.log` (HEAD @ `d232e70`). Capture-Reply Quellen:
+`bench/cr-vs-random-n40.log`, `bench/cr-vs-material-n40.log`,
+`bench/cr-vs-depth1-n40.log`.
 
-| Gegner   | Score | Elo                     |
-| -------- | ----- | ----------------------- |
-| random   | 26.3% | −179 [95% CI −301..−57] |
-| material | 32.5% | −127 [95% CI −242..−12] |
-| depth1   | 32.5% | −127 [95% CI −242..−12] |
+| Gegner   | `main`                   | Capture-Reply                | Δ vs main            |
+| -------- | ------------------------ | ---------------------------- | -------------------- |
+| random   | 26.3% / −179 [−301..−57] | **32.5% / −127 [−242..−12]** | **+52 Elo** (W8→W12) |
+| material | 32.5% / −127             | 32.5% / −127                 | 0                    |
+| depth1   | 32.5% / −127             | 32.5% / −127                 | 0                    |
 
-Engine liegt nach Opp-Awareness (+36 vs random) und anti-pendulum (+26 vs
-random) weiterhin unter 50% gegen jeden Gegner. Das strukturelle Loch ist das
-1-Ply-Greedy im Mittellspiel (`pieceCount > 16`; Startposition hat 45 Steine).
-Iteratives Vertiefen läuft erst im Endspiel — Tiefe auf `main` anheben (d4)
-testet deshalb nicht das Kingmaker-Loch.
+Die Random-Inversion (schlechter als vs depth1) ist **geschlossen** — alle
+drei Gegner stehen jetzt bei 32.5%. 95%-CIs vs `main` überlappen; der
+Punktschätzer landet exakt auf dem hypothetisierten Gegner (random nimmt
+hängende Figuren). material/depth1 flach = keine Regression. Merge-Kandidat
+nach demselben Standard wie Anti-Pendulum (+26) und Opp-Awareness (+36).
 
 ## Mess-Integrität
 
@@ -68,15 +65,31 @@ vs random: W8/L27/D5 → W4/L33/D3. 95%-CIs überlappen leicht
 dem Kingmaker-Gegner, material/depth1 flach. **Nicht mergen.** Diese
 Eval-Terme nicht nochmal versuchen.
 
+## Capture-Reply (gemessen, Merge-Kandidat)
+
+Branch `feat/middlegame-capture-reply`. Ein Ply Capture-Reply in
+`greedyBestMove`: nach jedem Kandidaten scannt `captureReplyPenalty` die
+Angriffe des **nächsten** Spielers (RPS-Zyklus: der hat immer Vorteil gegen
+uns) und zieht den SEE-Wert der wertvollsten hängenden eigenen Figur ab
+(Dame=900, Bauer=100). Nur Schläge, `getValidMoves` ohne Check-Legalität.
+
+Nicht mitgenommen: Eval-Refactor, Paranoid, Maxⁿ, volles depth-2. Die 3P-Suche
+(Maxⁿ/Paranoid) lief bisher nur im Endspiel (`pieceCount ≤ 16`) und hat das
+Greedy-Loch nie berührt.
+
+Nebeneffekt: Greedy hängt die Dame auf ply 1 nicht mehr und kann Natur über
+die Matt/Patt-Eliminierung nach `handleCellClick` aus dem Spiel nehmen.
+`tests/ai-features.test.ts` prüft die drei Fraktionen deshalb isoliert.
+
 ## Parkiertes Experiment (nicht auf main)
 
-| Branch                               | Stand                                   |
-| ------------------------------------ | --------------------------------------- |
-| `feat/middlegame-minimax-experiment` | Eval = Regression; Minimax tot + falsch |
-
-Kein PR. Branch darf stehen bleiben als Warnung, nicht als Merge-Kandidat.
-Echte Mittelfeld-Suche auf einem **neuen** Branch von `main`, ohne diese
-Eval-Terme und ohne die kaputte `middlegameBestMove`.
+| Branch                               | Stand                                     |
+| ------------------------------------ | ----------------------------------------- |
+| `feat/middlegame-minimax-experiment` | Eval = Regression; Minimax tot + falsch   |
+| `feat/m1-paranoid-only`              | −49 Elo vs random, nicht mergen           |
+| `feat/maxn-true`                     | n=40 flach, ~20× langsamer; Endspiel only |
+| `feat/midgame-depth2`                | Code da, Timeout→d1 in der Eröffnung      |
+| `feat/middlegame-d2`                 | Env-Flag, Protokollbruch (`--depth=2`)    |
 
 ## Remote-Branches
 
@@ -85,13 +98,14 @@ Eval-Terme und ohne die kaputte `middlegameBestMove`.
 
 ## Nächster sinnvoller Schritt (Selection)
 
-1. **Mittelfeld-Suche sauber von `main`:** ein `minimax(depth=2)` (oder 1 Ply
-   Gegner + Eval) statt 1-Ply-Greedy bei `pieceCount > 16`, Reversal-Penalty
-   behalten, Timeout → greedy. Dann d3-Bench vs `main` (40, seed 12345).
-   Eval-Terme aus dem Experiment **nicht** mitnehmen.
-2. **d4 vs random auf `main`** nur als Endspiel-Oracle — bewegt das
-   Kingmaker-Loch nicht, weil die Eröffnung weiter greedy ist.
-3. **NNUE** — parken, bis das Mittelfeld überhaupt sucht.
+1. **Capture-Reply mergen** (dieser Branch), wenn der Punktschätzer +52 vs
+   random bei flachem material/depth1 reicht — gleicher Standard wie die
+   letzten zwei positiven Hebel. CIs überlappen; Artefakte liegen im Tree.
+2. **Danach:** entweder Root-Cap depth-2 (Top-12 nach Greedy, erst ab
+   `pieceCount ≤ 28`) **oder** Capture-Reply auf beide Gegner / SEE-Recapture.
+   Nicht nochmal volles Maxⁿ ohne Mittelfeld-Routing.
+3. **NNUE** — weiter parken, bis Mittelfeld mehr als 1 Ply + Capture-Reply
+   sucht.
 4. **VecDestBrute Tests** — aufräumen oder löschen (kein Stärke-Hebel).
 
 ## Roadmap-Hebel
@@ -101,5 +115,9 @@ Eval-Terme und ohne die kaputte `middlegameBestMove`.
 - [x] Root-Maxⁿ — gemessen, 0 Elo, **radikal entfernt** (nicht soft-disabled).
 - [x] Eval-Refactor (RPS-mg / King-proximity / threat-oppAware) — gemessen,
       **−140 Elo vs random**, nicht mergen.
-- [ ] Mittellspiel-Suche (echtes depth-2, von `main`, ohne Eval-Mix) — offen.
-- [ ] NNUE — geparkt (Elo CI überlappt 0); erst nach Mittelfeld-Suche.
+- [x] M1 Paranoid-Minimax — gemessen, **−49 Elo vs random**, nicht mergen.
+- [x] Maxⁿ + TT — n=40 flach / zu langsam, Endspiel-only, geparkt.
+- [x] **Capture-Reply (hängende Figur, 1 Ply, nächster Spieler)** — gemessen,
+      **+52 Elo vs random** (26.3%→32.5%), material/depth1 flach. Merge-Kandidat.
+- [ ] Mittelfeld-Suche depth-2 (billig genug dass d2 fertig wird) — offen.
+- [ ] NNUE — geparkt (Elo CI überlappt 0); erst nach tieferer Mittelfeld-Suche.
