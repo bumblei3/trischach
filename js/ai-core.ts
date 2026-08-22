@@ -37,7 +37,6 @@ import type {
   AIPersonality,
   RPSResult,
 } from "./types.ts";
-import { probeTablebase, tablebaseToScore } from "./tablebase.ts";
 
 // ─── Constants ────────────────────────────────────────────────────
 
@@ -1866,19 +1865,6 @@ export function minimax(
   currentFaction: Faction,
   deadline: number | null = null,
 ): SearchResult {
-  // ─── Tablebase lookup (perfect play for endgames) ───────────────
-  // Runs FIRST (before any deadline/timeout check) because it is O(1) and
-  // returns a perfect score without searching. Gated by isTablebasePosition
-  // inside probeTablebase, so middlegames are completely unaffected.
-  const tb = probeTablebase(game);
-  if (tb) {
-    return {
-      score: tablebaseToScore(tb, currentFaction, maximizingFaction),
-      action: null,
-      timeout: false,
-    };
-  }
-
   nodesSearched++;
   const effectiveDeadline = deadline !== null ? deadline : searchDeadline;
   // Sample the soft deadline every 256 nodes, AND enforce an absolute hard

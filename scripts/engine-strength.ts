@@ -18,7 +18,7 @@
  * For each opponent we rotate the engine side across all three factions and
  *
  * The resulting numbers ARE the baseline every future engine change must be
- * measured against — run this before/after any search/tablebase/heuristic
+ * measured against — run this before/after any search/heuristic
  * change to prove (or park) the improvement.
  *
  * Run:

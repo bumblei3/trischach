@@ -64,7 +64,6 @@ import {
   quickSee,
 } from "./ai-core.ts";
 import { deserializeGame } from "./ai.ts";
-import { loadTablebaseFromJSON } from "./tablebase.ts";
 import type { SerializedGameState } from "./ai.ts";
 import type { Faction, AIAction } from "./types.ts";
 
@@ -78,7 +77,6 @@ interface WorkerRequest {
   subset?: { pieceId: string; targetQ: number; targetR: number }[];
   searchDepth?: number;
   timeBudget?: number;
-  tablebase?: Record<string, { r: "win" | "loss" | "draw"; dtz: number }>;
 }
 
 // Re-export for unit testing (coverage)
@@ -148,11 +146,6 @@ ctx.postMessage({ type: "ready" });
 ctx.onmessage = function (e: MessageEvent) {
   const msg = e.data as WorkerRequest;
   const { type, gameState, faction, depth, personality } = msg;
-
-  if (type === "initTablebase" && msg.tablebase) {
-    loadTablebaseFromJSON(msg.tablebase);
-    return;
-  }
 
   if (type === "calculate") {
     // Reconstruct game object from serialized state

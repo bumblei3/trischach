@@ -16,7 +16,6 @@ import {
   rpsCaptureTitleFromPieces,
   type RpsBuckets,
 } from "./coach.ts";
-import { loadTablebaseFromJSON } from "./tablebase.ts";
 import {
   generateRpsPuzzles,
   deserializeRpsPosition,
@@ -388,56 +387,6 @@ function initAIWorker(): void {
   }
 }
 
-// Load endgame tablebases (async, non-blocking) for perfect-play in
-// K+Q vs K, K+R vs K, K+P vs K, K+R vs K+P, and K+Q vs K+R endgames. Each file
-// is fetched independently and merged into the shared tablebase store; a
-// missing file only disables that endgame (the others still load). The
-// combined map is also pushed to the AI workers so the parallel search path
-// benefits.
-const TABLEBASE_FILES = [
-  "./js/tablebases/kq-vs-k.json",
-  "./js/tablebases/kr-vs-k.json",
-  "./js/tablebases/kpk.json",
-  "./js/tablebases/kr-vs-kp.json",
-  "./js/tablebases/kq-vs-kr.json",
-];
-
-async function initTablebase(): Promise<void> {
-  try {
-    const merged: Record<string, { r: "win" | "loss" | "draw"; dtz: number }> =
-      {};
-    let loadedAny = false;
-    for (const path of TABLEBASE_FILES) {
-      try {
-        const res = await fetch(path);
-        if (!res.ok) {
-          console.warn(`tablebase fetch skipped (${res.status}): ${path}`);
-          continue;
-        }
-        const raw = (await res.json()) as Record<
-          string,
-          { r: "win" | "loss" | "draw"; dtz: number }
-        >;
-        Object.assign(merged, raw);
-        loadedAny = true;
-      } catch (e) {
-        console.warn(`tablebase not available: ${path}`, e);
-      }
-    }
-    if (!loadedAny) {
-      console.warn("No tablebase files loaded; endgame play uses heuristic.");
-      return;
-    }
-    loadTablebaseFromJSON(merged);
-    // Push to workers (if any) so the parallel search path uses it too.
-    const msg = { type: "initTablebase", tablebase: merged };
-    if (aiWorker && workerReady) aiWorker.postMessage(msg);
-    for (const w of workerPool) w.postMessage(msg);
-  } catch (e) {
-    console.warn("Tablebase not available, endgame play uses heuristic:", e);
-  }
-}
-
 function calculateBestMoveWorker(
   game: Game,
   faction: string,
@@ -666,7 +615,6 @@ function init(): void {
     }
     loadLearnedDataFromStorage(); // Merge localStorage learned data (non-fatal)
     initAIWorker();
-    initTablebase();
     const settings = loadSettings();
     applySettings(settings);
 
