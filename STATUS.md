@@ -65,6 +65,13 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
   ~3500 Zeilen. Suche ruft jetzt direkt `evaluateBoard` auf.
   Elo-Helfer leben in `scripts/elo-common.ts` weiter.
 - Repo-Bug gefixt: getrackter node_modules-Self-Symlink aus Index (5378f24).
+- **Tablebase-System entfernt** (b44b0fd): 5 JSONs (~500KB), js/tablebase.ts,
+  gen-tablebase.ts, Probe-Hook im minimax, init-Wiring. Grund: die ≤4-Stein-
+  Probe-Zone wird in echten Partien nie erreicht (erste Eliminierung bei
+  19–30 Steinen) — totes Bundle-Gewicht + irreführende "perfect play"-Doku.
+- **pwa.ts abgedeckt** (2faf5db): 8 Unit-Tests für den bisher ungetesteten
+  PWA-Bootstrap (SW-Registrierung, Update-Zyklus, Install-Prompt-Flow).
+  pwa.ts jetzt bei 100% Line-Coverage.
 
 ## Einziger unversuchter Pfad
 
