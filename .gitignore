@@ -1,23 +1,22 @@
-node_modules/
-.DS_Store
-dist/
-coverage/
-.env
-
-# Editor directories and files
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-
-*.sw?
 
 # Accidental artifacts
+coverage/
+dist/
+.DS_Store
+# Editor directories and files
+.env
+.idea/
+*.njsproj
+node_modules/
+*.ntvs*
+playwright-report/
+*.sln
+*.suo
+*.sw?
+# Test artifacts
+test-results/node_modules
 trischach
 trischach.pub
-
-# Test artifacts
-playwright-report/
+.vscode/
+node_modules
 test-results/
