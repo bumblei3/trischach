@@ -1264,39 +1264,6 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   return score;
 }
 
-// ─── NNUE Evaluation (optional, flag-gated) ────────────────
-
-import { evaluateNNUE, loadNNUEWeights } from "./nnue.ts";
-
-let _nnueEnabled = false;
-
-export function setNNUEEnabled(on: boolean): void {
-  _nnueEnabled = on;
-}
-
-export function isNNUEEnabled(): boolean {
-  return _nnueEnabled;
-}
-
-// Re-export for the worker entry point so it can load weights too.
-export { evaluateNNUE, loadNNUEWeights };
-
-/**
- * Drop-in replacement for `evaluateBoard` used inside minimax/quiesce.
- * When NNUE is disabled it delegates to the classic handcrafted eval;
- * when enabled it runs the neural net. This keeps the 646 existing tests
- * stable (default off) while allowing the neural eval to be switched on.
- */
-export function evaluateBoardNNUE(game: IGame, faction: Faction): number {
-  if (!_nnueEnabled) return evaluateBoard(game, faction);
-  return evaluateNNUE(game, faction);
-}
-
-// Single entry point for search-time evaluation (picks active eval).
-function evalForSearch(game: IGame, faction: Faction): number {
-  return evaluateBoardNNUE(game, faction);
-}
-
 // ─── Check Escape Detection ────────────────────────────────────
 
 /**
@@ -1922,7 +1889,7 @@ export function minimax(
     Date.now() - searchStart > MAX_SEARCH_MS
   ) {
     return {
-      score: evalForSearch(game, maximizingFaction),
+      score: evaluateBoard(game, maximizingFaction),
       action: null,
       timeout: true,
     };
@@ -1949,12 +1916,12 @@ export function minimax(
   }
 
   if (game.state === "game_over") {
-    return { score: evalForSearch(game, maximizingFaction), action: null };
+    return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
 
   const actions = getAllActions(game, currentFaction);
   if (actions.length === 0) {
-    return { score: evalForSearch(game, maximizingFaction), action: null };
+    return { score: evaluateBoard(game, maximizingFaction), action: null };
   }
 
   if (depth <= 0) {
@@ -2065,7 +2032,7 @@ export function minimax(
 
     // ─── Futility Pruning (depth <= 3, quiet moves only) ─────────
     if (isQuiet && depth <= 3) {
-      const staticScore = evalForSearch(game, maximizingFaction);
+      const staticScore = evaluateBoard(game, maximizingFaction);
       const futilityMargin = FUTILITY_MARGINS[depth] ?? 0;
       if (staticScore + futilityMargin <= alpha) {
         continue; // Prune: even with margin, can't raise score above alpha
@@ -2075,7 +2042,7 @@ export function minimax(
     // ─── Razoring (depth <= 2, quiet moves far below beta) ───────
     let razorReduction = 0;
     if (isQuiet && depth <= 2) {
-      const staticScore = evalForSearch(game, maximizingFaction);
+      const staticScore = evaluateBoard(game, maximizingFaction);
       const razorMargin = RAZOR_MARGINS[depth] ?? 0;
       if (staticScore + razorMargin <= alpha) {
         razorReduction = 1; // Reduce depth by 1 instead of pruning entirely
@@ -2096,7 +2063,7 @@ export function minimax(
     // If static eval suggests score >> beta, do a reduced-depth probe search
     let probcutScore: number | null = null;
     if (depth >= PROBCUT_DEPTH && !isQuiet && !inCheck) {
-      const staticScore = evalForSearch(game, maximizingFaction);
+      const staticScore = evaluateBoard(game, maximizingFaction);
       if (staticScore >= beta + PROBCUT_MARGIN) {
         // Probe with reduced depth
         const probeDepth = depth - PROBCUT_REDUCTION;
@@ -2238,7 +2205,7 @@ export function quiesce(
   currentFaction: Faction,
   qDepth = 0,
 ): SearchResult {
-  const standPat = evalForSearch(game, maximizingFaction);
+  const standPat = evaluateBoard(game, maximizingFaction);
   if (qDepth >= 4) return { score: standPat };
 
   // Honor the search deadline so a tactical explosion (many RPS captures)
@@ -2826,7 +2793,7 @@ async function runPonderSearch(): Promise<void> {
   // Quick check: if only one move, store it immediately
   if (actions.length === 1) {
     ponderState.bestMove = actions[0] ?? null;
-    ponderState.bestScore = evalForSearch(game, maximizingFaction);
+    ponderState.bestScore = evaluateBoard(game, maximizingFaction);
     return;
   }
 

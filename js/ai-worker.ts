@@ -51,8 +51,6 @@ import {
   calculateBestMoveParallel,
   setAIDepth,
   getAIDepth,
-  setNNUEEnabled,
-  loadNNUEWeights,
   // Pondering
   startPondering,
   stopPondering,

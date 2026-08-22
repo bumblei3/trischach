@@ -1,8 +1,7 @@
 /**
  * engine-strength.ts — absolute engine-strength baseline.
  *
- * The existing benchmarks (benchmark-nnue, compare-nnue) only compare *two
- * eval/search configurations against each other* (NNUE vs classic, depth N vs
+ * eval/search configurations against each other (depth N vs
  * N+1). They answer "is config A better than B?" but NOT "how strong is the
  * shipped engine in absolute terms?" — and most importantly they never expose
  * a real strength regression/improvement of the WHOLE engine.
@@ -17,7 +16,6 @@
  *                     material/RPS — a weak-but-not-random opponent)
  *
  * For each opponent we rotate the engine side across all three factions and
- * report score + Elo + 95% CI (same Wald/logistic method as compare-nnue).
  *
  * The resulting numbers ARE the baseline every future engine change must be
  * measured against — run this before/after any search/tablebase/heuristic
@@ -46,7 +44,7 @@ import {
 } from "../js/ai-core.ts";
 import { Piece } from "../js/pieces.ts";
 import type { Hex } from "../js/hex.ts";
-import { eloFromScore } from "./nnue-common.ts";
+import { eloFromScore } from "./elo-common.ts";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 

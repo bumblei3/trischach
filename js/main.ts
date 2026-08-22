@@ -31,8 +31,6 @@ import {
   setAIDepth,
   getAIDepth,
   getAllActions,
-  setNNUEEnabled,
-  loadNNUEWeights,
   setAIPersonality,
   getAIPersonalities,
   buildOpeningBook,
@@ -390,37 +388,6 @@ function initAIWorker(): void {
   }
 }
 
-// Load NNUE weights (async, non-blocking) and apply persisted toggle state.
-async function initNNUE(): Promise<void> {
-  try {
-    const res = await fetch("./js/weights/nnue-weights.json");
-    if (!res.ok) throw new Error(`NNUE weights fetch failed: ${res.status}`);
-    const raw = await res.json();
-    loadNNUEWeights({
-      w1: Float32Array.from(raw.w1),
-      b1: Float32Array.from(raw.b1),
-      w2: Float32Array.from(raw.w2),
-      b2: Float32Array.from(raw.b2),
-      w3: Float32Array.from(raw.w3),
-      b3: Float32Array.from(raw.b3),
-    });
-    const enabled = localStorage.getItem("trischach-nnue") === "1";
-    setNNUEEnabled(enabled);
-    const toggle = document.getElementById(
-      "nnue-toggle",
-    ) as HTMLInputElement | null;
-    if (toggle) {
-      toggle.checked = enabled;
-      toggle.addEventListener("change", () => {
-        setNNUEEnabled(toggle.checked);
-        localStorage.setItem("trischach-nnue", toggle.checked ? "1" : "0");
-      });
-    }
-  } catch (e) {
-    console.warn("NNUE weights not available, using classic eval:", e);
-  }
-}
-
 // Load endgame tablebases (async, non-blocking) for perfect-play in
 // K+Q vs K, K+R vs K, K+P vs K, K+R vs K+P, and K+Q vs K+R endgames. Each file
 // is fetched independently and merged into the shared tablebase store; a
@@ -699,7 +666,6 @@ function init(): void {
     }
     loadLearnedDataFromStorage(); // Merge localStorage learned data (non-fatal)
     initAIWorker();
-    initNNUE();
     initTablebase();
     const settings = loadSettings();
     applySettings(settings);

@@ -327,38 +327,6 @@ jobs:
               body
             });
 
-  # NNUE sanity + Elo visibility gate.
-  # Runs the fast NNUE check against the committed weights
-  # (public/js/weights/nnue-weights.json — no build needed). It hard-fails
-  # only on a perspective-sanity break (eval not side-relative, e.g. after an
-  # NNUE encoding change) — that is deterministic and a real bug signal.
-  # The mini-Elo number is printed for visibility/regression tracking AND used
-  # as a soft regression gate. At 16 games / depth 2 the Elo estimate has run-to-
-  # run variance (measured roughly between -137 and -255 across local + CI runs).
-  # We therefore gate only on a *catastrophic* drop (Elo < -250), which catches a
-  # real regression (e.g. a broken / empty / inverted-perspective weights file,
-  # which collapses well below -250) without failing on noise. A healthy NNUE
-  # should sit well above this floor; raising the floor is a follow-up once the
-  # TD(λ) trainer (exp/nnue-td-lambda) lifts the baseline out of the -137 range.
-  #
-  # NOTE: verify-nnue-fast.ts now caps each game by a 12s wall-clock budget, so
-  # the suite finishes deterministically in ~3.2 min worst-case (16 games). The
-  # job timeout below must stay above that.
-  nnue-gate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v5
-      - name: Setup Node 24
-        uses: actions/setup-node@v5
-        with:
-          node-version: "24"
-          cache: "npm"
-      - name: Install dependencies
-        run: npm ci
-      - name: NNUE sanity + Elo gate
-        run: npx tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-250
-
   # Release automation
   release:
     name: Create Release
@@ -395,7 +363,7 @@ jobs:
           generate_release_notes: true
 
   deploy:
-    needs: [typecheck, lint, unit-tests, e2e-tests, codeql, nnue-gate]
+    needs: [typecheck, lint, unit-tests, e2e-tests, codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

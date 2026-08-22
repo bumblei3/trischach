@@ -23,8 +23,6 @@ import {
   greedyBestMove,
   evaluateBoard,
   getAllActions,
-  evaluateBoardNNUE,
-  isNNUEEnabled,
 } from "../js/ai-core.ts";
 import { simulateMove, undoMove } from "../js/ai-core.ts";
 import type { AIAction, Faction } from "../js/types.ts";

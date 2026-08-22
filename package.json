@@ -12,11 +12,7 @@
     "test:e2e:ui": "playwright test --ui",
     "typecheck": "tsc --noEmit",
     "build": "vite build && node scripts/copy-assets.mjs",
-    "check:js": "tsc --noEmit --skipLibCheck --allowJs --checkJs --noEmit",
-    "nnue:train": "tsx scripts/train-nnue-td.ts",
-    "nnue:verify": "tsx scripts/verify-nnue-fast.ts",
-    "nnue:benchmark": "tsx scripts/benchmark-nnue.ts",
-    "nnue:gate": "tsx scripts/verify-nnue-fast.ts 16 2 60 --gate=-250"
+    "check:js": "tsc --noEmit --skipLibCheck --allowJs --checkJs --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

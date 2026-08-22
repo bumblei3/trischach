@@ -15,7 +15,7 @@ import type { AIAction, Faction, IGame, Piece } from "./types.ts";
 
 export interface PositionAnalysis {
   faction: Faction;
-  /** Static eval from the side to move (handcrafted / NNUE if enabled). */
+  /** Static eval from the side to move (handcrafted eval). */
   staticScore: number;
   /** Human-readable static eval label. */
   scoreLabel: string;
