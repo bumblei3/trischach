@@ -1,35 +1,32 @@
 # trischach — Status (Stand: 2026-08-22)
 
-Laufender Zustand des Repos `bumblei3/trischach`. `main` / tag `v1.5.0` ist
-die Release-Baseline. Capture-Reply liegt auf `feat/middlegame-capture-reply`
-(von `main`, ohne Eval-Mix / Paranoid / Maxⁿ).
+Lokales `main` enthält Capture-Reply (`0169707`). Kingmaker liegt auf
+`feat/greedy-kingmaker` (von diesem `main`). Remote `origin/main` ist noch
+v1.5.0 (`97a8de0`).
 
-## Gesundheit (2026-08-22, dieser Branch)
+## Gesundheit (2026-08-22)
 
-| Gate      | Befehl                   | Ergebnis                         |
-| --------- | ------------------------ | -------------------------------- |
-| Tests     | `npx vitest run` (delta) | capture-reply + ai-features grün |
-| Typecheck | `npx tsc --noEmit`       | grün (exit 0)                    |
-
-`main` (v1.5.0): 795/795, lint/prettier/build/audit grün. CI auf `main` grün.
+| Gate      | Befehl             | Ergebnis                                     |
+| --------- | ------------------ | -------------------------------------------- |
+| Tests     | delta              | kingmaker + capture-reply + ai-features grün |
+| Typecheck | `npx tsc --noEmit` | grün                                         |
 
 ## Engine-Stärke (absolut, depth 3, 40 games, seed 12345)
 
-`main` Quelle: `bench-current.log` (HEAD @ `d232e70`). Capture-Reply Quellen:
-`bench/cr-vs-random-n40.log`, `bench/cr-vs-material-n40.log`,
-`bench/cr-vs-depth1-n40.log`.
+v1.5.0: `bench-current.log`. CR: `bench/cr-vs-*-n40.log`. Kingmaker:
+`bench/km-vs-random-n40.log`, `bench/km-vs-material-n40.log`,
+`bench/km-vs-depth1-n40.log`.
 
-| Gegner   | `main`                   | Capture-Reply                | Δ vs main            |
-| -------- | ------------------------ | ---------------------------- | -------------------- |
-| random   | 26.3% / −179 [−301..−57] | **32.5% / −127 [−242..−12]** | **+52 Elo** (W8→W12) |
-| material | 32.5% / −127             | 32.5% / −127                 | 0                    |
-| depth1   | 32.5% / −127             | 32.5% / −127                 | 0                    |
+| Gegner   | v1.5.0     | + Capture-Reply | + Kingmaker                | Δ vs CR      |
+| -------- | ---------- | --------------- | -------------------------- | ------------ |
+| random   | 26.3%/−179 | 32.5%/−127      | **62.5% / +89 [−22..200]** | **+216 Elo** |
+| material | 32.5%/−127 | 32.5%/−127      | **36.3% / −98 [−210..14]** | +29 Elo      |
+| depth1   | 32.5%/−127 | 32.5%/−127      | **35.0% / −108 [−221..5]** | +19 Elo      |
 
-Die Random-Inversion (schlechter als vs depth1) ist **geschlossen** — alle
-drei Gegner stehen jetzt bei 32.5%. 95%-CIs vs `main` überlappen; der
-Punktschätzer landet exakt auf dem hypothetisierten Gegner (random nimmt
-hängende Figuren). material/depth1 flach = keine Regression. Merge-Kandidat
-nach demselben Standard wie Anti-Pendulum (+26) und Opp-Awareness (+36).
+Erstmals **>50 % vs random**. Das 32.5 %-Plateau (W13/L27) ist gebrochen.
+CI vs random überlappt 0 leicht; W25 vs W12 (CR) / W8 (v1.5.0) ist der
+gleiche Merge-Maßstab wie die letzten positiven Hebel, hier mit größerem
+Punktschätzer. material/depth1 leicht plus, keine Regression.
 
 ## Mess-Integrität
 
@@ -65,13 +62,13 @@ vs random: W8/L27/D5 → W4/L33/D3. 95%-CIs überlappen leicht
 dem Kingmaker-Gegner, material/depth1 flach. **Nicht mergen.** Diese
 Eval-Terme nicht nochmal versuchen.
 
-## Capture-Reply (gemessen, Merge-Kandidat)
+## Capture-Reply (gemessen, auf lokalem `main`)
 
-Branch `feat/middlegame-capture-reply`. Ein Ply Capture-Reply in
-`greedyBestMove`: nach jedem Kandidaten scannt `captureReplyPenalty` die
-Angriffe des **nächsten** Spielers (RPS-Zyklus: der hat immer Vorteil gegen
-uns) und zieht den SEE-Wert der wertvollsten hängenden eigenen Figur ab
-(Dame=900, Bauer=100). Nur Schläge, `getValidMoves` ohne Check-Legalität.
+`0169707`. Ein Ply Capture-Reply in `greedyBestMove`: nach jedem Kandidaten
+scannt `captureReplyPenalty` die Angriffe des **nächsten** Spielers
+(RPS-Zyklus: der hat immer Vorteil gegen uns) und zieht den SEE-Wert der
+wertvollsten hängenden eigenen Figur ab (Dame=900, Bauer=100). Nur Schläge,
+`getValidMoves` ohne Check-Legalität.
 
 Nicht mitgenommen: Eval-Refactor, Paranoid, Maxⁿ, volles depth-2. Die 3P-Suche
 (Maxⁿ/Paranoid) lief bisher nur im Endspiel (`pieceCount ≤ 16`) und hat das
@@ -96,17 +93,25 @@ die Matt/Patt-Eliminierung nach `handleCellClick` aus dem Spiel nehmen.
 - `origin/main`
 - `origin/feat/middlegame-minimax-experiment` (parked, negative eval result)
 
+## Kingmaker (gemessen, Merge-Kandidat)
+
+`feat/greedy-kingmaker`. Nach `simulateMove` wendet Greedy dieselbe
+Matt/Patt-Eliminierung an wie `handleCellClick` (`applyPostMoveEliminations`).
+`kingmakerTerm`: 2v1 RPS-Nachteil −150000 (größer als ein gegnerischer König
+in der Eval, ~100k), Vorteil +5000, Solo-Sieg +500000. Ohne diesen Scale
+mated Greedy weiter Natur auf ply 1, weil die tote Königs-Materialgutschrift
+die alte −4000-Strafe überdeckt.
+
+Patt nur bei ≤5 Steinen der Fraktion — Eröffnung bleibt schnell.
+
 ## Nächster sinnvoller Schritt (Selection)
 
-1. **Capture-Reply mergen** (dieser Branch), wenn der Punktschätzer +52 vs
-   random bei flachem material/depth1 reicht — gleicher Standard wie die
-   letzten zwei positiven Hebel. CIs überlappen; Artefakte liegen im Tree.
-2. **Danach:** entweder Root-Cap depth-2 (Top-12 nach Greedy, erst ab
-   `pieceCount ≤ 28`) **oder** Capture-Reply auf beide Gegner / SEE-Recapture.
-   Nicht nochmal volles Maxⁿ ohne Mittelfeld-Routing.
-3. **NNUE** — weiter parken, bis Mittelfeld mehr als 1 Ply + Capture-Reply
-   sucht.
-4. **VecDestBrute Tests** — aufräumen oder löschen (kein Stärke-Hebel).
+1. **Kingmaker + Capture-Reply auf `main` mergen** (dieser Branch + bereits
+   gemergtes CR). Artefakte im Tree.
+2. **Danach:** billiges depth-2 (Top-12, `pieceCount ≤ 28`) — Greedy sucht
+   weiter nur 1 Ply + Capture-Reply + Mate-Sicht.
+3. **NNUE** — parken, bis Mittelfeld tiefer sucht.
+4. **VecDestBrute Tests** — aufräumen oder löschen.
 
 ## Roadmap-Hebel
 
@@ -118,6 +123,9 @@ die Matt/Patt-Eliminierung nach `handleCellClick` aus dem Spiel nehmen.
 - [x] M1 Paranoid-Minimax — gemessen, **−49 Elo vs random**, nicht mergen.
 - [x] Maxⁿ + TT — n=40 flach / zu langsam, Endspiel-only, geparkt.
 - [x] **Capture-Reply (hängende Figur, 1 Ply, nächster Spieler)** — gemessen,
-      **+52 Elo vs random** (26.3%→32.5%), material/depth1 flach. Merge-Kandidat.
+      **+52 Elo vs random** (26.3%→32.5%), auf lokalem `main`.
+- [x] **Kingmaker (Matt-Eliminierung + 2v1-RPS in Greedy)** — gemessen,
+      **62.5 % vs random (+89 Elo)**, material 36.3 %, depth1 35.0 %.
+      Merge-Kandidat.
 - [ ] Mittelfeld-Suche depth-2 (billig genug dass d2 fertig wird) — offen.
 - [ ] NNUE — geparkt (Elo CI überlappt 0); erst nach tieferer Mittelfeld-Suche.

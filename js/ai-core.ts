@@ -11,7 +11,11 @@
 import { getValidMoves, PIECE_STRENGTH, isPromotionCell } from "./pieces.ts";
 import { getRPSResult, FACTION } from "./board.ts";
 import { Hex } from "./hex.ts";
-import { isKingdomCheck } from "./game-check.ts";
+import {
+  isKingdomCheck,
+  isCheckmateInternal,
+  isStalemateInternal,
+} from "./game-check.ts";
 import {
   pickBookMove,
   buildOpeningBook,
@@ -1546,6 +1550,17 @@ export function rebuildOccupiedMap(game: IGame): void {
 export const REVERSAL_PENALTY = 400;
 /** Extra penalty per prior visit of the resulting position (threefold path). */
 export const SEEN_POSITION_PENALTY = 200;
+/**
+ * 2v1 RPS-Nachteil (wir haben den Puffer eliminiert, der den gefährlichen
+ * Gegner schlägt). evaluateBoard credits ~100k per missing enemy king
+ * (`getMaterialValue(king)*10` = 100*100*10). The loss must exceed that
+ * or greedy still mates Nature on ply 1 for the "free king".
+ */
+export const KINGMAKER_RPS_LOSS = 150000;
+/** 2v1 RPS-Vorteil: tie-break; material already pays for the right king. */
+export const KINGMAKER_RPS_WIN = 5000;
+/** Nur wir leben noch. Larger than two enemy kings. */
+export const GAME_WIN_SCORE = 500000;
 
 /** Coerce a GameResult from/to field to a cube key, or null. */
 export function resultHexKey(
@@ -2422,6 +2437,94 @@ export function calculateBestMoveParallel(
   return best.action ?? null;
 }
 
+export interface MateElimRecord {
+  faction: Faction;
+  pieceIds: string[];
+}
+
+/**
+ * Mirror `handleCellClick`'s post-move faction elimination (checkmate or
+ * stalemate of any side), which `simulateMove` does not do — it only
+ * eliminates on king capture. Without this, greedy scores a ply-1 mate of
+ * Nature as "won a pawn" and never sees the resulting 2v1 vs Water.
+ *
+ * Stalemate is only probed when the faction has few pieces: a 15-piece
+ * opening army cannot be stalemated, and `hasLegalMoves` is too expensive
+ * to run on every candidate × faction.
+ */
+export function applyPostMoveEliminations(game: IGame): MateElimRecord[] {
+  const killed: MateElimRecord[] = [];
+  for (const fac of TURN_ORDER) {
+    if (game.eliminatedFactions.has(fac)) continue;
+    const inCheck = isKingdomCheck(game, fac);
+    let done = false;
+    if (inCheck) {
+      done = isCheckmateInternal(game, fac);
+    } else {
+      const nAlive = game.pieces.reduce(
+        (n, p) => n + (p.alive && p.faction === fac ? 1 : 0),
+        0,
+      );
+      if (nAlive <= 5) done = isStalemateInternal(game, fac);
+    }
+    if (!done) continue;
+    const pieceIds: string[] = [];
+    for (const p of game.pieces) {
+      if (p.faction === fac && p.alive) {
+        p.alive = false;
+        pieceIds.push(p.id);
+      }
+    }
+    game.eliminatedFactions.add(fac);
+    killed.push({ faction: fac, pieceIds });
+  }
+  if (killed.length > 0) rebuildOccupiedMap(game);
+  return killed;
+}
+
+export function restorePostMoveEliminations(
+  game: IGame,
+  killed: MateElimRecord[],
+): void {
+  for (const rec of killed) {
+    game.eliminatedFactions.delete(rec.faction);
+    const ids = new Set(rec.pieceIds);
+    for (const p of game.pieces) {
+      if (ids.has(p.id)) p.alive = true;
+    }
+  }
+  if (killed.length > 0) rebuildOccupiedMap(game);
+}
+
+/**
+ * Extra greedy term once a side has been eliminated (king-capture or mate).
+ * evaluateBoard's 2v1 RPS bonus is only ±150/200 — smaller than the material
+ * of the dead army, so greedy would still "win" by mating the wrong faction.
+ */
+export function kingmakerTerm(game: IGame, ourFaction: Faction): number {
+  const alive = TURN_ORDER.filter((f) => !game.eliminatedFactions.has(f));
+  if (!alive.includes(ourFaction)) return -GAME_WIN_SCORE;
+  if (alive.length <= 1) return GAME_WIN_SCORE;
+  if (alive.length !== 2 || !game.rpsEnabled) return 0;
+  const other = alive.find((f) => f !== ourFaction);
+  if (!other) return 0;
+  const rps = getRPSResult(ourFaction, other);
+  if (rps === "disadvantage") return -KINGMAKER_RPS_LOSS;
+  if (rps === "advantage") return KINGMAKER_RPS_WIN;
+  return 0;
+}
+
+/** Next living opponent to move, skipping eliminated factions. */
+export function replyFaction(game: IGame, ourFaction: Faction): Faction | null {
+  const start = game.currentFactionIdx;
+  for (let i = 0; i < 3; i++) {
+    const f = TURN_ORDER[(start + i) % 3];
+    if (!f || game.eliminatedFactions.has(f) || f === ourFaction) continue;
+    return f;
+  }
+  return null;
+}
+
 /**
  * One-ply capture-reply against the side that is about to move.
  *
@@ -2436,9 +2539,8 @@ export function calculateBestMoveParallel(
  * legality) so this stays cheap enough for the middlegame candidate loop.
  */
 export function captureReplyPenalty(game: IGame, ourFaction: Faction): number {
-  const next = game.currentFaction;
-  if (!next || next === ourFaction) return 0;
-  if (game.eliminatedFactions.has(next)) return 0;
+  const next = replyFaction(game, ourFaction);
+  if (!next) return 0;
 
   const occupied = game._occupiedMap;
   const board = game.boardCells;
@@ -2477,6 +2579,7 @@ export function captureReplyPenalty(game: IGame, ourFaction: Faction): number {
  *
  * Capture-reply then subtracts the SEE value of our most valuable piece the
  * next player can take for free — greedy otherwise hangs material vs random.
+ * Mate/stalemate elimination is applied so 2v1 RPS (kingmaker) is visible.
  *
  * Previously this used a crude linear formula (capture value + centralisation
  * + PST-of-target-pawn) that never touched the rich eval — so the engine's
@@ -2505,7 +2608,9 @@ export function greedyBestMove(
 
     const undo = simulateMove(game, action.piece, action.target);
     rebuildOccupiedMap(game);
+    const killed = applyPostMoveEliminations(game);
     let score = evaluateBoard(game, faction);
+    score += kingmakerTerm(game, faction);
     score -= captureReplyPenalty(game, faction);
     // Seen-position penalty needs post-move state (side-to-move advanced).
     if (!wasCapture && game._positionHistory) {
@@ -2514,6 +2619,7 @@ export function greedyBestMove(
       if (visits > 0) score -= SEEN_POSITION_PENALTY * visits;
     }
     score -= revPen;
+    restorePostMoveEliminations(game, killed);
     undoMove(game, undo);
     rebuildOccupiedMap(game);
 
