@@ -38,5 +38,5 @@
     "playwright.config.ts",
     "vitest.config.ts"
   ],
-  "exclude": ["node_modules", "dist", "js/**/*.js"]
+  "exclude": ["node_modules", "dist", "tests", "js/**/*.js"]
 }
