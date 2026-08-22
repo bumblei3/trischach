@@ -60,6 +60,11 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
   Maxn-Zwischenvarianten (leafeval/commit/fixed-engside) entfernt.
 - Verbleibende Experiment-Artefakte (Negativ-Belege): `bench/maxn-tt-fixed-vs-depth1-n10.log`,
   `bench/mgd2-vs-{random,depth1}-n40.log`, `bench/pe-minimax-vs-random-n10.log`.
+- **NNUE radikal entfernt** (6eb6533): js/nnue.ts, Gewichte, UI-Toggle,
+  9 Skripte, 4 Testdateien, CI nnue-gate-Job, npm-Scripts, Pläne —
+  ~3500 Zeilen. Suche ruft jetzt direkt `evaluateBoard` auf.
+  Elo-Helfer leben in `scripts/elo-common.ts` weiter.
+- Repo-Bug gefixt: getrackter node_modules-Self-Symlink aus Index (5378f24).
 
 ## Einziger unversuchter Pfad
 
