@@ -1,0 +1,3 @@
+Engine strength baseline | engine depth=3 vs random | games=10 seed=12345
+Engine W0 | Opp W8 | D2
+Engine score 10.0% | rel-Elo(engine vs random) -382 [95% CI -741..-23]

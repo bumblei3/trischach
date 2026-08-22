@@ -1,0 +1,3 @@
+Engine strength baseline | engine depth=3 vs depth1 | games=10 seed=12345
+Engine W3 | Opp W7 | D0
+Engine score 30.0% | rel-Elo(engine vs depth1) -147 [95% CI -382..88]
