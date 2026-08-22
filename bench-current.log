@@ -1,15 +1,14 @@
 ===== OPPONENT=random =====
 Engine strength baseline | engine depth=3 vs random | games=40 seed=12345
-Engine W8 | Opp W27 | D5
-Engine score 26.3% | rel-Elo(engine vs random) -179 [95% CI -301..-57]
+Engine W25 | Opp W15 | D0
+Engine score 62.5% | rel-Elo(engine vs random) 89 [95% CI -22..200]
 
 ===== OPPONENT=material =====
 Engine strength baseline | engine depth=3 vs material | games=40 seed=12345
-Engine W13 | Opp W27 | D0
-Engine score 32.5% | rel-Elo(engine vs material) -127 [95% CI -242..-12]
+Engine W14 | Opp W25 | D1
+Engine score 36.3% | rel-Elo(engine vs material) -98 [95% CI -210..14]
 
 ===== OPPONENT=depth1 =====
 Engine strength baseline | engine depth=3 vs depth1 | games=40 seed=12345
-Engine W13 | Opp W27 | D0
-Engine score 32.5% | rel-Elo(engine vs depth1) -127 [95% CI -242..-12]
-
+Engine W14 | Opp W26 | D0
+Engine score 35.0% | rel-Elo(engine vs depth1) -108 [95% CI -221..5]
