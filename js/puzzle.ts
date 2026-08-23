@@ -127,7 +127,7 @@ function typeFromChar(c: string | undefined): string {
   }
 }
 
-function reconstructGameFromHash(hash: string): Game | null {
+export function reconstructGameFromHash(hash: string): Game | null {
   try {
     const [piecesStr, factionIdxStr] = hash.split("#");
     const factionIdx = parseInt(factionIdxStr ?? "0", 10);
@@ -146,9 +146,6 @@ function reconstructGameFromHash(hash: string): Game | null {
         if (!entry) continue;
         const factionChar = entry[0];
         const typeChar = entry[1];
-        const coords = entry.slice(2).split(",");
-        const q = Number(coords[0]);
-        const r = Number(coords[1]);
 
         const faction: Faction =
           factionChar === "F"
@@ -160,12 +157,30 @@ function reconstructGameFromHash(hash: string): Game | null {
         // piece to the stored coordinates. Matching by position (the old code)
         // only worked for unmoved pieces — every mid-game position reconstructed
         // as an empty board, so hasUniqueSolution always returned false.
-        const piece = game.pieces.find(
-          (p) =>
-            !p.alive &&
-            p.faction === faction &&
-            p.type === typeFromChar(typeChar),
-        );
+        //
+        // Entries may carry an explicit piece id ("Fq<id>:1,2") from the
+        // self-play puzzle generator (puzzles.json v1.2+). With an id we can
+        // restore the EXACT piece; without one we fall back to first-dead
+        // matching (ambiguous only when duplicates of the same type exist).
+        let pieceId: string | null = null;
+        let coordsPart = entry.slice(2);
+        const colon = coordsPart.indexOf(":");
+        if (colon >= 0) {
+          pieceId = coordsPart.slice(0, colon);
+          coordsPart = coordsPart.slice(colon + 1);
+        }
+        const coords = coordsPart.split(",");
+        const q = Number(coords[0]);
+        const r = Number(coords[1]);
+
+        const piece = pieceId
+          ? game.pieces.find((p) => p.id === pieceId)
+          : game.pieces.find(
+              (p) =>
+                !p.alive &&
+                p.faction === faction &&
+                p.type === typeFromChar(typeChar),
+            );
         if (piece) {
           piece.alive = true;
           piece.pos = new Hex(q, r);
@@ -176,6 +191,13 @@ function reconstructGameFromHash(hash: string): Game | null {
     game.currentFactionIdx = factionIdx % 3;
     const factions = ["fire", "water", "nature"] as const;
     game.currentFaction = factions[game.currentFactionIdx] ?? "fire";
+    // Factions with no pieces in the hash were already eliminated when the
+    // position was serialized. Without this, turn rotation would stop at the
+    // dead faction and replayed solutions would desync (wrong side to move).
+    for (const f of factions) {
+      const hasAlive = game.pieces.some((p) => p.alive && p.faction === f);
+      if (!hasAlive) game.eliminatedFactions.add(f);
+    }
     game._rebuildOccupiedMap();
 
     return game;
@@ -501,6 +523,13 @@ export function makePuzzleMove(
     ) {
       puzzleState.isComplete = true;
       updatePuzzleStats(true);
+      const hintsUsed = puzzleState.hintUsed;
+      const elapsedSeconds = Math.max(
+        0,
+        Math.round((Date.now() - puzzleState.startTime) / 1000),
+      );
+      updateSessionStats(true, elapsedSeconds);
+      if (hintsUsed) bumpHintsUsed();
       return { correct: true, gameOver: true };
     }
 
@@ -508,7 +537,18 @@ export function makePuzzleMove(
   } else {
     puzzleState.isFailed = true;
     updatePuzzleStats(false);
+    updateSessionStats(false, 0);
     return { correct: false, expectedMove, gameOver: false };
+  }
+}
+
+function bumpHintsUsed(): void {
+  const s = getPuzzleSessionStats();
+  s.hintsUsed += 1;
+  try {
+    localStorage.setItem(PUZZLE_STATS_KEY, JSON.stringify(s));
+  } catch (e) {
+    console.warn("Failed to save puzzle stats:", e);
   }
 }
 
@@ -707,6 +747,63 @@ function getBookStats() {
 const DAILY_PUZZLE_KEY = "trischach-daily-puzzle";
 const DAILY_PUZZLE_DATE_KEY = "trischach-daily-puzzle-date";
 const STREAK_KEY = "trischach-puzzle-streak";
+export const PUZZLE_STATS_KEY = "trischach-puzzle-stats";
+
+export interface PuzzleSessionStats {
+  attempts: number;
+  solved: number;
+  failed: number;
+  hintsUsed: number;
+  totalSeconds: number;
+  bestTimeSeconds: number | null;
+}
+
+export function getPuzzleSessionStats(): PuzzleSessionStats {
+  try {
+    const raw = localStorage.getItem(PUZZLE_STATS_KEY);
+    if (raw) {
+      const s = JSON.parse(raw) as Partial<PuzzleSessionStats>;
+      return {
+        attempts: Number(s.attempts) || 0,
+        solved: Number(s.solved) || 0,
+        failed: Number(s.failed) || 0,
+        hintsUsed: Number(s.hintsUsed) || 0,
+        totalSeconds: Number(s.totalSeconds) || 0,
+        bestTimeSeconds:
+          typeof s.bestTimeSeconds === "number" ? s.bestTimeSeconds : null,
+      };
+    }
+  } catch (e) {
+    console.warn("Failed to load puzzle stats:", e);
+  }
+  return {
+    attempts: 0,
+    solved: 0,
+    failed: 0,
+    hintsUsed: 0,
+    totalSeconds: 0,
+    bestTimeSeconds: null,
+  };
+}
+
+function updateSessionStats(solved: boolean, elapsedSeconds: number): void {
+  const s = getPuzzleSessionStats();
+  s.attempts += 1;
+  if (solved) {
+    s.solved += 1;
+    s.totalSeconds += elapsedSeconds;
+    if (s.bestTimeSeconds === null || elapsedSeconds < s.bestTimeSeconds) {
+      s.bestTimeSeconds = elapsedSeconds;
+    }
+  } else {
+    s.failed += 1;
+  }
+  try {
+    localStorage.setItem(PUZZLE_STATS_KEY, JSON.stringify(s));
+  } catch (e) {
+    console.warn("Failed to save puzzle stats:", e);
+  }
+}
 
 export interface PuzzleStreak {
   current: number;
@@ -812,8 +909,25 @@ export async function getDailyPuzzle(): Promise<Puzzle | null> {
   return generateDailyPuzzle(today);
 }
 
+/** Load the shipped puzzle pool (puzzles.json, generated by scripts/gen-puzzles.ts). */
+export async function loadShippedPuzzles(): Promise<Puzzle[]> {
+  try {
+    const res = await fetch("./puzzles.json", { cache: "no-cache" });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { puzzles?: Puzzle[] };
+    return Array.isArray(data.puzzles) ? data.puzzles : [];
+  } catch (e) {
+    console.warn("Failed to load puzzles.json:", e);
+    return [];
+  }
+}
+
 async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
-  const puzzles = await generatePuzzlesFromBook(10);
+  // Prefer the shipped puzzle pool; fall back to opening-book generation.
+  let puzzles = await loadShippedPuzzles();
+  if (puzzles.length === 0) {
+    puzzles = await generatePuzzlesFromBook(10);
+  }
   if (puzzles.length === 0) return null;
 
   // Prefer medium; all generated puzzles already passed validatePuzzle.
@@ -821,7 +935,7 @@ async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
   const daily =
     mediumPuzzles.length > 0
       ? mediumPuzzles[Math.floor(Math.random() * mediumPuzzles.length)]!
-      : puzzles[0]!;
+      : puzzles[Math.floor(Math.random() * puzzles.length)]!;
 
   try {
     localStorage.setItem(DAILY_PUZZLE_KEY, JSON.stringify(daily));

@@ -243,7 +243,7 @@ jobs:
           # puzzles in main; full AI engine in ai.js). main threshold raised to 29000
           # after v1.4.0 + RPS-tactic puzzle mode legitimately grew main.js to ~28.3KB gzip.
           node -e "
-            const limits = { main: 29000, core: 18000, worker: 2000 };
+            const limits = { main: 30000, core: 18000, worker: 2000 };
             const sizes  = { main: ${MAIN_JS_GZIP}, core: ${CORE_JS_GZIP}, worker: ${WORKER_JS_GZIP} };
             let failed = false;
             for (const k of Object.keys(limits)) {

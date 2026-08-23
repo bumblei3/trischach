@@ -57,7 +57,6 @@ import {
   ReplayStateSnapshot,
 } from "./replay.ts";
 import {
-  generatePuzzlesFromBook,
   loadPuzzle,
   getPuzzleState,
   makePuzzleMove,
@@ -65,6 +64,8 @@ import {
   resetPuzzle,
   abandonPuzzle,
   getDailyPuzzle,
+  getPuzzleSessionStats,
+  loadShippedPuzzles,
   getPuzzleStreak,
   isTodaysDailyPuzzle,
   isDailySolvedToday,
@@ -800,12 +801,18 @@ function clearCheckHighlight(): void {
     .forEach((el) => el.classList.remove("highlight-check"));
 }
 
+/** Assigned by initEventListeners; lets move-log entries jump into replay. */
+let jumpToMoveImpl: ((moveIndex: number) => void) | null = null;
+
 function addToLog(result: GameResult): void {
   if (!result.piece) return;
   const moveLogEl = document.getElementById("move-log") as HTMLElement | null;
   if (!moveLogEl) return; // DOM may be gone if called from a deferred timer
+  const index = game.moveHistory.length; // this result is about to be/appended
   const entry = document.createElement("div");
   entry.className = `move-entry ${result.piece.faction}`;
+  entry.dataset.moveIndex = String(index);
+  entry.title = "Klicken zum Anspringen";
   const pieceSpan = document.createElement("span");
   pieceSpan.className = "move-piece";
   pieceSpan.textContent = result.piece.symbol;
@@ -813,6 +820,10 @@ function addToLog(result: GameResult): void {
   coordsSpan.className = "move-coords";
   coordsSpan.textContent = result.notation ?? "";
   entry.append(pieceSpan, coordsSpan);
+  entry.addEventListener("click", () => {
+    // Set by initEventListeners once the replay scope is initialized.
+    jumpToMoveImpl?.(index);
+  });
   moveLogEl.appendChild(entry);
   moveLogEl.scrollTop = moveLogEl.scrollHeight;
 }
@@ -1751,6 +1762,51 @@ function initEventListeners(): void {
   // Replay controls
   let replayPlayTimer: ReturnType<typeof setInterval> | null = null;
 
+  /**
+   * Jump into an in-game replay at the given move index (-1 = start position).
+   * Serializes the current game to TSPN, rebuilds it through the replay system
+   * and steps to the chosen position — same path as loading a .tspn file.
+   */
+  function jumpToMove(moveIndex: number): void {
+    if (game.moveHistory.length === 0) return;
+    try {
+      const tspn = serializeGame(game);
+      const parsed = parseTSPN(tspn);
+      if (parsed.moves.length === 0) return;
+
+      const { game: replayGame, controller: replayController } =
+        reconstructGameFromTSPN(parsed, Game, renderer.cells);
+
+      autoBattleActive = false;
+      const autoBattleBtn = document.getElementById(
+        "auto-battle-btn",
+      ) as HTMLButtonElement;
+      if (autoBattleBtn) {
+        autoBattleBtn.textContent = "🤖 Auto Battle";
+        autoBattleBtn.classList.remove("active");
+      }
+      clearTimeout(autoBattleTimer!);
+
+      const clamped = Math.min(
+        Math.max(moveIndex, -1),
+        parsed.moves.length - 1,
+      );
+      Object.assign(game, replayGame);
+      game.clearUndoStack();
+      window.replayController = replayController;
+      replayController.goTo(clamped);
+      const state = replayController.getCurrentState();
+      if (state) applyGameState(state);
+      else updateUI();
+
+      showReplayControls();
+      updateReplayUI();
+    } catch (err) {
+      console.error("Jump to move failed:", err);
+    }
+  }
+  jumpToMoveImpl = jumpToMove;
+
   function showReplayControls(): void {
     const replayControls = document.getElementById("replay-controls");
     if (replayControls) replayControls.style.display = "flex";
@@ -1915,7 +1971,10 @@ function initEventListeners(): void {
       if (p.alive) {
         const piece = game.pieces.find((pc: Piece) => pc.id === p.id);
         if (piece) {
-          Object.assign(piece, p);
+          // state.pieces carries plain {q,r} snapshots — restore a real Hex
+          // so piece.pos.add()/key keep working after Object.assign.
+          const pos = p.pos instanceof Hex ? p.pos : new Hex(p.pos.q, p.pos.r);
+          Object.assign(piece, p, { pos });
           renderer.renderPiece(piece);
         }
       }
@@ -2081,6 +2140,23 @@ function initEventListeners(): void {
   let puzzleTimerInterval: ReturnType<typeof setInterval> | null = null;
   let puzzleStartTime: number = 0;
 
+  function puzzleStatsHtml(): string {
+    const s = getPuzzleSessionStats();
+    if (s.attempts === 0) return "";
+    const rate = Math.round((s.solved / s.attempts) * 100);
+    const avg = s.solved > 0 ? Math.round(s.totalSeconds / s.solved) : null;
+    const fmt = (sec: number | null) =>
+      sec === null
+        ? "–"
+        : `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, "0")}`;
+    return `
+        <div class="puzzle-streak" id="puzzle-session-stats">
+          <span>✅ Gelöst: <strong>${s.solved}</strong>/${s.attempts} (${rate}%)</span>
+          <span>⏱ Ø: <strong>${fmt(avg)}</strong></span>
+          <span>🏅 Best: <strong>${fmt(s.bestTimeSeconds)}</strong></span>
+        </div>`;
+  }
+
   async function showPuzzleMenu(): Promise<void> {
     const streak = getPuzzleStreak();
     const dailyDone = isDailySolvedToday();
@@ -2099,6 +2175,7 @@ function initEventListeners(): void {
           <span class="streak-best">Best: <strong>${streak.best}</strong></span>
           <span>Gesamt: <strong>${streak.totalDailySolved}</strong></span>
         </div>
+        ${puzzleStatsHtml()}
         <div class="puzzle-actions">
           <button class="puzzle-btn primary" id="puzzle-daily-btn">${dailyDone ? "📅 Tagespuzzle (nochmal)" : "📅 Tagespuzzle"}</button>
           <button class="puzzle-btn secondary" id="puzzle-generate-btn">🔄 Neu generieren</button>
@@ -2161,11 +2238,13 @@ function initEventListeners(): void {
   }
 
   async function generateAndShowPuzzles(): Promise<void> {
-    showLoading("Generiere Puzzles...");
-    const puzzles = await generatePuzzlesFromBook(5);
+    showLoading("Lade Puzzles...");
+    const puzzles = await loadShippedPuzzles();
     hideLoading();
-    if (puzzles.length > 0) {
-      showPuzzleSelection(puzzles);
+    // Show a random sample of up to 10 from the shipped pool.
+    const sample = [...puzzles].sort(() => Math.random() - 0.5).slice(0, 10);
+    if (sample.length > 0) {
+      showPuzzleSelection(sample);
     } else {
       showError("Keine Puzzles gefunden.");
     }

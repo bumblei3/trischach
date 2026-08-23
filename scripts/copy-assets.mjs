@@ -11,6 +11,7 @@ const assets = [
   // Vite output would overwrite that rewrite and break the deployed app
   // (browser would fetch js/main.ts, which 404s in production).
   { src: "manifest.json", dest: "dist/manifest.json" },
+  { src: "puzzles.json", dest: "dist/puzzles.json" },
   { src: "sw.js", dest: "dist/sw.js" },
   { src: "css", dest: "dist/css", isDir: true },
   { src: "icons", dest: "dist/icons", isDir: true },

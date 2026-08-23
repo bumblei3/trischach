@@ -678,6 +678,13 @@ input:checked + .slider:before {
   border-radius: 6px;
   border-left: 3px solid transparent;
   animation: slide-in 0.3s ease;
+  cursor: pointer;
+}
+.move-entry:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+.move-entry.current-move {
+  background: rgba(255, 255, 255, 0.12);
 }
 .move-entry.fire {
   border-left-color: var(--fire);
