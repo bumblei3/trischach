@@ -237,8 +237,17 @@ describe("getDailyPuzzle caching", () => {
     // puzzle is returned the cache was written for today.
     const today = new Date().toISOString().split("T")[0]!;
     const result = await getDailyPuzzle();
-    expect(result === null || typeof result.id === "string").toBe(true);
-    if (result !== null) {
+    if (result === null) {
+      // No puzzle today: the cache date key must NOT claim a puzzle exists.
+      expect(localStorage.getItem("trischach-daily-puzzle-date")).toBeNull();
+    } else {
+      // A returned puzzle is fully formed: string id, valid mateIn, and the
+      // cache was written for today.
+      expect(typeof result.id).toBe("string");
+      expect(result.id.length).toBeGreaterThan(0);
+      expect([1, 2, 3]).toContain(result.mateIn);
+      expect(["easy", "medium", "hard"]).toContain(result.difficulty);
+      const today = new Date().toISOString().split("T")[0]!;
       expect(localStorage.getItem("trischach-daily-puzzle-date")).toBe(today);
     }
   });

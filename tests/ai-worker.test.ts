@@ -808,8 +808,12 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       });
 
       const move = calculateBestMove(gameState, FACTION.FIRE);
-      // Can be null if no legal moves, or an action object
-      expect(move === null || (move && typeof move === "object")).toBe(true);
+      // With a single pawn that has legal moves, the search MUST return an
+      // action — not null. And it must be a well-formed AIAction for the
+      // only piece on the board.
+      expect(move).not.toBeNull();
+      expect(move!.piece.id).toBe(gameState.pieces[0]!.id);
+      expect(["move", "attack"]).toContain(move!.type);
     });
 
     test("calculateBestMove handles empty board", () => {
