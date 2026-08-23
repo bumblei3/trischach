@@ -126,6 +126,7 @@ interface GameSettings {
   autoBattle: boolean;
   aiPersonality: "balanced" | "aggressive" | "defensive" | "tactical";
   autoQueen?: boolean;
+  animationsEnabled?: boolean;
   // Auto-Battle Learning settings
   abGames?: number;
   abDepth?: number;
@@ -141,6 +142,7 @@ const DEFAULT_SETTINGS: GameSettings = {
   autoBattle: false,
   aiPersonality: "balanced",
   autoQueen: false,
+  animationsEnabled: true,
   abGames: 100,
   abDepth: 4,
   abMaxMoves: 300,
@@ -591,6 +593,16 @@ function applySettings(settings: GameSettings): void {
     "personality-select",
   ) as HTMLSelectElement;
   if (personalitySelect) personalitySelect.value = settings.aiPersonality;
+
+  const animationsEnabled = settings.animationsEnabled !== false;
+  document.documentElement.classList.toggle(
+    "animations-disabled",
+    !animationsEnabled,
+  );
+  const animationsToggle = document.getElementById(
+    "animations-toggle",
+  ) as HTMLInputElement | null;
+  if (animationsToggle) animationsToggle.checked = animationsEnabled;
 
   updateUI();
 }
@@ -1546,6 +1558,15 @@ function initEventListeners(): void {
       ...loadSettings(),
       soundEnabled: (e.target as HTMLInputElement).checked,
     });
+  });
+
+  const animationsToggle = document.getElementById(
+    "animations-toggle",
+  ) as HTMLInputElement | null;
+  animationsToggle?.addEventListener("change", (e: Event) => {
+    const enabled = (e.target as HTMLInputElement).checked;
+    document.documentElement.classList.toggle("animations-disabled", !enabled);
+    saveSettings({ ...loadSettings(), animationsEnabled: enabled });
   });
 
   const depthSlider = document.getElementById(

@@ -556,6 +556,15 @@ select:focus-visible,
   }
 }
 
+/* User setting: Animationen aus (Settings > Allgemein) */
+html.animations-disabled *,
+html.animations-disabled *::before,
+html.animations-disabled *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+
 /* RPS Toggle Switch */
 .rps-toggle-container {
   display: flex;
