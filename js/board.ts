@@ -387,6 +387,26 @@ export class BoardRenderer {
     }
   }
 
+  /**
+   * Highlights the from/to hexes of the last played move (persistent, subtle).
+   * Pass null to clear the marker.
+   */
+  public highlightLastMove(from: Hex | string | undefined, to: Hex | string | undefined): void {
+    this.clearLastMove();
+    for (const h of [from, to]) {
+      if (h == null) continue;
+      const key = typeof h === "string" ? h : h.key;
+      const e = this.hexElements.get(key);
+      if (e) e.polygon.classList.add("highlight-last-move");
+    }
+  }
+
+  public clearLastMove(): void {
+    for (const [, e] of this.hexElements) {
+      e.polygon.classList.remove("highlight-last-move");
+    }
+  }
+
   public clearCheck(): void {
     for (const [, e] of this.hexElements) {
       e.polygon.classList.remove("highlight-check");

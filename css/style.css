@@ -814,6 +814,13 @@ input:checked + .slider:before {
   filter: url(#glow);
 }
 
+/* Last played move: subtle persistent from/to marker */
+.highlight-last-move {
+  fill: rgba(255, 220, 120, 0.12) !important;
+  stroke: rgba(255, 210, 110, 0.45) !important;
+  stroke-width: 2 !important;
+}
+
 @keyframes pulse-move {
   0%,
   100% {

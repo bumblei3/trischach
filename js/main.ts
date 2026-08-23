@@ -727,6 +727,16 @@ function updateUI(): void {
     }
   }
 
+  // Last-move marker (from/to of the most recent played move)
+  const lastResult = [...game.moveHistory]
+    .reverse()
+    .find(
+      (r) =>
+        (r.action === "move" || r.action === "combat") &&
+        (r.from != null || r.to != null),
+    );
+  renderer.highlightLastMove(lastResult?.from, lastResult?.to);
+
   for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
     const el = document.getElementById(`panel-${fac}`);
     if (el && game.eliminatedFactions.has(fac)) el.classList.add("eliminated");
