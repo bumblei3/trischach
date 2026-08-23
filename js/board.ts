@@ -340,13 +340,18 @@ export class BoardRenderer {
       cg.addEventListener(
         "pointerenter",
         () => {
-          if (this.onCellHover) this.onCellHover({ q: cell.hex.q, r: cell.hex.r });
+          if (this.onCellHover)
+            this.onCellHover({ q: cell.hex.q, r: cell.hex.r });
         },
         { passive: true },
       );
-      cg.addEventListener("pointerleave", () => {
-        if (this.onCellHover) this.onCellHover(null);
-      }, { passive: true });
+      cg.addEventListener(
+        "pointerleave",
+        () => {
+          if (this.onCellHover) this.onCellHover(null);
+        },
+        { passive: true },
+      );
       g.appendChild(cg);
       this.hexElements.set(key, {
         group: cg,
@@ -405,7 +410,10 @@ export class BoardRenderer {
    * Highlights the from/to hexes of the last played move (persistent, subtle).
    * Pass null to clear the marker.
    */
-  public highlightLastMove(from: Hex | string | undefined, to: Hex | string | undefined): void {
+  public highlightLastMove(
+    from: Hex | string | undefined,
+    to: Hex | string | undefined,
+  ): void {
     this.clearLastMove();
     for (const h of [from, to]) {
       if (h == null) continue;
