@@ -819,6 +819,22 @@ function addToLog(result: GameResult): void {
 
 // ─── Cell Click Handler ──────────────────────────────────────────────
 
+// Hover preview: while no piece is selected, hovering one of your own pieces
+// shows its legal targets subtly (desktop only — pointer devices).
+renderer.onCellHover = (hex: { q: number; r: number } | null) => {
+  if (hex == null || game.state !== GAME_STATE.SELECT_PIECE) {
+    renderer.showMovePreview(undefined, undefined);
+    return;
+  }
+  const piece = game.getPieceAt(new Hex(hex.q, hex.r));
+  if (!piece || piece.faction !== game.currentFaction || !piece.alive) {
+    renderer.clearMovePreview();
+    return;
+  }
+  const { moves, attacks } = game.getLegalMoves(piece);
+  renderer.showMovePreview(moves, attacks);
+};
+
 renderer.onCellClick = (hex: { q: number; r: number }) => {
   const hexObj = new Hex(hex.q, hex.r);
 

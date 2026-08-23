@@ -821,6 +821,16 @@ input:checked + .slider:before {
   stroke-width: 2 !important;
 }
 
+/* Hover preview (before selection): very subtle move/attack hints */
+.highlight-preview-move {
+  fill: rgba(100, 200, 255, 0.08) !important;
+  stroke: rgba(100, 200, 255, 0.3) !important;
+}
+.highlight-preview-attack {
+  fill: rgba(255, 80, 80, 0.1) !important;
+  stroke: rgba(255, 80, 80, 0.35) !important;
+}
+
 @keyframes pulse-move {
   0%,
   100% {

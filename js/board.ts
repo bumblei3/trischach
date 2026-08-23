@@ -134,6 +134,10 @@ export class BoardRenderer {
   public readonly pieceElements: Map<string, PieceElement>;
   private boardGroup: SVGGElement | null = null;
   public onCellClick: ((hex: Hex, cell: Cell) => void) | null = null;
+
+  /** Hover preview callback (null = pointer left the board). */
+  public onCellHover: ((hex: { q: number; r: number } | null) => void) | null =
+    null;
   public onPieceLongPress:
     | ((piece: Piece, position: { clientX: number; clientY: number }) => void)
     | null = null;
@@ -333,6 +337,16 @@ export class BoardRenderer {
         e.preventDefault();
         if (this.onCellClick) this.onCellClick(cell.hex, cell);
       });
+      cg.addEventListener(
+        "pointerenter",
+        () => {
+          if (this.onCellHover) this.onCellHover({ q: cell.hex.q, r: cell.hex.r });
+        },
+        { passive: true },
+      );
+      cg.addEventListener("pointerleave", () => {
+        if (this.onCellHover) this.onCellHover(null);
+      }, { passive: true });
       g.appendChild(cg);
       this.hexElements.set(key, {
         group: cg,
@@ -404,6 +418,32 @@ export class BoardRenderer {
   public clearLastMove(): void {
     for (const [, e] of this.hexElements) {
       e.polygon.classList.remove("highlight-last-move");
+    }
+  }
+
+  /**
+   * Hover preview: shows legal move/attack targets of a piece before selecting.
+   * Pass null to clear the preview.
+   */
+  public showMovePreview(
+    moves: Hex[] | undefined,
+    attacks: Hex[] | undefined,
+  ): void {
+    this.clearMovePreview();
+    for (const h of moves ?? []) {
+      const e = this.hexElements.get(h.key);
+      if (e) e.polygon.classList.add("highlight-preview-move");
+    }
+    for (const h of attacks ?? []) {
+      const e = this.hexElements.get(h.key);
+      if (e) e.polygon.classList.add("highlight-preview-attack");
+    }
+  }
+
+  public clearMovePreview(): void {
+    for (const [, e] of this.hexElements) {
+      e.polygon.classList.remove("highlight-preview-move");
+      e.polygon.classList.remove("highlight-preview-attack");
     }
   }
 
