@@ -22,6 +22,7 @@ import {
   loadLearnedData,
   saveLearnedDataToStorage,
   loadLearnedDataFromStorage,
+  loadLearnedDataFromFile,
 } from "../js/opening-book.ts";
 import type { IGame } from "../js/types.ts";
 
@@ -284,5 +285,91 @@ describe("opening book learning integration", () => {
   test("loadLearnedDataFromStorage returns false when nothing is stored", () => {
     localStorage.removeItem("trischach-opening-book-learned");
     expect(loadLearnedDataFromStorage()).toBe(false);
+  });
+
+  test("loadLearnedDataFromStorage returns false for JSON without positions", () => {
+    localStorage.setItem(
+      "trischach-opening-book-learned",
+      JSON.stringify({ somethingElse: true }),
+    );
+    expect(loadLearnedDataFromStorage()).toBe(false);
+  });
+
+  test("loadLearnedDataFromStorage returns false on corrupted JSON", () => {
+    localStorage.setItem("trischach-opening-book-learned", "{not valid json");
+    expect(loadLearnedDataFromStorage()).toBe(false);
+  });
+
+  test("saveLearnedDataToStorage returns false when setItem throws (quota)", () => {
+    // happy-dom binds localStorage.setItem as a native method — plain
+    // assignment does NOT take effect; an own-property defineProperty does.
+    const desc = Object.getOwnPropertyDescriptor(localStorage, "setItem");
+    Object.defineProperty(localStorage, "setItem", {
+      configurable: true,
+      writable: true,
+      value: () => {
+        throw new Error("QuotaExceededError");
+      },
+    });
+    try {
+      const { entry } = firstBookEntry();
+      learnFromGame([entry], FACTION.FIRE);
+      expect(saveLearnedDataToStorage()).toBe(false);
+    } finally {
+      // happy-dom's localStorage is a Proxy whose deleteProperty trap refuses
+      // non-configurable props — restore via defineProperty with the saved
+      // descriptor (or a working stub when none was captured).
+      if (desc) {
+        Object.defineProperty(localStorage, "setItem", desc);
+      } else {
+        Object.defineProperty(localStorage, "setItem", {
+          configurable: true,
+          writable: true,
+          value: Storage.prototype.setItem,
+        });
+      }
+    }
+  });
+
+  test("loadLearnedDataFromFile: missing file (404) is silent, invalid JSON is caught", async () => {
+    // happy-dom fetch: a non-existent local file resolves !response.ok
+    await expect(
+      loadLearnedDataFromFile("/nonexistent/learned.json"),
+    ).resolves.toBeUndefined();
+
+    // A response that throws inside .json() must not reject the caller.
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      }) as unknown as Response) as typeof fetch;
+    try {
+      await expect(
+        loadLearnedDataFromFile("/broken/learned.json"),
+      ).resolves.toBeUndefined();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test("loadLearnedDataFromFile loads valid data with positions", async () => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => ({ positions: { someHash: { wins: 1, losses: 0 } } }),
+      }) as unknown as Response) as typeof fetch;
+    try {
+      await expect(
+        loadLearnedDataFromFile("/valid/learned.json"),
+      ).resolves.toBeUndefined();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
   });
 });
