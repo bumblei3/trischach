@@ -587,4 +587,90 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
     // No pointerdown happened first -> pressTimer is null -> clearTimeout skipped
     expect(() => el.dispatchEvent(up)).not.toThrow();
   });
+
+  test("highlightLastMove marks exactly the from/to hexes and clearLastMove resets", () => {
+    const from = Array.from(renderer.cells.values())[0]!.hex;
+    const to = Array.from(renderer.cells.values())[5]!.hex;
+    renderer.highlightLastMove(from, to);
+    expect(
+      renderer.hexElements
+        .get(from.key)!
+        .polygon.classList.contains("highlight-last-move"),
+    ).toBe(true);
+    expect(
+      renderer.hexElements
+        .get(to.key)!
+        .polygon.classList.contains("highlight-last-move"),
+    ).toBe(true);
+    // a third, unrelated cell must NOT be marked
+    const other = Array.from(renderer.cells.values())[10]!.hex;
+    expect(
+      renderer.hexElements
+        .get(other.key)!
+        .polygon.classList.contains("highlight-last-move"),
+    ).toBe(false);
+
+    renderer.clearLastMove();
+    for (const [, e] of renderer.hexElements) {
+      expect(e.polygon.classList.contains("highlight-last-move")).toBe(false);
+    }
+  });
+
+  test("highlightLastMove accepts string keys and skips null endpoints", () => {
+    const cell = Array.from(renderer.cells.values())[3]!.hex;
+    // string-key overload + undefined `to` (e.g. move without a target yet)
+    expect(() => renderer.highlightLastMove(cell.key, undefined)).not.toThrow();
+    expect(
+      renderer.hexElements
+        .get(cell.key)!
+        .polygon.classList.contains("highlight-last-move"),
+    ).toBe(true);
+  });
+
+  test("showMovePreview separates move vs attack highlights; clearMovePreview removes both", () => {
+    const moveHex = Array.from(renderer.cells.values())[1]!.hex;
+    const attackHex = Array.from(renderer.cells.values())[2]!.hex;
+    const ghost = new Hex(99, 99); // unknown hex must be a safe no-op
+
+    renderer.showMovePreview([moveHex, ghost], [attackHex]);
+    const moveEl = renderer.hexElements.get(moveHex.key)!.polygon;
+    const attackEl = renderer.hexElements.get(attackHex.key)!.polygon;
+    expect(moveEl.classList.contains("highlight-preview-move")).toBe(true);
+    expect(attackEl.classList.contains("highlight-preview-attack")).toBe(true);
+    // an attack hex must not carry the move class (distinct visual channels)
+    expect(attackEl.classList.contains("highlight-preview-move")).toBe(false);
+
+    renderer.clearMovePreview();
+    expect(moveEl.classList.contains("highlight-preview-move")).toBe(false);
+    expect(attackEl.classList.contains("highlight-preview-attack")).toBe(false);
+  });
+
+  test("showMovePreview(undefined, undefined) clears previous previews", () => {
+    const hex = Array.from(renderer.cells.values())[4]!.hex;
+    renderer.showMovePreview([hex], []);
+    expect(
+      renderer.hexElements
+        .get(hex.key)!
+        .polygon.classList.contains("highlight-preview-move"),
+    ).toBe(true);
+    // passing undefined moves/attacks wipes prior markers (preview reset path)
+    renderer.showMovePreview(undefined, undefined);
+    expect(
+      renderer.hexElements
+        .get(hex.key)!
+        .polygon.classList.contains("highlight-preview-move"),
+    ).toBe(false);
+  });
+
+  test("onCellHover fires with coordinates on pointerenter and null on pointerleave", () => {
+    const seen: ({ q: number; r: number } | null)[] = [];
+    renderer.onCellHover = (pos) => seen.push(pos);
+    const cell = Array.from(renderer.cells.values())[0]!;
+    const el = renderer.hexElements.get(cell.hex.key)!.polygon
+      .parentElement as unknown as EventTarget;
+    el.dispatchEvent(new window.Event("pointerenter"));
+    expect(seen).toEqual([{ q: cell.hex.q, r: cell.hex.r }]);
+    el.dispatchEvent(new window.Event("pointerleave"));
+    expect(seen[seen.length - 1]).toBeNull();
+  });
 });
