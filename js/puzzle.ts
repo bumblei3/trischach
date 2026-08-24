@@ -937,9 +937,7 @@ export function dailyPuzzleIndex(date: string, n: number): number {
 }
 
 /** Rotate difficulty by day-of-week: easy on weekends, medium on weekdays. */
-export function preferredDifficulty(
-  date: string,
-): "easy" | "medium" | "hard" {
+export function preferredDifficulty(date: string): "easy" | "medium" | "hard" {
   const dow = new Date(`${date}T12:00:00.000Z`).getUTCDay();
   return dow === 0 || dow === 6 ? "easy" : "medium";
 }
