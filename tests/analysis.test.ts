@@ -6,6 +6,7 @@ import {
   analyzePosition,
   formatEngineMove,
   formatEvalScore,
+  renderAnalysisToHTML,
 } from "../js/analysis.ts";
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
@@ -56,6 +57,115 @@ describe("formatEngineMove", () => {
 describe("analyzePosition", () => {
   beforeEach(() => {
     setAIDepth(3);
+  });
+
+  test("game-over positions short-circuit: zero score, no move, gameOver flag", () => {
+    const game = new Game();
+    game.init(generateBoard());
+    // Eliminate two factions so only FIRE remains -> game over sweep applies.
+    game.eliminatedFactions.add(FACTION.WATER);
+    game.eliminatedFactions.add(FACTION.NATURE);
+    game.state = "game_over";
+
+    const result = analyzePosition(game, 1);
+    expect(result.gameOver).toBe(true);
+    expect(result.staticScore).toBe(0);
+    expect(result.scoreLabel).toBe("Partie beendet");
+    expect(result.bestMove).toBeNull();
+    expect(result.san).toBeNull();
+    expect(result.depth).toBe(0);
+  });
+
+  test("renderAnalysisToHTML: game-over variant renders the finished marker", () => {
+    const html = renderAnalysisToHTML({
+      faction: FACTION.FIRE,
+      staticScore: 0,
+      scoreLabel: "Partie beendet",
+      bestMove: null,
+      san: null,
+      depth: 0,
+      pv: [],
+      rpsExplanation: null,
+      gameOver: true,
+    });
+    expect(html).toContain("Partie beendet");
+    // no engine recommendation in a finished game
+    expect(html).not.toContain("analysis-san");
+  });
+
+  test("renderAnalysisToHTML: with SAN it embeds the move, PV and RPS blocks", () => {
+    const html = renderAnalysisToHTML({
+      faction: FACTION.FIRE,
+      staticScore: 12,
+      scoreLabel: "+1.2",
+      bestMove: {} as AIAction,
+      san: "Dame, f3",
+      depth: 2,
+      pv: ["Dame, f3", "Turm, a4"],
+      rpsExplanation: "Feuer schlägt Natur",
+      gameOver: false,
+    });
+    expect(html).toContain("analysis-san");
+    expect(html).toContain("Dame, f3");
+    expect(html).toContain("analysis-pv");
+    // PV entries joined by the arrow separator
+    expect(html).toContain("analysis-pv-sep");
+    expect(html).toContain("analysis-rps");
+    expect(html).toContain("Feuer schlägt Natur");
+    // score label + faction + depth are shown
+    expect(html).toContain("+1.2");
+    expect(html).toContain("d2");
+  });
+
+  test("renderAnalysisToHTML: empty PV omits the pv block, missing RPS omits the rps block", () => {
+    const html = renderAnalysisToHTML({
+      faction: FACTION.WATER,
+      staticScore: -5,
+      scoreLabel: "-0.5",
+      bestMove: {} as AIAction,
+      san: "Läufer, c2",
+      depth: 1,
+      pv: [],
+      rpsExplanation: null,
+      gameOver: false,
+    });
+    expect(html).toContain("analysis-san");
+    expect(html).not.toContain("analysis-pv");
+    expect(html).not.toContain("analysis-rps");
+  });
+
+  test("renderAnalysisToHTML escapes HTML in user-influenced strings (XSS-safe)", () => {
+    const html = renderAnalysisToHTML({
+      faction: FACTION.FIRE,
+      staticScore: 1,
+      scoreLabel: "<img src=x onerror=alert(1)>",
+      bestMove: {} as AIAction,
+      san: "<script>alert(2)</script>",
+      depth: 1,
+      pv: [],
+      rpsExplanation: '"><svg onload=alert(3)>',
+      gameOver: false,
+    });
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<svg");
+  });
+
+  test("renderAnalysisToHTML: no-SAN fallback renders eval-only markup", () => {
+    const html = renderAnalysisToHTML({
+      faction: FACTION.NATURE,
+      staticScore: 3,
+      scoreLabel: "+0.3",
+      bestMove: null,
+      san: null,
+      depth: 2,
+      pv: [],
+      rpsExplanation: null,
+      gameOver: false,
+    });
+    expect(html).toContain("kein Zug");
+    expect(html).toContain("+0.3");
+    expect(html).not.toContain("analysis-san");
   });
 
   test("returns analysis for the starting position", () => {
