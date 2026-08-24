@@ -922,6 +922,26 @@ export async function loadShippedPuzzles(): Promise<Puzzle[]> {
   }
 }
 
+/**
+ * Deterministic pseudo-random index in [0, n) derived from an ISO date string.
+ * Same date + pool size => same puzzle for every player (true "daily" puzzle).
+ */
+export function dailyPuzzleIndex(date: string, n: number): number {
+  // FNV-1a hash over the date string.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < date.length; i++) {
+    h ^= date.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h % n;
+}
+
+/** Rotate difficulty by day-of-week: easy on weekends, medium on weekdays. */
+export function preferredDifficulty(date: string): "easy" | "medium" | "hard" {
+  const dow = new Date(`${date}T12:00:00.000Z`).getUTCDay();
+  return dow === 0 || dow === 6 ? "easy" : "medium";
+}
+
 async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
   // Prefer the shipped puzzle pool; fall back to opening-book generation.
   let puzzles = await loadShippedPuzzles();
@@ -930,12 +950,13 @@ async function generateDailyPuzzle(date: string): Promise<Puzzle | null> {
   }
   if (puzzles.length === 0) return null;
 
-  // Prefer medium; all generated puzzles already passed validatePuzzle.
-  const mediumPuzzles = puzzles.filter((p) => p.difficulty === "medium");
-  const daily =
-    mediumPuzzles.length > 0
-      ? mediumPuzzles[Math.floor(Math.random() * mediumPuzzles.length)]!
-      : puzzles[Math.floor(Math.random() * puzzles.length)]!;
+  // Deterministic per-date selection; prefer the day's difficulty tier,
+  // fall back to the whole pool when the tier is empty.
+  const preferred = puzzles.filter(
+    (p) => p.difficulty === preferredDifficulty(date),
+  );
+  const pool = preferred.length > 0 ? preferred : puzzles;
+  const daily = pool[dailyPuzzleIndex(date, pool.length)]!;
 
   try {
     localStorage.setItem(DAILY_PUZZLE_KEY, JSON.stringify(daily));

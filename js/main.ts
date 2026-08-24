@@ -70,6 +70,8 @@ import {
   isTodaysDailyPuzzle,
   isDailySolvedToday,
   recordDailyPuzzleSolved,
+  preferredDifficulty,
+  todayISO,
   Puzzle,
   PuzzleMove,
   PuzzleState,
@@ -2157,6 +2159,17 @@ function initEventListeners(): void {
         </div>`;
   }
 
+  /** CSS class for the current day's daily-puzzle difficulty tier. */
+  function dailyDifficultyClass(): string {
+    return preferredDifficulty(todayISO());
+  }
+
+  /** Human-readable label for the current day's daily-puzzle difficulty. */
+  function dailyDifficultyLabel(): string {
+    const tier = preferredDifficulty(todayISO());
+    return tier === "easy" ? "Leicht" : tier === "medium" ? "Medium" : "Schwer";
+  }
+
   async function showPuzzleMenu(): Promise<void> {
     const streak = getPuzzleStreak();
     const dailyDone = isDailySolvedToday();
@@ -2168,7 +2181,7 @@ function initEventListeners(): void {
         </div>
         <div class="puzzle-info" id="puzzle-menu-info">
           <div class="puzzle-info-item"><strong>Tagespuzzle</strong></div>
-          <span class="puzzle-difficulty medium" id="puzzle-daily-difficulty">${dailyDone ? "GELÖST" : "Medium"}</span>
+          <span class="puzzle-difficulty ${dailyDone ? "medium" : dailyDifficultyClass()}" id="puzzle-daily-difficulty">${dailyDone ? "GELÖST" : dailyDifficultyLabel()}</span>
         </div>
         <div class="puzzle-streak">
           <span>🔥 Streak: <strong>${streak.current}</strong></span>
