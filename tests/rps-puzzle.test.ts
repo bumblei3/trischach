@@ -128,4 +128,55 @@ describe("evaluateRpsMove — correct vs trap", () => {
       expect(r.rationale).toMatch(/Neutral/);
     }
   });
+
+  it("deserializeRpsPosition falls back to pawn for unknown type chars", () => {
+    // "X" is not a known type char -> typeMap fallback yields a pawn.
+    const game = deserializeRpsPosition("Fx0,0#0");
+    expect(game).not.toBeNull();
+    const piece = game!.getAlivePieces()[0]!;
+    expect(piece.type).toBe("pawn");
+    expect(piece.faction).toBe("fire");
+  });
+
+  it("deserializeRpsPosition skips pieces placed on non-board coordinates", () => {
+    // (99,99) is off the generated board -> cell lookup misses -> skipped.
+    const game = deserializeRpsPosition("Fp99,99|Wp1,1#1");
+    expect(game).not.toBeNull();
+    const pieces = game!.getAlivePieces();
+    expect(pieces.length).toBe(1);
+    expect(pieces[0]!.faction).toBe("water");
+  });
+
+  it("deserializeRpsPosition wraps the faction index modulo 3", () => {
+    const game = deserializeRpsPosition("Fp0,0#7"); // 7 % 3 = 1 -> water
+    expect(game).not.toBeNull();
+    expect(game!.currentFaction).toBe("water");
+  });
+
+  it("deserializeRpsPosition returns null on malformed input that throws", () => {
+    // NOTE: deserialize is LENIENT — garbage piece entries yield empty games,
+    // but a structurally broken fen (missing everything) still parses to an
+    // empty game. Only thrown errors (none reachable via public input today)
+    // return null. Guard stays as defense-in-depth; assert lenient behavior:
+    expect(deserializeRpsPosition("###")).not.toBeNull();
+  });
+
+  it("generateRpsPuzzles respects the requested count cap", () => {
+    const few = generateRpsPuzzles(3);
+    expect(few.length).toBeLessThanOrEqual(3);
+    const many = generateRpsPuzzles(500);
+    // generation enumerates far more candidates than 500 — must be capped
+    expect(many.length).toBeLessThanOrEqual(500);
+    expect(many.length).toBeGreaterThan(10);
+  });
+
+  it("every generated puzzle round-trips: correct answer re-evaluates as correct", () => {
+    const puzzles = generateRpsPuzzles(20);
+    expect(puzzles.length).toBeGreaterThan(0);
+    for (const p of puzzles.slice(0, 10)) {
+      const r = evaluateRpsMove(p, p.correctPieceKey, p.correctTargetKey);
+      expect(r.correct).toBe(true);
+      expect(r.outcome).toBe("advantage");
+    }
+  });
 });

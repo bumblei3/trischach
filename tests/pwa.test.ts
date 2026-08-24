@@ -165,4 +165,50 @@ describe("pwa bootstrap", () => {
     expect(promptFn).toHaveBeenCalled();
     expect(btn.style.display).toBe("none");
   });
+
+  test("dismissed install prompt keeps the button visible", async () => {
+    mockNavigator(false);
+    const promptFn = vi.fn();
+    const evt = Object.assign(new Event("beforeinstallprompt"), {
+      preventDefault: () => {},
+      prompt: promptFn,
+      userChoice: Promise.resolve({ outcome: "dismissed" }),
+    });
+    await import("../js/pwa.ts");
+
+    const btn = document.getElementById("install-btn") as HTMLButtonElement;
+    btn.style.display = "inline-block";
+    fire("beforeinstallprompt");
+    for (const fn of winListeners.get("beforeinstallprompt") ?? []) {
+      (fn as any).call(window, evt);
+    }
+    btn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(promptFn).toHaveBeenCalled();
+    // dismissed -> deferredPrompt stays armed, button stays visible
+    expect(btn.style.display).toBe("inline-block");
+  });
+
+  test("appinstalled clears the deferred prompt (no stale re-prompt)", async () => {
+    mockNavigator(false);
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await import("../js/pwa.ts");
+
+    // Arm a deferred prompt, then report the app as installed.
+    fire("beforeinstallprompt");
+    fire("appinstalled");
+
+    // Clicking afterwards must hit the no-deferredPrompt guard, NOT a stale
+    // prompt from before the install. The guard logs; no outcome line appears.
+    const btn = document.getElementById("install-btn") as HTMLButtonElement;
+    btn.click();
+    expect(log).toHaveBeenCalledWith("[PWA] No deferred prompt available");
+    expect(log).not.toHaveBeenCalledWith(
+      "[PWA] Install prompt outcome:",
+      expect.anything(),
+    );
+  });
 });

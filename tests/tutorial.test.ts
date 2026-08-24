@@ -123,4 +123,23 @@ describe("tutorial storage resilience (private mode / quota)", () => {
       Storage.prototype.removeItem = orig;
     }
   });
+
+  test("shouldShowTutorialOnStartup is false when navigator.webdriver is set", () => {
+    const orig = Object.getOwnPropertyDescriptor(
+      Navigator.prototype,
+      "webdriver",
+    );
+    // happy-dom exposes webdriver via the getter on Navigator.prototype.
+    Object.defineProperty(Navigator.prototype, "webdriver", {
+      configurable: true,
+      get: () => true,
+    });
+    try {
+      localStorage.removeItem(TUTORIAL_DONE_KEY);
+      expect(shouldShowTutorialOnStartup()).toBe(false);
+    } finally {
+      delete (Navigator.prototype as any).webdriver;
+      if (orig) Object.defineProperty(Navigator.prototype, "webdriver", orig);
+    }
+  });
 });
