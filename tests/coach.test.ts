@@ -121,4 +121,99 @@ describe("getCoachMessage", () => {
     expect(msg.tone).toBe("rps-good");
     expect(msg.text).toMatch(/günstig|grün/i);
   });
+
+  it("reports game over regardless of other conditions", () => {
+    const msg = getCoachMessage({
+      ...base,
+      state: "game_over",
+      isKingInCheck: () => true,
+    });
+    expect(msg.tone).toBe("info");
+    expect(msg.text).toBe("Partie beendet");
+  });
+
+  it("shows thinking message when the current faction is an AI faction", () => {
+    const msg = getCoachMessage({
+      ...base,
+      state: "select_piece",
+      isAIFaction: (f) => f === "fire",
+    });
+    expect(msg.tone).toBe("info");
+    expect(msg.text).toMatch(/denkt/);
+    // The AI branch takes precedence over check.
+    expect(msg.text).not.toMatch(/Schach/);
+  });
+
+  it("asks for a promotion choice", () => {
+    const msg = getCoachMessage({ ...base, state: "promotion" });
+    expect(msg.tone).toBe("info");
+    expect(msg.text).toMatch(/Umwandlung/i);
+    expect(msg.text).toMatch(/Q\/R\/B\/N/);
+  });
+
+  it("warns when the selected piece has no legal moves at all", () => {
+    const attacker = {
+      faction: "fire",
+      type: "pawn",
+      pos: new Hex(0, 0),
+    } as Piece;
+    const msg = getCoachMessage({
+      ...base,
+      state: "select_target",
+      selectedPiece: attacker,
+      rpsEnabled: false,
+      validMoves: [],
+      validAttacks: [],
+    });
+    expect(msg.tone).toBe("warn");
+    expect(msg.text).toMatch(/Keine legalen Züge/);
+  });
+
+  it("falls back to a plain target prompt for mixed advantage+disadvantage attacks (rps enabled)", () => {
+    // fire queen attacking both nature (advantage) and water (disadvantage)
+    const advHex = new Hex(1, 0);
+    const disHex = new Hex(-1, 1);
+    const msg = getCoachMessage({
+      ...base,
+      state: "select_target",
+      selectedPiece: { faction: "fire" } as Piece,
+      validMoves: [new Hex(0, 1)],
+      validAttacks: [advHex, disHex],
+      getPieceAt: (h: Hex) =>
+        h.equals(advHex)
+          ? ({ faction: "nature" } as Piece)
+          : h.equals(disHex)
+            ? ({ faction: "water" } as Piece)
+            : null,
+    });
+    expect(msg.tone).toBe("rps-bad");
+    expect(msg.text).toMatch(/grün/);
+    expect(msg.text).toMatch(/rot/);
+    expect(msg.text).toContain("1 Züge");
+  });
+
+  it("uses plain counts when RPS is disabled even with attacks present", () => {
+    const atkHex = new Hex(1, 0);
+    const msg = getCoachMessage({
+      ...base,
+      state: "select_target",
+      rpsEnabled: false,
+      selectedPiece: { faction: "fire" } as Piece,
+      validMoves: [new Hex(0, 1), new Hex(1, -1)],
+      validAttacks: [atkHex],
+      getPieceAt: (h: Hex) =>
+        h.equals(atkHex) ? ({ faction: "nature" } as Piece) : null,
+    });
+    expect(msg.tone).toBe("info");
+    expect(msg.text).toContain("2 Züge · 1 Angriffe");
+  });
+
+  it("falls through to the turn fallback for unknown states", () => {
+    const msg = getCoachMessage({
+      ...base,
+      state: "some_future_state" as never,
+    });
+    expect(msg.tone).toBe("info");
+    expect(msg.text).toMatch(/am Zug/);
+  });
 });

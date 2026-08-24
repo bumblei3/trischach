@@ -73,4 +73,59 @@ describe("evaluateRpsMove — correct vs trap", () => {
     const result = evaluateRpsMove(p, p.correctPieceKey, p.correctTargetKey);
     expect(result.correct).toBe(true);
   });
+
+  it("returns a neutral rejection for a corrupt (unparseable) position", () => {
+    const puzzles = generateRpsPuzzles(2);
+    const p = puzzles[0]!;
+    const broken: RpsPuzzle = { ...p, fen: "!!!not-a-position!!!" };
+    const r = evaluateRpsMove(broken, p.correctPieceKey, p.correctTargetKey);
+    expect(r.correct).toBe(false);
+    expect(r.outcome).toBe("neutral");
+    // NOTE: deserializeRpsPosition is lenient — garbage input yields an EMPTY
+    // game rather than null, so this surfaces as "Ungültiger Zug." (missing
+    // piece), not "Ungültige Position.". Either way the move must be rejected
+    // as neutral/incorrect.
+    expect(r.rationale).toMatch(/Ungültig/);
+  });
+
+  it("rejects moves referencing pieces that do not exist on the board", () => {
+    const puzzles = generateRpsPuzzles(2);
+    const p = puzzles[0]!;
+    // Valid position, but piece/target keys pointing at empty hexes.
+    for (const key of ["9,9", "-9,-9"]) {
+      const r = evaluateRpsMove(p, key, p.correctTargetKey);
+      expect(r.correct).toBe(false);
+      expect(r.outcome).toBe("neutral");
+      expect(r.rationale).toMatch(/Ungültiger Zug/);
+    }
+  });
+
+  it("labels a neutral strike as not the tactical key move", () => {
+    const puzzles = generateRpsPuzzles(5);
+    // Find a puzzle and strike the correct piece against a same-faction target
+    // by scanning the deserialized game — or, simpler: craft via evaluateRpsMove
+    // with the trap replaced by a same-faction enemy.
+    const p = puzzles[0]!;
+    const game = deserializeRpsPosition(p.fen)!;
+    // Find any same-faction pair (attacker faction == defender faction).
+    const sidePieces = game
+      .getAlivePieces()
+      .filter((pc) => pc.faction === p.sideToMove);
+    const sameFactionEnemies = game
+      .getAlivePieces()
+      .filter(
+        (pc) =>
+          pc.faction !== p.sideToMove &&
+          getRPSOutcome(p.sideToMove, pc.faction) === "neutral",
+      );
+    if (sidePieces.length > 0 && sameFactionEnemies.length > 0) {
+      const r = evaluateRpsMove(
+        p,
+        sidePieces[0]!.pos.key,
+        sameFactionEnemies[0]!.pos.key,
+      );
+      expect(r.outcome).toBe("neutral");
+      expect(r.rationale).toMatch(/Neutral/);
+    }
+  });
 });

@@ -9,6 +9,9 @@ import {
   beginSearch,
   searchRootSubset,
   calculateBestMoveParallel,
+  simulateMove,
+  undoMove,
+  minimax,
 } from "../js/ai-core.ts";
 
 function makeGame(): Game {
@@ -40,8 +43,21 @@ test("searchRootSubset returns exactly the assigned move for a 1-move subset", (
   const res = searchRootSubset(g, FACTION.FIRE, [capture!], 3);
   expect(res.action).not.toBeNull();
   expect(res.action!.target.equals(new Hex(0, 0))).toBe(true);
-  // For a single-move subset the score must match a direct minimax of that move.
-  expect(typeof res.score === "number").toBe(true);
+  // For a single-move subset the score must equal a direct minimax of that
+  // move (same depth, fresh search) — not merely "a number".
+  beginSearch(2000);
+  const undo = simulateMove(g, capture!.piece, capture!.target);
+  const direct = minimax(
+    g,
+    2,
+    -Infinity,
+    Infinity,
+    FACTION.FIRE,
+    g.currentFaction,
+    Date.now() + 2000,
+  );
+  undoMove(g, undo);
+  expect(res.score).toBe(direct.score);
 });
 
 test("calculateBestMoveParallel returns a legal move consistent with iterativeDeepening", () => {
@@ -65,7 +81,13 @@ test("calculateBestMoveParallel falls back to iterativeDeepening for <=1 move", 
   // Only keep the winning capture legal by removing other options is hard;
   // instead just assert it returns a legal move (or null) without throwing.
   const move = calculateBestMoveParallel(g, FACTION.FIRE, 1, 2);
-  expect(move === null || move.target instanceof Hex).toBe(true);
+  // With multiple legal moves the fallback MUST produce one of them —
+  // a legal root action, not "null or object".
+  expect(move).not.toBeNull();
+  const fallbackLegal = getAllActions(g, FACTION.FIRE).some(
+    (a) => a.piece.id === move!.piece.id && a.target.equals(move!.target),
+  );
+  expect(fallbackLegal).toBe(true);
 });
 
 test("serializeSubsetActions produces the worker wire format", () => {
