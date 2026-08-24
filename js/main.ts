@@ -57,6 +57,12 @@ import {
   ReplayStateSnapshot,
 } from "./replay.ts";
 import {
+  loadGameStats,
+  recordGameResult,
+  resetGameStats,
+  type GameMode,
+} from "./game-stats.ts";
+import {
   loadPuzzle,
   getPuzzleState,
   makePuzzleMove,
@@ -195,6 +201,76 @@ const promotionOverlay = document.getElementById(
   "promotion-overlay",
 ) as HTMLElement;
 const puzzleOverlay = document.getElementById("puzzle-overlay") as HTMLElement;
+
+/** Show the statistics dashboard (reuses the puzzle overlay styling). */
+function showStatsDashboard(): void {
+  const gs = loadGameStats();
+  const ps = getPuzzleSessionStats();
+  const streak = getPuzzleStreak();
+  const pct = (a: number, b: number) =>
+    b > 0 ? `${Math.round((a / b) * 100)}%` : "–";
+  const factionLine = (name: string, wins: number) =>
+    `<div class="puzzle-info-item"><strong>${name}:</strong> ${wins}</div>`;
+
+  puzzleOverlay.innerHTML = `
+      <div class="puzzle-box">
+        <div class="puzzle-header">
+          <h2 class="puzzle-title">📊 Statistiken</h2>
+          <button class="puzzle-close-btn" id="stats-close-btn" title="Schließen">✕</button>
+        </div>
+
+        <div class="puzzle-info" id="stats-games">
+          <div class="puzzle-info-item"><strong>Partien:</strong> ${gs.totalGames}</div>
+          <span>🤖 Auto-Battle: <strong>${gs.autoGames}</strong></span>
+          <span>👤 Manuell: <strong>${gs.manualGames}</strong></span>
+        </div>
+        <div class="puzzle-streak">
+          <span>🔥 Feuer: <strong>${gs.winsFire}</strong></span>
+          <span>💧 Wasser: <strong>${gs.winsWater}</strong></span>
+          <span>🌿 Natur: <strong>${gs.winsNature}</strong></span>
+          <span>🤝 Remis: <strong>${gs.draws}</strong></span>
+        </div>
+        ${
+          gs.manualGames > 0
+            ? `<div class="puzzle-info"><div class="puzzle-info-item"><strong>Manuelle Siege:</strong></div>
+               ${factionLine("🔥", gs.manualWins.fire ?? 0)}
+               ${factionLine("💧", gs.manualWins.water ?? 0)}
+               ${factionLine("🌿", gs.manualWins.nature ?? 0)}</div>`
+            : ""
+        }
+
+        <div class="puzzle-info" id="stats-puzzles">
+          <div class="puzzle-info-item"><strong>Puzzles:</strong></div>
+          <span>✅ Gelöst: <strong>${ps.solved}</strong>/${ps.attempts} (${pct(ps.solved, ps.attempts)})</span>
+          <span>💡 Hinweise: <strong>${ps.hintsUsed}</strong></span>
+          <span>🔥 Daily-Streak: <strong>${streak.current}</strong> (Best: <strong>${streak.best}</strong>)</span>
+        </div>
+
+        <div class="puzzle-actions">
+          <button class="puzzle-btn secondary" id="stats-reset-btn">🗑 Zurücksetzen</button>
+          <button class="puzzle-btn secondary" id="stats-feedback-btn">💬 Feedback</button>
+        </div>
+      </div>
+    `;
+  puzzleOverlay.classList.add("visible");
+
+  document.getElementById("stats-close-btn")?.addEventListener("click", () => {
+    puzzleOverlay.classList.remove("visible");
+  });
+  document.getElementById("stats-reset-btn")?.addEventListener("click", () => {
+    resetGameStats();
+    showStatsDashboard();
+  });
+  document
+    .getElementById("stats-feedback-btn")
+    ?.addEventListener("click", () => {
+      window.open(
+        "https://github.com/bumblei3/trischach/issues/new?template=feedback.md&title=Feedback",
+        "_blank",
+        "noopener",
+      );
+    });
+}
 const tutorialOverlay = document.getElementById(
   "tutorial-overlay",
 ) as HTMLElement | null;
@@ -239,6 +315,18 @@ const personalitySelect = document.getElementById(
 
 const renderer = new BoardRenderer(svg);
 const game = new Game();
+
+// Record finished games for the statistics dashboard. Auto-Battle games are
+// tagged "auto"; every other finished game counts as human-played.
+let lastMoveCountAtGameStart = 0;
+game.onGameOver = (winner) => {
+  recordGameResult({
+    winner,
+    mode: (isAutoBattleActive() ? "auto" : "manual") as GameMode,
+    moves: Math.max(0, game.moveHistory.length - lastMoveCountAtGameStart),
+  });
+  lastMoveCountAtGameStart = game.moveHistory.length;
+};
 
 // Expose the game + renderer instances for E2E tests / debugging (read-only
 // inspection and scripted setup of edge-case positions, e.g. driving a pawn
@@ -541,6 +629,10 @@ function serializeGameForWorker(game: Game): GameStateForWorker {
 // ─── Global State ───────────────────────────────────────────────────
 
 let autoBattleActive = false;
+
+function isAutoBattleActive(): boolean {
+  return autoBattleActive;
+}
 let autoBattleTimer: ReturnType<typeof setTimeout> | null = null;
 let currentBoardRotation = 0;
 
@@ -1697,6 +1789,11 @@ function initEventListeners(): void {
   puzzleBtn?.addEventListener("click", () => {
     if (game.state === "game_over") return;
     showPuzzleMenu();
+  });
+
+  const statsBtn = document.getElementById("stats-btn") as HTMLButtonElement;
+  statsBtn?.addEventListener("click", () => {
+    showStatsDashboard();
   });
 
   const loadBtn = document.getElementById("load-btn") as HTMLButtonElement;
