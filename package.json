@@ -24,7 +24,7 @@
     "playwright": "^1.62.1",
     "prettier": "^3.9.5",
     "serve": "^14.2.6",
-    "terser": "^5.49.0",
+    "terser": "^5.50.0",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3",
     "vite": "^8.2.1",
