@@ -71,4 +71,63 @@ describe("game stats", () => {
     expect(s.totalGames).toBe(0);
     expect(s.recent.length).toBe(0);
   });
+
+  it("save failures are non-fatal (quota exceeded / private mode)", () => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    try {
+      const returned = recordGameResult({
+        winner: "fire",
+        mode: "auto",
+        moves: 5,
+      });
+      // the RETURNED stats object reflects the recorded game even though
+      // persistence failed (recordGameResult mutates + returns before save)
+      expect(returned.totalGames).toBe(1);
+      // and nothing was persisted — a fresh read starts empty again
+      localStorage.setItem = orig; // restore so loadGameStats can read
+      Storage.prototype.removeItem = () => {
+        throw new Error("x");
+      };
+      resetGameStats(); // no-op on storage, but clears nothing persisted
+      Storage.prototype.removeItem = orig;
+      expect(loadGameStats().totalGames).toBe(0);
+    } finally {
+      Storage.prototype.setItem = orig;
+    }
+  });
+
+  it("reset failures are non-fatal", () => {
+    const orig = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    try {
+      expect(() => resetGameStats()).not.toThrow();
+    } finally {
+      Storage.prototype.removeItem = orig;
+    }
+  });
+
+  it("drops malformed recent entries on load instead of crashing", () => {
+    // Simulate a hand-edited/corrupted entry sneaking into the recent list.
+    localStorage.setItem(
+      GAME_STATS_KEY,
+      JSON.stringify({
+        totalGames: 1,
+        recent: [
+          { date: "2026-08-24", mode: "auto", winner: "fire", moves: 12 },
+          { garbage: true },
+          null,
+          { date: 42, mode: "auto", moves: 3 }, // wrong date type
+          { date: "2026-08-23", mode: "bogus-mode", moves: 3 }, // invalid mode
+        ],
+      }),
+    );
+    const s = loadGameStats();
+    expect(s.recent.length).toBe(1);
+    expect(s.recent[0]).toMatchObject({ date: "2026-08-24", moves: 12 });
+  });
 });
