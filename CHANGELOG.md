@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-24
+
+### Added
+
+- **Deterministisches Tagespuzzle** (#140). FNV-1a-Hash über das ISO-Datum wählt das Tagespuzzle deterministisch aus dem 155-Puzzle-Pool (73 Mate-in-1 + 82 Mate-in-2, self-play-mined in #131) — jeder Spieler bekommt am gleichen Tag dasselbe Puzzle statt eines Browser-Zufallstreffers. Wochentags-Schwierigkeitsrotation: leicht am Wochenende (Sa/So, Mate-in-1-Tier), medium unter der Woche; Fallback auf den ganzen Pool bei leerem Tier. Das Puzzle-Menü zeigt den echten Schwierigkeitsgrad des heutigen Dailys statt eines hardcodierten Werts.
+- **Statistik-Dashboard** (#141). Neuer 📊-Button in der Modi-Leiste: Partien gesamt / Auto-Battle / manuell, Siege pro Fraktion, Remis, manuelle Siege pro Fraktion, Puzzle-Lösequote, Hinweise-Nutzung und Daily-Streak (aktuell + Best) — alles lokal über `localStorage` (`js/game-stats.ts`), kein Backend. Beendete Partien werden über den vorhandenen `onGameOver`-Hook erfasst (Modus, Sieger, Züge, Datum, max. 500 Einträge, robust gegen korrupte Daten). Reset-Button inklusive.
+- **Feedback-Kanal** (#141). 💬-Button im Dashboard öffnet ein vorgefülltes GitHub-Issue-Template (`.github/ISSUE_TEMPLATE/feedback.md`, Label `feedback`) — kein externer Dienst, kein Account-Zwang.
+
+### Changed
+
+- **Bundle-Gate kalibriert** (#141): main.js-gzip-Schwellenwert 30000 → 31000 B für das Statistik-Dashboard (~30.3 kB gzip real).
+
+### Tests
+
+- **Suite 800 → 838 Tests** in drei Härtungsrunden (#142–144), invariant-first, keine Produktionslogik geändert:
+  - board.ts: LastMove-/Preview-Highlights exakt (move/attack-Kanäle getrennt), Hover-Callback-Koordinaten — Branch 66.7% → 81.8%
+  - analysis.ts: Game-Over-Short-Circuit, alle drei `renderAnalysisToHTML`-Pfade + XSS-Escaping-Regression — Lines auf 100%
+  - ai-core.ts: neue `tests/see.test.ts` — quickSee-Suizid-Penalty (−10000), exakte Advantage-Formel, MVV-LVA-Richtung, see()-Disadvantage = −10×Angreiferwert, Personality-Switch inkl. Unknown-ID-Ablehnung
+  - pwa.ts: Dismissed-Install-Pfad + Stale-Prompt-Guard nach `appinstalled`
+  - rps-puzzle.ts: Deserialize-Fallbacks (unbekannter Typ → Pawn, Off-Board-Skip, Faction-Index modulo 3), Count-Cap, Round-Trip-Invariante (jedes generierte Puzzle evaluiert seine eigene Lösung als korrekt)
+  - tutorial.ts: Automatik-Erkennung über `navigator.webdriver`
+  - opening-book.ts + game-stats.ts: Quota-/Korrupt-Fehlpfade non-fatal, malformed-recent-Filter
+  - Branch-Coverage gesamt 82.9% → 84.5%, Lines 93.6% → 95.7%
+
 ## [1.5.0] - 2026-08-20
 
 ### Added
