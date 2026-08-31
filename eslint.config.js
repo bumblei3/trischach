@@ -4,6 +4,16 @@ import globals from "globals";
 export default [
   js.configs.recommended,
   {
+    ignores: [
+      "dist/**",              // Ignoriert ALLE Dateien in dist/ (und Unterverzeichnissen)
+      "playwright-report/**",
+      "test-results/**",
+      "coverage/**",
+      "js/*.js",
+      "js/*.js.map",
+      "generate-puzzles.js",
+      "sw.js",
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -23,19 +33,13 @@ export default [
     rules: {
       "no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrors: "none",
+        },
       ],
       "no-console": "off",
     },
-    ignores: [
-      "dist/",
-      "playwright-report/",
-      "test-results/",
-      "coverage/",
-      "js/*.js",
-      "js/*.js.map",
-      "generate-puzzles.js",
-      "sw.js",
-    ],
   },
 ];
