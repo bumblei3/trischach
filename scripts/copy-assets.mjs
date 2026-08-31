@@ -2,7 +2,6 @@
 // Copy static assets to dist/ after vite build
 
 import fs from "fs";
-import path from "path";
 
 const assets = [
   // NOTE: index.html is intentionally NOT copied here. Vite already builds it
