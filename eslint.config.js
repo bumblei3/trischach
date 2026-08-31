@@ -2,17 +2,17 @@ import js from "@eslint/js";
 import globals from "globals";
 
 export default [
-  // Global ignores: applies to ALL config objects in this array
   {
     ignores: [
-      "dist/**",              // Alle generierten Bundle-Dateien
+      "dist/**",
       "playwright-report/**",
       "test-results/**",
       "coverage/**",
-      "js/*.js",              // Generiertes JS in js/ (nur .ts Dateien sollen gelintet werden)
+      "js/*.js",
       "js/*.js.map",
       "generate-puzzles.js",
       "sw.js",
+      "icons/generate-icons.cjs",
     ],
   },
   js.configs.recommended,
