@@ -2,18 +2,21 @@ import js from "@eslint/js";
 import globals from "globals";
 
 export default [
-  js.configs.recommended,
+  // Global ignores: applies to ALL config objects in this array
   {
     ignores: [
-      "dist/**",              // Ignoriert ALLE Dateien in dist/ (und Unterverzeichnissen)
+      "dist/**",              // Alle generierten Bundle-Dateien
       "playwright-report/**",
       "test-results/**",
       "coverage/**",
-      "js/*.js",
+      "js/*.js",              // Generiertes JS in js/ (nur .ts Dateien sollen gelintet werden)
       "js/*.js.map",
       "generate-puzzles.js",
       "sw.js",
     ],
+  },
+  js.configs.recommended,
+  {
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
