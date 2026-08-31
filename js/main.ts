@@ -91,6 +91,13 @@ import {
 import { analyzePosition, renderAnalysisToHTML } from "./analysis.ts";
 import { Hex } from "./hex.ts";
 import { Piece, PIECE_TYPE } from "./pieces.ts";
+import {
+  logFeedbackClick,
+  logFeedbackSubmit,
+  generateFeedbackDraft,
+  summarizeFeedback,
+  resetFeedback,
+} from "./game-feedback.ts";
 
 // ─── Global Type Augmentation ────────────────────────────────────────
 
@@ -246,31 +253,212 @@ function showStatsDashboard(): void {
           <span>🔥 Daily-Streak: <strong>${streak.current}</strong> (Best: <strong>${streak.best}</strong>)</span>
         </div>
 
+        <div class="puzzle-info" id="stats-feedback-section">
+          <!-- Feedback-Zähler wird per JS befüllt -->
+        </div>
+
         <div class="puzzle-actions">
           <button class="puzzle-btn secondary" id="stats-reset-btn">🗑 Zurücksetzen</button>
+          <button class="puzzle-btn secondary" id="stats-feedback-reset-btn">↺ Feedback zurücksetzen</button>
           <button class="puzzle-btn secondary" id="stats-feedback-btn">💬 Feedback</button>
         </div>
       </div>
     `;
   puzzleOverlay.classList.add("visible");
 
+  const fb = summarizeFeedback();
+  const fbSec = document.getElementById("stats-feedback-section");
+  if (fbSec) {
+    fbSec.innerHTML = `
+      <div class="puzzle-info-item"><strong>Feedback:</strong> ${fb.buttonClicks} Klicks, ${fb.submits} Abgaben${fb.ratingCount > 0 ? ` (Ø ${Math.round(fb.ratingSum / fb.ratingCount)}/${fb.ratingCount})` : ""}</div>
+    `;
+  }
+
   document.getElementById("stats-close-btn")?.addEventListener("click", () => {
     puzzleOverlay.classList.remove("visible");
   });
   document.getElementById("stats-reset-btn")?.addEventListener("click", () => {
     resetGameStats();
+    resetFeedback();
+    showStatsDashboard();
+  });
+  document.getElementById("stats-feedback-reset-btn")?.addEventListener("click", () => {
+    resetFeedback();
     showStatsDashboard();
   });
   document
     .getElementById("stats-feedback-btn")
     ?.addEventListener("click", () => {
-      window.open(
-        "https://github.com/bumblei3/trischach/issues/new?template=feedback.md&title=Feedback",
-        "_blank",
-        "noopener",
-      );
+      logFeedbackClick("stats-dashboard");
+      showFeedbackForm();
     });
 }
+
+// ─── Feedback Formular ────────────────────────────────────────────────
+
+function showFeedbackForm(): void {
+  puzzleOverlay.innerHTML = `
+    <div class="puzzle-box">
+      <div class="puzzle-header">
+        <h2 class="puzzle-title">💬 Feedback</h2>
+        <button class="puzzle-close-btn" id="feedback-close-btn" title="Schließen">✕</button>
+      </div>
+
+      <div class="puzzle-info">
+        <p class="feedback-intro">
+          Wie findest du trischach? Dein Feedback hilft, das Spiel zu verbessern.
+          Kein Account nötig — alles bleibt lokal, bis du den fertigen Text
+          selbst auf GitHub posten möchtest.
+        </p>
+      </div>
+
+      <div class="feedback-form">
+        <label for="feedback-rating">Bewertung (1–5):</label>
+        <div class="feedback-stars" id="feedback-stars">
+          <button data-rating="1" class="feedback-star" aria-label="1 Stern">★</button>
+          <button data-rating="2" class="feedback-star" aria-label="2 Sterne">★</button>
+          <button data-rating="3" class="feedback-star" aria-label="3 Sterne">★</button>
+          <button data-rating="4" class="feedback-star" aria-label="4 Sterne">★</button>
+          <button data-rating="5" class="feedback-star" aria-label="5 Sterne">★</button>
+        </div>
+        <div class="feedback-rating-label" id="feedback-rating-label">Noch keine Bewertung</div>
+      </div>
+
+      <div class="feedback-form">
+        <label for="feedback-text">Dein Feedback:</label>
+        <textarea
+          id="feedback-text"
+          class="feedback-textarea"
+          rows="5"
+          placeholder="Was gefällt dir? Was könnte besser sein?"
+        ></textarea>
+      </div>
+
+      <div class="puzzle-actions">
+        <button class="puzzle-btn secondary" id="feedback-show-draft-btn">📋 Vorschau anzeigen</button>
+        <button class="puzzle-btn secondary" id="feedback-back-btn">← Zurück zum Dashboard</button>
+      </div>
+    </div>
+  `;
+  puzzleOverlay.classList.add("visible");
+
+  let selectedRating = 0;
+
+  const stars = document.querySelectorAll<HTMLButtonElement>(".feedback-star");
+  const ratingLabel = document.getElementById("feedback-rating-label")!;
+  const textArea = document.getElementById("feedback-text") as HTMLTextAreaElement | null;
+  const closeBtn = document.getElementById("feedback-close-btn")!;
+  const showDraftBtn = document.getElementById("feedback-show-draft-btn")!;
+  const backBtn = document.getElementById("feedback-back-btn")!;
+
+  const updateStars = (): void => {
+    stars.forEach((star) => {
+      const r = Number(star.dataset.rating);
+      if (r <= selectedRating) {
+        star.classList.add("feedback-star--active");
+      } else {
+        star.classList.remove("feedback-star--active");
+      }
+    });
+    ratingLabel.textContent = selectedRating > 0
+      ? `${selectedRating} von 5`
+      : "Noch keine Bewertung";
+  };
+
+  stars.forEach((star) => {
+    star.addEventListener("click", () => {
+      selectedRating = Number(star.dataset.rating);
+      updateStars();
+    });
+  });
+
+  closeBtn.addEventListener("click", () => {
+    puzzleOverlay.classList.remove("visible");
+  });
+
+  backBtn.addEventListener("click", () => {
+    puzzleOverlay.classList.remove("visible");
+    showStatsDashboard();
+  });
+
+  showDraftBtn.addEventListener("click", () => {
+    const text = textArea?.value.trim() ?? "";
+    if (selectedRating === 0 && text === "") return;
+    const draft = generateFeedbackDraft(selectedRating || 3, text);
+    logFeedbackSubmit(selectedRating || 3, text, draft);
+    showFeedbackThankYou(draft, selectedRating || 3, text);
+  });
+}
+
+function showFeedbackThankYou(
+  draft: string,
+  rating: number,
+  text: string,
+): void {
+  puzzleOverlay.innerHTML = `
+    <div class="puzzle-box">
+      <div class="puzzle-header">
+        <h2 class="puzzle-title">💬 Danke!</h2>
+        <button class="puzzle-close-btn" id="feedback-thankyou-close-btn" title="Schließen">✕</button>
+      </div>
+
+      <div class="feedback-thankyou">
+        <p>Dein Feedback-Entwurf ist fertig. Kopiere den Text und poste ihn auf
+        GitHub, wenn du möchtest. Wir haben ihn nicht automatisch gesendet —
+        das bleibt bei dir.</p>
+      </div>
+
+      <div class="feedback-draft-box">
+        <pre id="feedback-draft-text" class="feedback-draft-text">${escapeHtml(draft)}</pre>
+      </div>
+
+      <div class="puzzle-actions">
+        <button class="puzzle-btn" id="feedback-copy-btn">📋 Kopieren</button>
+        <button class="puzzle-btn secondary" id="feedback-edit-btn">✏️ Bearbeiten</button>
+        <button class="puzzle-btn secondary" id="feedback-done-btn">Fertig</button>
+      </div>
+    </div>
+  `;
+  puzzleOverlay.classList.add("visible");
+
+  const closeBtn = document.getElementById("feedback-thankyou-close-btn")!;
+  const copyBtn = document.getElementById("feedback-copy-btn")!;
+  const editBtn = document.getElementById("feedback-edit-btn")!;
+  const doneBtn = document.getElementById("feedback-done-btn")!;
+
+  closeBtn.addEventListener("click", () => {
+    puzzleOverlay.classList.remove("visible");
+  });
+
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(draft);
+      copyBtn.textContent = "✓ Kopiert!";
+      setTimeout(() => {
+        copyBtn.textContent = "📋 Kopieren";
+      }, 1500);
+    } catch {
+      const pre = document.getElementById("feedback-draft-text")!;
+      const range = document.createRange();
+      range.selectNodeContents(pre);
+      const selection = window.getSelection();
+      if (selection) selection.removeAllRanges();
+      selection?.addRange(range);
+    }
+  });
+
+  editBtn.addEventListener("click", () => {
+    // Zurück zum Formular — Zustand geht verloren, aber das ist okay für einen
+    // ersten Entwurf. Nutzer kann neu eingeben.
+    showFeedbackForm();
+  });
+
+  doneBtn.addEventListener("click", () => {
+    puzzleOverlay.classList.remove("visible");
+    showStatsDashboard();
+  });
+}
+
 const tutorialOverlay = document.getElementById(
   "tutorial-overlay",
 ) as HTMLElement | null;
