@@ -15,11 +15,13 @@
     "check:js": "tsc --noEmit --skipLibCheck --allowJs --checkJs --noEmit"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/node": "^26.4.0",
     "@vitest/coverage-istanbul": "^4.1.11",
     "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^10.9.1",
+    "globals": "^17.11.0",
     "happy-dom": "^20.11.12",
     "playwright": "^1.62.1",
     "prettier": "^3.9.6",
@@ -86,7 +88,6 @@
     "get-stream": "^9.0.1",
     "glob": "^13.0.6",
     "glob-parent": "^6.0.2",
-    "globals": "^17.11.0",
     "graphemer": "^1.4.0",
     "has-flag": "^5.0.1",
     "html-escaper": "^3.0.3",
