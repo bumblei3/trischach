@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/eslint
-          key: eslint-${{ runner.os }}-${{ hashFiles('.eslintrc.*', 'package-lock.json') }}
+          key: eslint-${{ runner.os }}-${{ hashFiles('eslint.config.js', 'package-lock.json') }}
           restore-keys: |
             eslint-${{ runner.os }}-
       - name: Run linter
