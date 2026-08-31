@@ -952,21 +952,23 @@ describe("Replay: reconstructGameFromTSPN", () => {
         hasMoved: false,
       },
     ];
-    const MockGameClass = vi.fn().mockImplementation(() => ({
-      pieces: mockPieces,
-      init: vi.fn(),
-      rpsEnabled: true,
-      capturedPieces: { fire: [], water: [], nature: [] },
-      eliminatedFactions: new Set(),
-      currentFaction: "fire",
-      currentFactionIdx: 0,
-      state: "select_piece",
-      // Minimal engine stubs so the replay path (resolveSourcePiece /
-      // precomputeStates) can run against this mock without a real Game.
-      handleCellClick: vi.fn(() => ({ promotion: false })),
-      getAlivePieces: () => mockPieces.filter((p) => p.alive),
-      getLegalMoves: () => ({ moves: [], attacks: [] }),
-    }));
+    const MockGameClass = vi
+      .fn()
+      .mockImplementation(function (this: any) {
+        return {
+          pieces: mockPieces,
+          init: vi.fn(),
+          rpsEnabled: true,
+          capturedPieces: { fire: [], water: [], nature: [] },
+          eliminatedFactions: new Set(),
+          currentFaction: "fire",
+          currentFactionIdx: 0,
+          state: "select_piece",
+          handleCellClick: vi.fn(() => ({ promotion: false })),
+          getAlivePieces: () => mockPieces.filter((p) => p.alive),
+          getLegalMoves: () => ({ moves: [], attacks: [] }),
+        } as unknown as Game;
+      });
 
     const boardCells = generateBoard();
     const parsedTSPN = {
@@ -999,21 +1001,23 @@ describe("Replay: reconstructGameFromTSPN", () => {
         hasMoved: false,
       },
     ];
-    const MockGameClass = vi.fn().mockImplementation(() => ({
-      pieces: mockPieces,
-      init: vi.fn(),
-      rpsEnabled: true,
-      capturedPieces: { fire: [], water: [], nature: [] },
-      eliminatedFactions: new Set(),
-      currentFaction: "fire",
-      currentFactionIdx: 0,
-      state: "select_piece",
-      // Minimal engine stubs so the replay path (resolveSourcePiece /
-      // precomputeStates) can run against this mock without a real Game.
-      handleCellClick: vi.fn(() => ({ promotion: false })),
-      getAlivePieces: () => mockPieces.filter((p) => p.alive),
-      getLegalMoves: () => ({ moves: [], attacks: [] }),
-    }));
+    const MockGameClass = vi
+      .fn()
+      .mockImplementation(function (this: any) {
+        return {
+          pieces: mockPieces,
+          init: vi.fn(),
+          rpsEnabled: true,
+          capturedPieces: { fire: [], water: [], nature: [] },
+          eliminatedFactions: new Set(),
+          currentFaction: "fire",
+          currentFactionIdx: 0,
+          state: "select_piece",
+          handleCellClick: vi.fn(() => ({ promotion: false })),
+          getAlivePieces: () => mockPieces.filter((p) => p.alive),
+          getLegalMoves: () => ({ moves: [], attacks: [] }),
+        } as unknown as Game;
+      });
 
     const boardCells = generateBoard();
     const parsedTSPN = {
@@ -1096,7 +1100,9 @@ describe("Replay: Export/Import Helpers", () => {
 
     vi.stubGlobal(
       "FileReader",
-      vi.fn(() => mockReader),
+      vi.fn(function (this: any) {
+        return mockReader;
+      }),
     );
 
     const result = await loadGameFromFile(mockFile as unknown as File);
