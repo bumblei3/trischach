@@ -25,8 +25,18 @@ describe("game-feedback", () => {
 
   it("loadFeedback — gültige Daten werden korrekt geladen", () => {
     const entries: FeedbackEntry[] = [
-      { timestamp: "2024-01-01T00:00:00.000Z", kind: "button", context: "stats-dashboard" },
-      { timestamp: "2024-01-01T00:01:00.000Z", kind: "submit", rating: 5, text: "gut", draft: "draft" },
+      {
+        timestamp: "2024-01-01T00:00:00.000Z",
+        kind: "button",
+        context: "stats-dashboard",
+      },
+      {
+        timestamp: "2024-01-01T00:01:00.000Z",
+        kind: "submit",
+        rating: 5,
+        text: "gut",
+        draft: "draft",
+      },
     ];
     saveFeedback(entries);
     expect(loadFeedback()).toEqual(entries);
@@ -94,7 +104,9 @@ describe("game-feedback", () => {
     expect(draft).toContain("**Bewertung:** 3 von 5");
     expect(draft).toContain("> geht so");
     expect(draft).toContain("> noch besser wär es");
-    expect(draft).toContain("*Dieses Feedback wurde von trischach vorbereitet.");
+    expect(draft).toContain(
+      "*Dieses Feedback wurde von trischach vorbereitet.",
+    );
   });
 
   it("generateFeedbackDraft — Rating-Wörter", () => {

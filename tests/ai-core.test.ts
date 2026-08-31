@@ -3,7 +3,7 @@
  * helpers (no full search, no worker). These lock in engine
  * semantics that the E2E suite cannot assert cheaply.
  */
-import { test, describe, expect } from "vitest";
+import { test, describe, expect, vi, beforeEach, afterEach } from "vitest";
 import { Game } from "../js/game.ts";
 import { generateBoard, FACTION } from "../js/board.ts";
 import { PIECE_TYPE, PIECE_STRENGTH, Piece } from "../js/pieces.ts";
@@ -15,6 +15,9 @@ import {
   getAllActions,
   evaluateBoard,
   computeZobristHash,
+  startPondering,
+  // @ts-expect-error — internal state singleton for timeout-path testing
+  PonderState,
 } from "../js/ai-core.ts";
 
 function createStartingGame(): Game {

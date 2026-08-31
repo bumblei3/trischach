@@ -662,15 +662,53 @@ describe("BoardRenderer — highlight / animate edge cases", () => {
     ).toBe(false);
   });
 
-  test("onCellHover fires with coordinates on pointerenter and null on pointerleave", () => {
+  test("onCellClick fires on pointerdown and preventDefault is called", () => {
+    const onCellClick = vi.fn();
+    renderer.onCellClick = onCellClick;
+    const cell = Array.from(renderer.cells.values())[0]!;
+    const groupEl = renderer.hexElements.get(cell.hex.key)!.group;
+    const evt = new PointerEvent("pointerdown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventSpy = vi.spyOn(evt, "preventDefault");
+    groupEl.dispatchEvent(evt);
+    expect(preventSpy).toHaveBeenCalled();
+    expect(onCellClick).toHaveBeenCalledWith(cell.hex, cell);
+  });
+
+  test("piece pointerdown starts 500ms long-press timer and fires onPieceLongPress", async () => {
+    vi.useFakeTimers();
+    const onPieceLongPress = vi.fn();
+    renderer.onPieceLongPress = onPieceLongPress;
+    const piece: Piece = {
+      id: "lp3",
+      type: "pawn",
+      faction: FACTION.FIRE,
+      pos: new Hex(0, 0),
+      symbol: "P",
+      alive: true,
+      hasMoved: false,
+    };
+    renderer.renderPiece(piece);
+    const el = renderer.pieceElements.get("lp3")!.element;
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    expect(onPieceLongPress).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(500);
+    await vi.runAllTicks();
+    expect(onPieceLongPress).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  test("pointerenter/pointerleave fire onCellHover with coords and null (lines 343-351)", () => {
     const seen: ({ q: number; r: number } | null)[] = [];
     renderer.onCellHover = (pos) => seen.push(pos);
     const cell = Array.from(renderer.cells.values())[0]!;
-    const el = renderer.hexElements.get(cell.hex.key)!.polygon
-      .parentElement as unknown as EventTarget;
-    el.dispatchEvent(new window.Event("pointerenter"));
+    const el = renderer.hexElements.get(cell.hex.key)!.group;
+    expect(seen).toEqual([]);
+    el.dispatchEvent(new PointerEvent("pointerenter", { bubbles: true }));
     expect(seen).toEqual([{ q: cell.hex.q, r: cell.hex.r }]);
-    el.dispatchEvent(new window.Event("pointerleave"));
+    el.dispatchEvent(new PointerEvent("pointerleave", { bubbles: true }));
     expect(seen[seen.length - 1]).toBeNull();
   });
 });

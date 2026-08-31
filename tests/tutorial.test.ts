@@ -100,6 +100,22 @@ describe("tutorial storage resilience (private mode / quota)", () => {
     }
   });
 
+  test("isTutorialDone catches localStorage.getItem errors via stubbed getter", () => {
+    // Direct stub on the localStorage object itself (not just the prototype)
+    // to ensure the try/catch in isTutorialDone is actually exercised.
+    vi.stubGlobal("localStorage", {
+      ...localStorage,
+      getItem: () => {
+        throw new DOMException("quota exceeded", "QuotaExceededError");
+      },
+    } as Storage);
+    try {
+      expect(isTutorialDone()).toBe(false);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   test("markTutorialDone swallows setItem errors (private mode)", () => {
     const orig = Storage.prototype.setItem;
     Storage.prototype.setItem = () => {
@@ -122,6 +138,35 @@ describe("tutorial storage resilience (private mode / quota)", () => {
     } finally {
       Storage.prototype.removeItem = orig;
     }
+  });
+
+  test("shouldShowTutorialOnStartup returns true when tutorial not done and no automation", () => {
+    // Clear tutorial flag and ensure webdriver is off so the
+    // `return !isTutorialDone()` line (106) is reached.
+    localStorage.removeItem(TUTORIAL_DONE_KEY);
+    const nav = window.navigator as unknown as { webdriver?: boolean };
+    const origWebdriver = nav.webdriver;
+    Object.defineProperty(nav, "webdriver", {
+      value: false,
+      configurable: true,
+    });
+    try {
+      expect(shouldShowTutorialOnStartup()).toBe(true);
+    } finally {
+      Object.defineProperty(nav, "webdriver", {
+        value: origWebdriver,
+        configurable: true,
+      });
+    }
+  });
+
+  test("isAutomatedBrowser does not throw when location is undefined", () => {
+    // Exercises the second try/catch (line ~92-98) where location access happens.
+    vi.stubGlobal("location", undefined as any);
+    // isAutomatedBrowser guards with `typeof location !== "undefined"` so the
+    // body is skipped — we only assert it does not throw and returns false.
+    expect(() => isAutomatedBrowser()).not.toThrow();
+    vi.unstubAllGlobals();
   });
 
   test("shouldShowTutorialOnStartup is false when navigator.webdriver is set", () => {

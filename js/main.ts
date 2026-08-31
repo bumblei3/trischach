@@ -282,10 +282,12 @@ function showStatsDashboard(): void {
     resetFeedback();
     showStatsDashboard();
   });
-  document.getElementById("stats-feedback-reset-btn")?.addEventListener("click", () => {
-    resetFeedback();
-    showStatsDashboard();
-  });
+  document
+    .getElementById("stats-feedback-reset-btn")
+    ?.addEventListener("click", () => {
+      resetFeedback();
+      showStatsDashboard();
+    });
   document
     .getElementById("stats-feedback-btn")
     ?.addEventListener("click", () => {
@@ -346,7 +348,9 @@ function showFeedbackForm(): void {
 
   const stars = document.querySelectorAll<HTMLButtonElement>(".feedback-star");
   const ratingLabel = document.getElementById("feedback-rating-label")!;
-  const textArea = document.getElementById("feedback-text") as HTMLTextAreaElement | null;
+  const textArea = document.getElementById(
+    "feedback-text",
+  ) as HTMLTextAreaElement | null;
   const closeBtn = document.getElementById("feedback-close-btn")!;
   const showDraftBtn = document.getElementById("feedback-show-draft-btn")!;
   const backBtn = document.getElementById("feedback-back-btn")!;
@@ -360,9 +364,8 @@ function showFeedbackForm(): void {
         star.classList.remove("feedback-star--active");
       }
     });
-    ratingLabel.textContent = selectedRating > 0
-      ? `${selectedRating} von 5`
-      : "Noch keine Bewertung";
+    ratingLabel.textContent =
+      selectedRating > 0 ? `${selectedRating} von 5` : "Noch keine Bewertung";
   };
 
   stars.forEach((star) => {
