@@ -76,28 +76,39 @@ describe("Main UI & Events", () => {
     vi.useFakeTimers();
 
     // Mock AudioContext
-    globalThis.AudioContext = vi.fn().mockImplementation(() => ({
-      createOscillator: () => ({
-        connect: vi.fn(),
-        start: vi.fn(),
-        stop: vi.fn(),
-        frequency: {
-          setValueAtTime: vi.fn(),
-          exponentialRampToValueAtTime: vi.fn(),
-        },
-        type: "sine",
-      }),
-      createGain: () => ({
-        connect: vi.fn(),
-        gain: {
-          setValueAtTime: vi.fn(),
-          exponentialRampToValueAtTime: vi.fn(),
-          linearRampToValueAtTime: vi.fn(),
-        },
-      }),
-      destination: {},
-      currentTime: 100,
-    }));
+    const mockOsc = {
+      connect: vi.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      frequency: {
+        setValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: vi.fn(),
+      },
+      type: "sine" as OscillatorType,
+    };
+    const mockGain = {
+      connect: vi.fn(),
+      gain: {
+        setValueAtTime: vi.fn(),
+        exponentialRampToValueAtTime: vi.fn(),
+        linearRampToValueAtTime: vi.fn(),
+      },
+    };
+
+    globalThis.AudioContext = vi
+      .fn()
+      .mockImplementation(function (this: any) {
+        return {
+          createOscillator: () => mockOsc,
+          createGain: () => mockGain,
+          destination: {},
+          currentTime: 100,
+        } as unknown as AudioContext;
+      });
+    (globalThis.AudioContext as unknown as { prototype?: object }).prototype = {
+      state: "running",
+      resume: vi.fn(),
+    } as any;
   });
 
   afterEach(() => {

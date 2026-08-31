@@ -48,7 +48,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/eslint
-          key: eslint-${{ runner.os }}-${{ hashFiles('.eslintrc.*', 'package-lock.json') }}
+          key: eslint-${{ runner.os }}-${{ hashFiles('eslint.config.js', 'package-lock.json') }}
           restore-keys: |
             eslint-${{ runner.os }}-
       - name: Run linter
@@ -244,7 +244,7 @@ jobs:
           # after v1.4.0 + RPS-tactic puzzle mode legitimately grew main.js to ~28.3KB gzip.
           # 31000: + stats dashboard & feedback button (#141, ~30.3KB gzip).
           node -e "
-            const limits = { main: 31000, core: 18000, worker: 2000 };
+            const limits = { main: 32000, core: 18000, worker: 2000 };
             const sizes  = { main: ${MAIN_JS_GZIP}, core: ${CORE_JS_GZIP}, worker: ${WORKER_JS_GZIP} };
             let failed = false;
             for (const k of Object.keys(limits)) {

@@ -15,11 +15,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "allowImportingTsExtensions": true,
-    "baseUrl": ".",
     "ignoreDeprecations": "6.0",
-    "paths": {
-      "@/*": ["js/*"]
-    },
     "types": ["vitest/globals", "@types/node", "happy-dom"]
   },
   "include": [
