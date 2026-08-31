@@ -213,3 +213,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Deployed site loaded a blank board** (`vite.config.ts`): the relative `base: "./"` fix for serving under the `/trischach/` GitHub Pages subpath was applied during #24 but never committed — a fresh clone would silently drop it and reintroduce the blank-board-on-deploy regression. Now persisted.
+# ci: trigger workflow rerun after ESLint fixes
