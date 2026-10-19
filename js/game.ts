@@ -23,6 +23,7 @@ import type {
   AISnapshot,
   IGame,
 } from "./types.ts";
+import { GAME_STATE, PROMOTION_CHOICES } from "./game-constants.ts";
 
 // Re-export for backwards compatibility
 export {
@@ -30,33 +31,19 @@ export {
   legalMoveCheck as wouldBeInCheck,
   isCheckmateInternal as isCheckmate,
   isStalemateInternal as isStalemate,
-};
+} from "./game-check.ts";
 
 // Re-export types
 export type { GameResult, Piece, GameState } from "./types.ts";
 
-export const GAME_STATE = {
-  SELECT_PIECE: "select_piece",
-  SELECT_TARGET: "select_target",
-  PROMOTION: "promotion",
-  GAME_OVER: "game_over",
-  DRAW_REPETITION: "draw_repetition",
-  DRAW_50MOVE: "draw_50move",
-} as const satisfies Record<string, GameState>;
+// Re-export constants (now in game-constants.ts)
+export { GAME_STATE, PROMOTION_CHOICES } from "./game-constants.ts";
 
 const TURN_ORDER: readonly Faction[] = [
   FACTION.FIRE,
   FACTION.WATER,
   FACTION.NATURE,
 ];
-
-// Promotion: piece types a pawn can promote to (excluding king and pawn)
-export const PROMOTION_CHOICES: readonly PieceType[] = [
-  PIECE_TYPE.QUEEN,
-  PIECE_TYPE.ROOK,
-  PIECE_TYPE.BISHOP,
-  PIECE_TYPE.KNIGHT,
-] as const;
 
 export class Game {
   public pieces: Piece[] = [];

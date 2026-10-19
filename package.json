@@ -48,5 +48,8 @@
   "bugs": {
     "url": "https://github.com/bumblei3/trischach/issues"
   },
-  "homepage": "https://github.com/bumblei3/trischach#readme"
+  "homepage": "https://github.com/bumblei3/trischach#readme",
+  "engines": {
+    "node": ">=24 <25"
+  }
 }

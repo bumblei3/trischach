@@ -22,7 +22,9 @@ import {
   evaluateRpsMove,
 } from "./rps-puzzle.ts";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
-import { Game, GAME_STATE, PROMOTION_CHOICES, GameResult } from "./game.ts";
+import { GAME_STATE, PROMOTION_CHOICES } from "./game-constants.ts";
+import type { Game, GameResult } from "./game.ts";
+import { loadGame, createGame } from "./game-loader.ts";
 import {
   calculateBestMove,
   calculateBestMoveParallel,
@@ -505,7 +507,7 @@ const personalitySelect = document.getElementById(
 ) as HTMLSelectElement;
 
 const renderer = new BoardRenderer(svg);
-const game = new Game();
+const game = await createGame();
 
 // Record finished games for the statistics dashboard. Auto-Battle games are
 // tagged "auto"; every other finished game counts as human-played.
@@ -1087,7 +1089,7 @@ function clearCheckHighlight(): void {
 }
 
 /** Assigned by initEventListeners; lets move-log entries jump into replay. */
-let jumpToMoveImpl: ((moveIndex: number) => void) | null = null;
+let jumpToMoveImpl: ((moveIndex: number) => Promise<void>) | null = null;
 
 function addToLog(result: GameResult): void {
   if (!result.piece) return;
@@ -1107,7 +1109,9 @@ function addToLog(result: GameResult): void {
   entry.append(pieceSpan, coordsSpan);
   entry.addEventListener("click", () => {
     // Set by initEventListeners once the replay scope is initialized.
-    jumpToMoveImpl?.(index);
+    jumpToMoveImpl?.(index).catch((err) =>
+      console.error("jumpToMove failed:", err),
+    );
   });
   moveLogEl.appendChild(entry);
   moveLogEl.scrollTop = moveLogEl.scrollHeight;
@@ -2006,8 +2010,9 @@ function initEventListeners(): void {
       const parsed = await loadGameFromFile(file);
       console.log("Loaded game:", parsed.headers);
 
+      const GameCtor = await loadGame();
       const { game: replayGame, controller: replayController } =
-        reconstructGameFromTSPN(parsed, Game, renderer.cells);
+        reconstructGameFromTSPN(parsed, GameCtor, renderer.cells);
 
       autoBattleActive = false;
       const autoBattleBtn = document.getElementById(
@@ -2057,15 +2062,16 @@ function initEventListeners(): void {
    * Serializes the current game to TSPN, rebuilds it through the replay system
    * and steps to the chosen position — same path as loading a .tspn file.
    */
-  function jumpToMove(moveIndex: number): void {
+  async function jumpToMove(moveIndex: number): Promise<void> {
     if (game.moveHistory.length === 0) return;
     try {
       const tspn = serializeGame(game);
       const parsed = parseTSPN(tspn);
       if (parsed.moves.length === 0) return;
 
+      const GameCtor = await loadGame();
       const { game: replayGame, controller: replayController } =
-        reconstructGameFromTSPN(parsed, Game, renderer.cells);
+        reconstructGameFromTSPN(parsed, GameCtor, renderer.cells);
 
       autoBattleActive = false;
       const autoBattleBtn = document.getElementById(
@@ -2511,10 +2517,10 @@ function initEventListeners(): void {
 
     document
       .getElementById("puzzle-continue-btn")
-      ?.addEventListener("click", () => {
+      ?.addEventListener("click", async () => {
         const state = getPuzzleState();
         if (state.currentPuzzle) {
-          showPuzzleBoard(state.currentPuzzle, { resume: true });
+          await showPuzzleBoard(state.currentPuzzle, { resume: true });
         }
       });
 
@@ -2532,7 +2538,7 @@ function initEventListeners(): void {
     const daily = await getDailyPuzzle();
     hideLoading();
     if (daily) {
-      showPuzzleBoard(daily);
+      await showPuzzleBoard(daily);
     } else {
       showError("Konnte Tagespuzzle nicht laden.");
     }
@@ -2581,10 +2587,10 @@ function initEventListeners(): void {
       });
 
     puzzleOverlay.querySelectorAll(".puzzle-move[data-index]").forEach((el) => {
-      el.addEventListener("click", () => {
+      el.addEventListener("click", async () => {
         const index = parseInt(el.getAttribute("data-index")!);
         const puzzle = puzzles[index];
-        if (puzzle) showPuzzleBoard(puzzle!);
+        if (puzzle) await showPuzzleBoard(puzzle!);
       });
     });
   }
@@ -2675,17 +2681,17 @@ function initEventListeners(): void {
     });
   }
 
-  function showPuzzleBoard(
+  async function showPuzzleBoard(
     puzzle: Puzzle,
     options: { resume?: boolean } = {},
-  ): void {
+  ): Promise<void> {
     // Create a new game from the puzzle position
-    const testGame = new Game();
+    const testGame = await createGame();
     const cells = generateBoard();
     testGame.init(cells);
 
     // Deserialize the puzzle position
-    const gameFromFen = deserializePuzzleFEN(puzzle.fen);
+    const gameFromFen = await deserializePuzzleFEN(puzzle.fen);
     if (!gameFromFen) {
       showError("Ungültige Puzzle-Position.");
       return;
@@ -2794,9 +2800,9 @@ function initEventListeners(): void {
 
     document
       .getElementById("puzzle-reset-btn")
-      ?.addEventListener("click", () => {
+      ?.addEventListener("click", async () => {
         resetPuzzle();
-        showPuzzleBoard(puzzle);
+        await showPuzzleBoard(puzzle);
       });
 
     // Handle clicks on the puzzle board
@@ -2986,9 +2992,9 @@ function initEventListeners(): void {
 
     document
       .getElementById("puzzle-again-btn")
-      ?.addEventListener("click", () => {
+      ?.addEventListener("click", async () => {
         resetPuzzle();
-        showPuzzleBoard(puzzle);
+        await showPuzzleBoard(puzzle);
       });
 
     document
@@ -3009,12 +3015,12 @@ function initEventListeners(): void {
     puzzleBoardGroup = null;
   }
 
-  function deserializePuzzleFEN(fen: string): Game | null {
+  async function deserializePuzzleFEN(fen: string): Promise<Game | null> {
     try {
       const [piecesStr, factionIdxStr] = fen.split("#");
       const factionIdx = parseInt(factionIdxStr ?? "0", 10);
 
-      const game = new Game();
+      const game = await createGame();
       const cells = generateBoard();
       game.init(cells);
 
