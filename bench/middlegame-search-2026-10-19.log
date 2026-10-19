@@ -1,0 +1,47 @@
+===== Middlegame-Search-Hebel (calculateBestMove-Schwellen) =====
+Datum: 2026-10-19 | Branch: feat/middlegame-search (VERWORFEN, geparkt)
+
+AENDERUNG: ai-core.ts:2674
+  vorher:  if (pieceCount > 16 || usableActions.length > 30)  -> greedyBestMove (1-Ply)
+  nachher: if (pieceCount > 44 || usableActions.length > 100) -> iterativeDeepening greift
+
+BEFUND VORHER (main 0a3164e, depth 3, seed 12345, n=12):
+  Pfad-Verteilung ueber eine ganze Partie: BOOK=0  GREEDY(1-ply)=13  MINIMAX=0
+  -> Minimax lief NIE. Der komplette Suchstapel (Alpha-Beta, TT, LMR, Probcut,
+     Pondering) war in echten Partien toter Code.
+  Zugzeit: 2 ms von 1500-4000 ms Budget. Partie: 13 Plies, 15/45 Figuren ueberleben.
+
+BEFUND NACHHER (gleiches Setup):
+  Pfad-Verteilung: GREEDY=4  MINIMAX=20. Partie: 24 Plies.
+  Zugzeit: avg 1776 ms, max 4048 ms (= MAX_SEARCH_MS).
+  Testsuite: 859/859 gruen, aber 46 s -> 139 s (Faktor 3).
+  CI-Risiko: unit-tests-Job laeuft 7m18s bei timeout-minutes: 15 -> ~22 min.
+
+ENGINE-STÄRKE (n=12, seed 12345, depth 3):
+  OPPONENT=random
+    vorher:  Engine W7 | Opp W5 | D0   score 58.3%  Elo  +58 [-141..257]
+    nachher: Engine W7 | Opp W3 | D2   score 66.7%  Elo +120 [ -89..329]
+  OPPONENT=depth1
+    vorher:  Engine W4 | Opp W8 | D0   score 33.3%  Elo -120 [-329..89]
+    nachher: Engine W2 | Opp W5 | D5   score 37.5%  Elo  -89 [-292..114]
+
+BEWERTUNG: FLACH -> GEPARKT
+  - Score-Anstieg ist nicht signifikant (beide CIs ueberlappen 0, n=12).
+  - Bei depth1 sind die SIEGE von 4 auf 2 GESUNKEN; der Score-Gewinn stammt
+    ausschliesslich aus Remis (0 -> 5, zaehlen als 0.5). Die Engine gewinnt
+    nicht mehr, sie spielt vorsichtiger.
+  - Verdacht: die 5 Remis sind der Pendel-Fehlmodus (2026-07-20), gegen den
+    greedyBestMove REVERSAL_PENALTY/SEEN_POSITION_PENALTY bekam. minimax hat
+    kingmakerTerm NICHT (nur evaluateBoard an den Blaettern) und die
+    Pendel-Terme nur teilweise.
+  - Kosten stehen in keinem Verhaeltnis: 900x Zugzeit, 3x Testdauer,
+    Messlaeufe ~10x langsamer.
+
+NAECHSTER BAUSTEIN (falls je wieder aufgegriffen):
+  1. kingmakerTerm + captureReplyPenalty in die minimax-BLATTbewertung
+     (nicht in die Pruning-Stellen futility/razoring/probcut, dort ist
+     evaluateBoard eine statische Schaetzung).
+  2. Zeitbudget senken (~400 ms statt 1500-4000), sonst ist keine Messung
+     mit vertretbarem Aufwand moeglich.
+
+Aufruf: npx tsx scripts/engine-strength.ts --games=12 --depth=3 --opponent=random

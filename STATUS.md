@@ -38,12 +38,47 @@ Ein Score von 58.3% gegen random heißt also: Engine 58.3%, jeder der beiden Geg
 ~20.8% — klar überlegen. Ein Score von 33.3% gegen depth1 heißt: die Engine gewinnt
 exakt so oft wie jeder einzelne Gegner — **kein Vorteil**.
 
-### Der eine belastbare Befund: Suchtiefe zahlt sich nicht aus
+### Warum Suchtiefe sich nicht auszahlt: Minimax lief nie (2026-10-19)
 
-depth 3 gegen depth 1 ergibt 35.0% (n=40) bzw. 33.3% (n=12) — beides ohne
-signifikanten Abstand zum Fairness-Niveau. Mehr Suchtiefe bringt **keinen messbaren
-Vorteil**. Konsistent mit der These, dass der Engpass die Eval-Qualität ist: wenn die
-Bewertung falsch gewichtet, verstärkt mehr Suche nur den falschen Plan.
+depth 3 gegen depth 1 ergibt 35.0% (n=40) bzw. 33.3% (n=12) — ohne signifikanten
+Abstand zum Fairness-Niveau. Die Ursache ist **nicht** die Eval-Qualität, sondern die
+Routing-Schwelle in `calculateBestMove` (`ai-core.ts`):
+
+    if (pieceCount > 16 || usableActions.length > 30) -> greedyBestMove (1-Ply)
+
+Bei 45 Startfiguren und 20–60 legalen Zügen je Fraktion greift das **immer**. Über
+eine ganze Partie instrumentiert gemessen: **BOOK=0, GREEDY(1-Ply)=13, MINIMAX=0**.
+Der komplette Suchstapel (Alpha-Beta, TT, SEE, LMR, Probcut, Pondering) war in echten
+Partien toter Code — und der UI-Regler „KI-Tiefe" (1–4) wird nie gelesen.
+
+Folge: Die Engine spielt faktisch 1-Ply-Greedy und verbraucht **2 ms** ihres
+1500–4000-ms-Zeitbudgets. Partien enden nach 13 Plies (8/8 identisch); im Trace zieht
+der water-König in Zug 10 aus dem Lager, um eine Queen zu schlagen — genau der Fehler,
+den eine 2-Ply-Suche verbietet.
+
+**Hebel getestet und geparkt** (2026-10-19): Schwelle auf `> 44 || > 100` angehoben.
+
+| Metrik            | vorher      | nachher          |
+| ----------------- | ----------- | ---------------- |
+| Pfad              | Greedy 13/13 | Greedy 4, Minimax 20 |
+| Partielänge       | 13 Plies    | 24 Plies         |
+| Zugzeit           | 2 ms        | 1776 ms (max 4048 = MAX_SEARCH_MS) |
+| Tests             | 46 s        | 139 s (859/859 grün) |
+| vs random (n=12)  | 58.3% (7W/5L/0D) | 66.7% (7W/3L/2D) |
+| vs depth1 (n=12)  | 33.3% (4W/8L/0D) | 37.5% (2W/5L/5D) |
+
+Bewertung: **flach → geparkt.** Kein signifikanter Gewinn (beide CIs überlappen 0);
+bei depth1 sind die **Siege von 4 auf 2 gesunken**, der Score-Gewinn stammt allein
+aus Remis (0 → 5, zählen als 0.5) — die Engine gewinnt nicht mehr, sie spielt
+vorsichtiger. Verdacht: die Remis sind der Pendel-Fehlmodus von 2026-07-20, gegen den
+`greedyBestMove` `REVERSAL_PENALTY`/`SEEN_POSITION_PENALTY` bekam — `minimax` hat
+`kingmakerTerm` gar nicht (nur `evaluateBoard` an den Blättern).
+
+Details: `bench/middlegame-search-2026-10-19.log`. Nächste Bausteine, falls je wieder
+aufgegriffen: (1) `kingmakerTerm` + `captureReplyPenalty` in die minimax-*Blatt*bewertung
+(nicht in die Pruning-Stellen futility/razoring/probcut, dort ist `evaluateBoard` eine
+statische Schätzung), (2) Zeitbudget auf ~400 ms senken, sonst ist keine Messung mit
+vertretbarem Aufwand möglich.
 
 ### Korrektur einer Fehldiagnose (2026-10-19)
 
