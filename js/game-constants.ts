@@ -1,5 +1,10 @@
 import type { GameState, GameResult } from "./types.ts";
-import { isKingdomCheck, legalMoveCheck, isCheckmateInternal, isStalemateInternal } from "./game-check.ts";
+import {
+  isKingdomCheck,
+  legalMoveCheck,
+  isCheckmateInternal,
+  isStalemateInternal,
+} from "./game-check.ts";
 import { PIECE_TYPE } from "./pieces.ts";
 import type { PieceType } from "./types.ts";
 
