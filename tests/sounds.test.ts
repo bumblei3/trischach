@@ -22,18 +22,16 @@ function createMockAudioContext(): typeof AudioContext {
     },
   };
 
-  return vi
-    .fn()
-    .mockImplementation(function (this: any) {
-      return {
-        createOscillator: () => mockOsc,
-        createGain: () => mockGain,
-        destination: {},
-        currentTime: 100,
-        state: "running" as AudioContextState,
-        resume: vi.fn(),
-      } as unknown as AudioContext;
-    }) as unknown as typeof AudioContext;
+  return vi.fn().mockImplementation(function (this: any) {
+    return {
+      createOscillator: () => mockOsc,
+      createGain: () => mockGain,
+      destination: {},
+      currentTime: 100,
+      state: "running" as AudioContextState,
+      resume: vi.fn(),
+    } as unknown as AudioContext;
+  }) as unknown as typeof AudioContext;
 }
 
 describe("Sound System", () => {
@@ -69,36 +67,36 @@ describe("Sound System", () => {
 
   test("resumes AudioContext if suspended", () => {
     const mockResume = vi.fn();
-    const MockAudioContextSuspended = vi
-      .fn()
-      .mockImplementation(function (this: any) {
-        const osc = {
-          connect: vi.fn(),
-          start: vi.fn(),
-          stop: vi.fn(),
-          frequency: {
-            setValueAtTime: vi.fn(),
-            exponentialRampToValueAtTime: vi.fn(),
-          },
-          type: "sine" as OscillatorType,
-        };
-        const gain = {
-          connect: vi.fn(),
-          gain: {
-            setValueAtTime: vi.fn(),
-            exponentialRampToValueAtTime: vi.fn(),
-            linearRampToValueAtTime: vi.fn(),
-          },
-        };
-        return {
-          createOscillator: () => osc,
-          createGain: () => gain,
-          destination: {},
-          currentTime: 100,
-          state: "suspended" as AudioContextState,
-          resume: mockResume,
-        } as unknown as AudioContext;
-      });
+    const MockAudioContextSuspended = vi.fn().mockImplementation(function (
+      this: any,
+    ) {
+      const osc = {
+        connect: vi.fn(),
+        start: vi.fn(),
+        stop: vi.fn(),
+        frequency: {
+          setValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+        },
+        type: "sine" as OscillatorType,
+      };
+      const gain = {
+        connect: vi.fn(),
+        gain: {
+          setValueAtTime: vi.fn(),
+          exponentialRampToValueAtTime: vi.fn(),
+          linearRampToValueAtTime: vi.fn(),
+        },
+      };
+      return {
+        createOscillator: () => osc,
+        createGain: () => gain,
+        destination: {},
+        currentTime: 100,
+        state: "suspended" as AudioContextState,
+        resume: mockResume,
+      } as unknown as AudioContext;
+    });
 
     globalThis.AudioContext = MockAudioContextSuspended;
     (globalThis.AudioContext as any).prototype = {

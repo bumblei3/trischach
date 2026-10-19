@@ -952,23 +952,21 @@ describe("Replay: reconstructGameFromTSPN", () => {
         hasMoved: false,
       },
     ];
-    const MockGameClass = vi
-      .fn()
-      .mockImplementation(function (this: any) {
-        return {
-          pieces: mockPieces,
-          init: vi.fn(),
-          rpsEnabled: true,
-          capturedPieces: { fire: [], water: [], nature: [] },
-          eliminatedFactions: new Set(),
-          currentFaction: "fire",
-          currentFactionIdx: 0,
-          state: "select_piece",
-          handleCellClick: vi.fn(() => ({ promotion: false })),
-          getAlivePieces: () => mockPieces.filter((p) => p.alive),
-          getLegalMoves: () => ({ moves: [], attacks: [] }),
-        } as unknown as Game;
-      });
+    const MockGameClass = vi.fn().mockImplementation(function (this: any) {
+      return {
+        pieces: mockPieces,
+        init: vi.fn(),
+        rpsEnabled: true,
+        capturedPieces: { fire: [], water: [], nature: [] },
+        eliminatedFactions: new Set(),
+        currentFaction: "fire",
+        currentFactionIdx: 0,
+        state: "select_piece",
+        handleCellClick: vi.fn(() => ({ promotion: false })),
+        getAlivePieces: () => mockPieces.filter((p) => p.alive),
+        getLegalMoves: () => ({ moves: [], attacks: [] }),
+      } as unknown as Game;
+    });
 
     const boardCells = generateBoard();
     const parsedTSPN = {
@@ -1001,23 +999,21 @@ describe("Replay: reconstructGameFromTSPN", () => {
         hasMoved: false,
       },
     ];
-    const MockGameClass = vi
-      .fn()
-      .mockImplementation(function (this: any) {
-        return {
-          pieces: mockPieces,
-          init: vi.fn(),
-          rpsEnabled: true,
-          capturedPieces: { fire: [], water: [], nature: [] },
-          eliminatedFactions: new Set(),
-          currentFaction: "fire",
-          currentFactionIdx: 0,
-          state: "select_piece",
-          handleCellClick: vi.fn(() => ({ promotion: false })),
-          getAlivePieces: () => mockPieces.filter((p) => p.alive),
-          getLegalMoves: () => ({ moves: [], attacks: [] }),
-        } as unknown as Game;
-      });
+    const MockGameClass = vi.fn().mockImplementation(function (this: any) {
+      return {
+        pieces: mockPieces,
+        init: vi.fn(),
+        rpsEnabled: true,
+        capturedPieces: { fire: [], water: [], nature: [] },
+        eliminatedFactions: new Set(),
+        currentFaction: "fire",
+        currentFactionIdx: 0,
+        state: "select_piece",
+        handleCellClick: vi.fn(() => ({ promotion: false })),
+        getAlivePieces: () => mockPieces.filter((p) => p.alive),
+        getLegalMoves: () => ({ moves: [], attacks: [] }),
+      } as unknown as Game;
+    });
 
     const boardCells = generateBoard();
     const parsedTSPN = {

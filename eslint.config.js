@@ -13,6 +13,7 @@ export default [
       "generate-puzzles.js",
       "sw.js",
       "icons/generate-icons.cjs",
+      "icons/generate-icons.js",
     ],
   },
   js.configs.recommended,

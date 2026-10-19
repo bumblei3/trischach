@@ -95,16 +95,14 @@ describe("Main UI & Events", () => {
       },
     };
 
-    globalThis.AudioContext = vi
-      .fn()
-      .mockImplementation(function (this: any) {
-        return {
-          createOscillator: () => mockOsc,
-          createGain: () => mockGain,
-          destination: {},
-          currentTime: 100,
-        } as unknown as AudioContext;
-      });
+    globalThis.AudioContext = vi.fn().mockImplementation(function (this: any) {
+      return {
+        createOscillator: () => mockOsc,
+        createGain: () => mockGain,
+        destination: {},
+        currentTime: 100,
+      } as unknown as AudioContext;
+    });
     (globalThis.AudioContext as unknown as { prototype?: object }).prototype = {
       state: "running",
       resume: vi.fn(),
