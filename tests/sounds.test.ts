@@ -1,34 +1,47 @@
 import { expect, test, describe, vi, beforeEach } from "vitest";
 import { sounds } from "../js/sounds.ts";
 
-describe("Sound System", () => {
-  beforeEach(() => {
-    // Mock AudioContext
-    const mockOsc = {
-      connect: vi.fn(),
-      start: vi.fn(),
-      stop: vi.fn(),
-      frequency: {
-        setValueAtTime: vi.fn(),
-        exponentialRampToValueAtTime: vi.fn(),
-      },
-      type: "sine",
-    };
-    const mockGain = {
-      connect: vi.fn(),
-      gain: {
-        setValueAtTime: vi.fn(),
-        exponentialRampToValueAtTime: vi.fn(),
-        linearRampToValueAtTime: vi.fn(),
-      },
-    };
+// Helper to create a mock AudioContext constructor that can be used with `new`
+function createMockAudioContext(): typeof AudioContext {
+  const mockOsc = {
+    connect: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    frequency: {
+      setValueAtTime: vi.fn(),
+      exponentialRampToValueAtTime: vi.fn(),
+    },
+    type: "sine" as OscillatorType,
+  };
+  const mockGain = {
+    connect: vi.fn(),
+    gain: {
+      setValueAtTime: vi.fn(),
+      exponentialRampToValueAtTime: vi.fn(),
+      linearRampToValueAtTime: vi.fn(),
+    },
+  };
 
-    globalThis.AudioContext = vi.fn().mockImplementation(() => ({
+  return vi.fn().mockImplementation(function (this: any) {
+    return {
       createOscillator: () => mockOsc,
       createGain: () => mockGain,
       destination: {},
       currentTime: 100,
-    }));
+      state: "running" as AudioContextState,
+      resume: vi.fn(),
+    } as unknown as AudioContext;
+  }) as unknown as typeof AudioContext;
+}
+
+describe("Sound System", () => {
+  beforeEach(() => {
+    const MockAudioContext = createMockAudioContext();
+    globalThis.AudioContext = MockAudioContext;
+    (globalThis.AudioContext as any).prototype = {
+      state: "running",
+      resume: vi.fn(),
+    };
 
     // Reset sounds state
     (sounds as any).ctx = null;
@@ -53,10 +66,11 @@ describe("Sound System", () => {
   });
 
   test("resumes AudioContext if suspended", () => {
-    // Modify mock for this test
     const mockResume = vi.fn();
-    globalThis.AudioContext = vi.fn().mockImplementation(() => ({
-      createOscillator: () => ({
+    const MockAudioContextSuspended = vi.fn().mockImplementation(function (
+      this: any,
+    ) {
+      const osc = {
         connect: vi.fn(),
         start: vi.fn(),
         stop: vi.fn(),
@@ -64,21 +78,31 @@ describe("Sound System", () => {
           setValueAtTime: vi.fn(),
           exponentialRampToValueAtTime: vi.fn(),
         },
-        type: "sine",
-      }),
-      createGain: () => ({
+        type: "sine" as OscillatorType,
+      };
+      const gain = {
         connect: vi.fn(),
         gain: {
           setValueAtTime: vi.fn(),
           exponentialRampToValueAtTime: vi.fn(),
           linearRampToValueAtTime: vi.fn(),
         },
-      }),
-      destination: {},
-      currentTime: 100,
+      };
+      return {
+        createOscillator: () => osc,
+        createGain: () => gain,
+        destination: {},
+        currentTime: 100,
+        state: "suspended" as AudioContextState,
+        resume: mockResume,
+      } as unknown as AudioContext;
+    });
+
+    globalThis.AudioContext = MockAudioContextSuspended;
+    (globalThis.AudioContext as any).prototype = {
       state: "suspended",
       resume: mockResume,
-    }));
+    };
 
     (sounds as any).ctx = null; // force re-init
     sounds.playSelect();
