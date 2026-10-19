@@ -243,8 +243,15 @@ jobs:
           # puzzles in main; full AI engine in ai.js). main threshold raised to 29000
           # after v1.4.0 + RPS-tactic puzzle mode legitimately grew main.js to ~28.3KB gzip.
           # 31000: + stats dashboard & feedback button (#141, ~30.3KB gzip).
+          # 33000: + feedback channel completion / gap tests (~31.9KB gzip). Raised to
+          # unblock main: the 31000 limit was not lifted when that feature landed, so the
+          # gate failed on main and on every open PR (incl. trivial patch bumps) before
+          # the E2E step ever ran. ai.js (~9.3KB) and ai-worker.js (~0.8KB) stay well under.
+          # NOTE: real headroom lives in code-splitting — js/game.ts is imported both
+          # statically (main.ts:25) and dynamically (main.ts:3381,3594), so rollup cannot
+          # hoist it into its own chunk (see the INEFFECTIVE_DYNAMIC_IMPORT build warning).
           node -e "
-            const limits = { main: 31000, core: 18000, worker: 2000 };
+            const limits = { main: 33000, core: 18000, worker: 2000 };
             const sizes  = { main: ${MAIN_JS_GZIP}, core: ${CORE_JS_GZIP}, worker: ${WORKER_JS_GZIP} };
             let failed = false;
             for (const k of Object.keys(limits)) {
