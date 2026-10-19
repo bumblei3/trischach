@@ -2671,7 +2671,14 @@ export function calculateBestMove(
   const usableActions = nonSuicide.length > 0 ? nonSuicide : actions;
   const pieceCount = game.pieces.filter((p) => p.alive).length;
 
-  if (pieceCount > 16 || usableActions.length > 30) {
+  // Search routing: deep force (single-ply greedy, with kingmaker and
+  // capture-reply penalties) for large material counts / many moves, full
+  // iterative deepening (TT, LMR, Probcut) for the midgame. Tighten slightly
+  // so the full engine is reachable during the opening phase — at the start of
+  // a game there are typically 20-60 legal moves and 45 pieces, and the
+  // current threshold (30 moves / 16 pieces) makes greedy the *only* path,
+  // which is also why the "AI depth" UI control has been a dead knob.
+  if (pieceCount > 24 || usableActions.length > 45) {
     return greedyBestMove(game, faction, usableActions);
   }
 
