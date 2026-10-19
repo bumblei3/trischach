@@ -170,20 +170,20 @@ npm run lint
 
 Dieses Projekt nutzt **GitHub Actions** (Node 24) mit parallelen Jobs:
 
-| Job          | Trigger   | Blockierend | Beschreibung                                |
-| ------------ | --------- | ----------- | ------------------------------------------- |
-| `typecheck`  | Push/PR   | ja          | `tsc --noEmit`                              |
-| `lint`       | Push/PR   | ja          | ESLint                                      |
-| `unit-tests` | Push/PR   | ja          | Vitest + Coverage-Gate ≥80%                 |
-| `e2e-tests`  | Push/PR   | ja          | Bundle-Size-Gate, dann Playwright Chromium  |
-| `benchmark`  | Push/PR   | nein        | AI-Move-Timing (informativ)                 |
-| `codeql`     | Push/PR   | nein        | Security Scanning (JavaScript)              |
-| `release`    | Tag `v*`  | ja          | Auto GitHub Release mit Release Notes       |
-| `deploy`     | Push main | ja          | GitHub Pages Deploy                         |
+| Job          | Trigger   | Blockierend | Beschreibung                               |
+| ------------ | --------- | ----------- | ------------------------------------------ |
+| `typecheck`  | Push/PR   | ja          | `tsc --noEmit`                             |
+| `lint`       | Push/PR   | ja          | ESLint                                     |
+| `unit-tests` | Push/PR   | ja          | Vitest + Coverage-Gate ≥80%                |
+| `e2e-tests`  | Push/PR   | ja          | Bundle-Size-Gate, dann Playwright Chromium |
+| `benchmark`  | Push/PR   | nein        | AI-Move-Timing (informativ)                |
+| `codeql`     | Push/PR   | nein        | Security Scanning (JavaScript)             |
+| `release`    | Tag `v*`  | ja          | Auto GitHub Release mit Release Notes      |
+| `deploy`     | Push main | ja          | GitHub Pages Deploy                        |
 
 **Quality Gates:**
 
-- **Bundle Size Check** (im `e2e-tests`-Job, läuft *vor* den E2E-Tests):
+- **Bundle Size Check** (im `e2e-tests`-Job, läuft _vor_ den E2E-Tests):
   `main.js ≤ 33000 B` gzip, `ai.js ≤ 18000 B`, `ai-worker.js ≤ 2000 B`.
   Aktueller Stand: main ≈ 31.9 KB, ai ≈ 9.3 KB, ai-worker ≈ 0.8 KB.
 - **Coverage enforcement** ≥80% auf PRs
@@ -193,9 +193,9 @@ Dieses Projekt nutzt **GitHub Actions** (Node 24) mit parallelen Jobs:
   `continue-on-error` markiert und brechen den Run nicht ab.
 
 **Hinweis zum Bundle-Gate:** Die Schwellenwerte müssen bei legitimen Feature-Zuwächsen
-mitgezogen werden — sonst bricht der `e2e-tests`-Job ab, *bevor* die E2E-Tests
+mitgezogen werden — sonst bricht der `e2e-tests`-Job ab, _bevor_ die E2E-Tests
 überhaupt starten, und alle offenen PRs erben den Fehler. Der echte Puffer liegt
-im Code-Splitting: `js/game.ts` wird statisch *und* dynamisch importiert, deshalb
+im Code-Splitting: `js/game.ts` wird statisch _und_ dynamisch importiert, deshalb
 kann Rollup es nicht in einen eigenen Chunk heben.
 
 ## 📜 Lizenz
@@ -237,7 +237,7 @@ WTFPL – Do What The F*** You Want To Public License. Erstellt von [bumblei3](h
       Vorteil**: depth 3 gegen depth 1 ergibt 35.0% Score (n=40, CI −221..5) bzw.
       33.3% (n=12, CI −329..89). Bei drei Fraktionen ist 33% exakt das
       Fairness-Niveau — die Tiefe zahlt sich also nicht aus. Der Engpass ist die
-      Eval-Qualität, und jede Methode, sie zu *lernen*, scheitert an der
+      Eval-Qualität, und jede Methode, sie zu _lernen_, scheitert an der
       3-Spieler-Struktur (keine terminalen Labels, Kingmaker bricht 2P-Tricks).
       Gemessen via `scripts/engine-strength.ts`; Zahlen und Messregeln in
       [STATUS.md](./STATUS.md). Kein Hebel ohne Bench-Artefakt.

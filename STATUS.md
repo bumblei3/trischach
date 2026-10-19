@@ -1,8 +1,9 @@
 # trischach — Status (Stand: 2026-10-19, v1.6.0)
 
 `main` (0a3164e) enthält Capture-Reply + Kingmaker + Zobrist/State-Fix + Tagespuzzle
-+ Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
-alle verbleibenden Hebel gemessen negativ/flach (Details unten).
+
+- Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
+  alle verbleibenden Hebel gemessen negativ/flach (Details unten).
 
 ## Gesundheit
 
@@ -33,7 +34,7 @@ Quelle: `bench-current.log` (n=40) und Nachmessung 2026-10-19 (n=12).
 | depth1   | 35.0% / −108 [−221..5] | 33.3% / −120 [−329..89] |
 
 **Wichtig — Score-Semantik bei 3 Fraktionen:** Der Bench wertet „letzte überlebende
-Fraktion gewinnt". Bei *drei* Fraktionen ist das Fairness-Niveau **33 %**, nicht 50 %.
+Fraktion gewinnt". Bei _drei_ Fraktionen ist das Fairness-Niveau **33 %**, nicht 50 %.
 Ein Score von 58.3% gegen random heißt also: Engine 58.3%, jeder der beiden Gegner
 ~20.8% — klar überlegen. Ein Score von 33.3% gegen depth1 heißt: die Engine gewinnt
 exakt so oft wie jeder einzelne Gegner — **kein Vorteil**.
@@ -58,14 +59,14 @@ den eine 2-Ply-Suche verbietet.
 
 **Hebel getestet und geparkt** (2026-10-19): Schwelle auf `> 44 || > 100` angehoben.
 
-| Metrik            | vorher      | nachher          |
-| ----------------- | ----------- | ---------------- |
-| Pfad              | Greedy 13/13 | Greedy 4, Minimax 20 |
-| Partielänge       | 13 Plies    | 24 Plies         |
-| Zugzeit           | 2 ms        | 1776 ms (max 4048 = MAX_SEARCH_MS) |
-| Tests             | 46 s        | 139 s (859/859 grün) |
-| vs random (n=12)  | 58.3% (7W/5L/0D) | 66.7% (7W/3L/2D) |
-| vs depth1 (n=12)  | 33.3% (4W/8L/0D) | 37.5% (2W/5L/5D) |
+| Metrik           | vorher           | nachher                            |
+| ---------------- | ---------------- | ---------------------------------- |
+| Pfad             | Greedy 13/13     | Greedy 4, Minimax 20               |
+| Partielänge      | 13 Plies         | 24 Plies                           |
+| Zugzeit          | 2 ms             | 1776 ms (max 4048 = MAX_SEARCH_MS) |
+| Tests            | 46 s             | 139 s (859/859 grün)               |
+| vs random (n=12) | 58.3% (7W/5L/0D) | 66.7% (7W/3L/2D)                   |
+| vs depth1 (n=12) | 33.3% (4W/8L/0D) | 37.5% (2W/5L/5D)                   |
 
 Bewertung: **flach → geparkt.** Kein signifikanter Gewinn (beide CIs überlappen 0);
 bei depth1 sind die **Siege von 4 auf 2 gesunken**, der Score-Gewinn stammt allein
@@ -82,7 +83,7 @@ vertretbarem Aufwand möglich.
 
 ### Korrektur einer Fehldiagnose (2026-10-19)
 
-Die README behauptete eine **Inversion** (Engine *schlechter* vs random als vs depth1:
+Die README behauptete eine **Inversion** (Engine _schlechter_ vs random als vs depth1:
 27.5% vs 48.8%). Das war der Stand **vor** dem Kingmaker-Fix. Der Kingmaker-Fix hob
 vs random von 32.5% auf 62.5% — die Inversion ist damit **behoben**, die Reihenfolge
 ist heute normal (besser gegen random als gegen depth1).
