@@ -168,6 +168,14 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
 - **Code-Splitting weiter offen:** `js/rps-puzzle.ts` (10 KB) und `js/coach.ts` liegen
   noch statisch im main-Chunk (`rps-puzzle.ts` braucht `rpsCaptureTitleFromPieces` im
   heißen Render-Pfad, ein Split verlangt das Herausziehen dieses Helfers).
+- **Flaky-Test entschärft (2026-10-20):** `tests/main.test.ts > triggerAutoMove delays if
+game state is not SELECT_PIECE` lief in CI in den globalen 180-s-Timeout („Test timed
+  out in 180000ms", gemessen 322 s; der ganze unit-tests-Job 333 s statt 27 s). Ursache:
+  der gefeuerte Timer-Callback läuft bei `game.state === "select_target"` in
+  `handleCellClick` → Combat, dessen Timer bei **2200 ms** liegt — außerhalb des
+  1000-ms-Fensters von `vi.advanceTimersByTimeAsync(1000)`, dessen Promise damit nie
+  settlet. Fix: Spiel vor dem Flush auf `game_over` parken (Callback no-op't an der
+  Guard-Clause) plus expliziter Test-Timeout 15 s.
 
 ## Mess-Integrität
 
