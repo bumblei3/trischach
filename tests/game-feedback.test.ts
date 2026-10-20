@@ -189,4 +189,44 @@ describe("game-feedback", () => {
     ).not.toThrow();
     localStorage.setItem = original;
   });
+
+  it("generateFeedbackDraft — unbekanntes Rating nutzt 'unbekannt'", () => {
+    expect(generateFeedbackDraft(99, "x")).toContain("unbekannt");
+  });
+
+  it("summarizeFeedback — submit ohne rating/draft zählt nicht mit", () => {
+    const entries: FeedbackEntry[] = [
+      { timestamp: "t", kind: "submit", text: "ohne rating" },
+    ];
+    saveFeedback(entries);
+    const s = summarizeFeedback();
+    expect(s.submits).toBe(1);
+    expect(s.ratingCount).toBe(0);
+    expect(s.ratingSum).toBe(0);
+    expect(s.latestDraft).toBeNull();
+  });
+
+  it("logFeedbackSubmit — kappt auf 200 Einträge", () => {
+    const batch: FeedbackEntry[] = [];
+    for (let i = 0; i < 200; i++) {
+      batch.push({
+        timestamp: `t${i}`,
+        kind: "button",
+      });
+    }
+    saveFeedback(batch);
+    logFeedbackSubmit(5, "x", "d");
+    expect(loadFeedback()).toHaveLength(200);
+  });
+
+  it("summarizeFeedback — unbekannter kind wird ignoriert", () => {
+    saveFeedback([{ timestamp: "t", kind: "button" }]);
+    // erzwinge einen Eintrag mit unbekanntem kind über Storage
+    const raw = JSON.parse(localStorage.getItem("trischach-feedback")!);
+    raw.unshift({ timestamp: "t2", kind: "other" });
+    localStorage.setItem("trischach-feedback", JSON.stringify(raw));
+    const s = summarizeFeedback();
+    expect(s.buttonClicks).toBe(1);
+    expect(s.submits).toBe(0);
+  });
 });
