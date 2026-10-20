@@ -1,15 +1,14 @@
 /**
- * Lazy-Loader (puzzle-loader, analysis-loader) — Smoke-Tests für Caching
- * und den "noch nicht geladen"-Fehlerpfad.
+ * Lazy-Loader (puzzle-loader, analysis-loader, game-loader) — Smoke-Tests
+ * für Caching und den "noch nicht geladen"-Fehlerpfad.
  */
 import { describe, test, expect } from "vitest";
 import { loadPuzzleModule, puzzleApi } from "../js/puzzle-loader.ts";
 import { loadAnalysisModule } from "../js/analysis-loader.ts";
+import { loadGame, createGame } from "../js/game-loader.ts";
 
 describe("puzzle-loader", () => {
   test("wirft, wenn puzzleApi() vor dem Laden aufgerufen wird", () => {
-    // Modul-Cache kann aus anderen Tests bereits gefüllt sein — in dem Fall
-    // überspringen wir den Throw-Pfad.
     try {
       puzzleApi();
     } catch (e) {
@@ -22,7 +21,6 @@ describe("puzzle-loader", () => {
     const second = await loadPuzzleModule();
     expect(first).toBe(second);
     expect(typeof first.getPuzzleState).toBe("function");
-    // Nach dem Laden liefert puzzleApi() dasselbe Modul.
     expect(puzzleApi()).toBe(first);
   });
 });
@@ -32,5 +30,15 @@ describe("analysis-loader", () => {
     const first = await loadAnalysisModule();
     const second = await loadAnalysisModule();
     expect(first).toBe(second);
+  });
+});
+
+describe("game-loader", () => {
+  test("cached loadGame + createGame", async () => {
+    const first = await loadGame();
+    const second = await loadGame();
+    expect(first).toBe(second);
+    const instance = await createGame();
+    expect(instance).toBeInstanceOf(first);
   });
 });
