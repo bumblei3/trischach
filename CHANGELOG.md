@@ -5,10 +5,61 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0] - 2026-08-24
+## [1.7.0] - 2026-10-20
 
 ### Added
 
+- **Solo-Modus gegen die KI** (435f7ed). Mechanik und UI um einen Einzel-Partei-Ansatz,
+  der die Gegner steuert; Fraktionsauswahl „play-as" — losgelöst vom hotseat-Modus der
+  Drei-Partei-Runde. 80 neue Unit-Tests + E2E solo-mode.spec.ts.
+
+- **Engine-Stärke-Baseline mit reproduzierbarer Instrumentation** (4d27466, 5ba631f).
+  `scripts/engine-strength.ts` mit `--games/--depth/--opponent/--budget/--repeats`, Ausgabe
+  als Artefakte im `bench/-` Verzeichnis (z.B.
+  `engine-strength-depth3-n20-depth1-repeats5.txt`), Routing-Vergleich
+  `pieceCount > 16 || usableActions > 30` vs. `> 24 || > 45`. Mess-Regeln:
+  Einzellauf ist keine Evidenz — immer Mittel + Spread berichten (Spread > 5 pp = „Aussage
+  unmöglich").
+
+### Changed
+
+- **Zug-Budget** gesenkt: 1500–5500 ms → 200–600 ms (⌀ 1776 ms), `MAX_SEARCH_MS` 4000 →
+  1500; kleiner Suchbedarf bis 0,9 s — für den Spieler reine Wartezeit, kein
+  Stärkeverlust.
+
+- **Code-Splitting** (96c6325): `game.ts` in eigenen Chunk (main.js 31.9 → 30.7 kB gzip,
+  #164).
+
+- **Modus-Chunks** für Puzzle/Replay/Analyse mit Vorladen nach `initApp()`;
+  main.js 30.7 → **24.7 kB gzip**; Bundle-Size-Gate auf 33000 B (main.js, gzip)
+  aufrechterhalten.
+
+- **Einstieg in das Mittelspiel**: Minimax-Blaetter bewerten jetzt `evaluateLeaf` (in
+  jedem Fall `kingmakerTerm` + `captureReplyPenalty` enthalten), nicht nur an den
+  Prunning-Stellen. 1-Ply-Greedy wird ab `pieceCount > 24` / `usableActions > 45` geroutet.
+
+- **Abhängigkeiten**: 145 transitive Pseudo-Dependencies entfernt (#160), 88 Updates
+  (major-updates group, CI-fixed, #151); `serve` entfernt, Vulnerabilitäten gefixt
+  (eb4c56d). Paket hat faktisch null Runtime-Dependencies.
+
+### Fixed
+
+- **Unit-Test-Hänger** (dead64a): `tests/main.test.ts > triggerAutoMove delays if game
+  state is not SELECT_PIECE` lief in CI in 621 s (globaler Timeout 180 s, Job 305 s statt
+  27 s). Ursache zweier Sessions lang falsch gefunden: Erst stale `main.ts`-Instanzen aus
+  vorherigen Tests, deren Timer in den aktuellen Test hineinwirken (hoffe
+  `autoBattleActive === true`, `Date.now()`-basierte Deadline der Engine ist unter
+  `vi.useFakeTimers()` eingefroren), dann eine synchron laufende Engine-Suche. Fix: der
+  Test flusht keine Fake-Zeit mehr, prüft die Verzoegerung direkt
+  (`moveHistory` unverändert + `vi.getTimerCount() > 0`), `localStorage.clear()` gegen
+  den persistierten `autoBattle`-Wert, `isAutoBattleActive()` als explizite
+  Vorbedingung. Date.now()/performance.now()/process.hrtime sind unter Fake-Timern alle
+  eingefroren; eine node-basierte Abschirmung fehlt bislang.
+
+### Tests
+
+- Suite **871/871** (53 Files), E2E **33/33**, Coverage ~94,6 % Stmts / 84,6 % Branch,
+  Build grün, main.js gzip 24,71 kB (Gate-Marge ~8 kB).
 - **Deterministisches Tagespuzzle** (#140). FNV-1a-Hash über das ISO-Datum wählt das Tagespuzzle deterministisch aus dem 155-Puzzle-Pool (73 Mate-in-1 + 82 Mate-in-2, self-play-mined in #131) — jeder Spieler bekommt am gleichen Tag dasselbe Puzzle statt eines Browser-Zufallstreffers. Wochentags-Schwierigkeitsrotation: leicht am Wochenende (Sa/So, Mate-in-1-Tier), medium unter der Woche; Fallback auf den ganzen Pool bei leerem Tier. Das Puzzle-Menü zeigt den echten Schwierigkeitsgrad des heutigen Dailys statt eines hardcodierten Werts.
 - **Statistik-Dashboard** (#141). Neuer 📊-Button in der Modi-Leiste: Partien gesamt / Auto-Battle / manuell, Siege pro Fraktion, Remis, manuelle Siege pro Fraktion, Puzzle-Lösequote, Hinweise-Nutzung und Daily-Streak (aktuell + Best) — alles lokal über `localStorage` (`js/game-stats.ts`), kein Backend. Beendete Partien werden über den vorhandenen `onGameOver`-Hook erfasst (Modus, Sieger, Züge, Datum, max. 500 Einträge, robust gegen korrupte Daten). Reset-Button inklusive.
 - **Feedback-Kanal** (#141). 💬-Button im Dashboard öffnet ein vorgefülltes GitHub-Issue-Template (`.github/ISSUE_TEMPLATE/feedback.md`, Label `feedback`) — kein externer Dienst, kein Account-Zwang.
