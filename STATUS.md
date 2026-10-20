@@ -169,19 +169,32 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
   noch statisch im main-Chunk (`rps-puzzle.ts` braucht `rpsCaptureTitleFromPieces` im
   heißen Render-Pfad, ein Split verlangt das Herausziehen dieses Helfers).
 - **Flaky-Test entschärft (2026-10-20):** `tests/main.test.ts > triggerAutoMove delays if
-game state is not SELECT_PIECE` lief in CI in den globalen 180-s-Timeout („Test timed
-  out in 180000ms“, gemessen 322 s; der ganze unit-tests-Job 333 s statt 27 s). Erster
-  Fix (Spiel vor dem Flush auf `game_over` parken) griff nicht, weil die Ursache woanders
-  lag: happy-dom behält `localStorage` über Tests hinweg, und ein vorheriger Test
-  speichert `autoBattle:true`. `applySettings()` startet dann ihre eigene Auto-Battle-
-  Kette, deren Timer weit über das 1000-ms-Fenster von
-  `vi.advanceTimersByTimeAsync(1000)` hinausreicht — die Flush-Promise settlet nie.
-  Die Verzweigung ist zufällig (Reihenfolge/Microtasks), deshalb war der Test lokal
-  „manchmal grün". Fix: `localStorage.clear()` vor dem Import, `vi.runAllTicks()` +
-  `advanceTimersByTimeAsync(0)` damit `applySettings()` gelaufen ist, und
-  `isAutoBattleActive()` (neu exportiert) als Assertion, die die Bedingung prüft statt
-  nur zu hoffen. Verifiziert: 8/8 isolierte Läufe und 6/6 volle Suite (CI-Pool) stabil,
-  Testzeit ~160 ms statt 360 s.
+game state is not SELECT_PIECE` lief in CI in den Timeout (gemessen 621 s statt 160 ms;
+  der `unit-tests`-Job 305 s statt 27 s). Die Ursache war zwei Sessions lang falsch
+  verortet (erst „Combat-Timer bei 2200 ms", dann „localStorage"); belegt ist sie erst
+  mit Instrumentierung (`[DIAG-CB]`-Log im gefeuerten Callback + Stacktrace am
+  Such-Eintritt):
+
+  1. **Stale Modul-Instanzen.** `vi.resetModules()` in `beforeEach` gibt jedem Test eine
+     frische `main.ts`, aber die alten Instanzen bleiben mit ihrer laufenden `init()`-
+     Promise-Kette am Leben. Ihr `setTimeout` löst zur _Aufrufzeit_ über das globale
+     Objekt auf — also auf die Uhr des **aktuellen** Tests. Ein `triggerAutoMove`-Timer
+     einer alten Instanz (dort ist `autoBattleActive` noch `true`, das Spiel steht auf
+     `select_piece`) feuert deshalb mitten im Flush eines späteren Tests und läuft an
+     dessen Guard vorbei.
+  2. **Die Such-Deadline fällt unter Fake-Timern aus.** Die Suche ist über
+     `Date.now()` budgetiert (`searchStart`/`searchDeadline` in `ai-core.ts`), und
+     `vi.useFakeTimers()` friert `Date.now()` **und** `performance.now()` **und**
+     `process.hrtime` ein (nachgemessen). Ohne Worker (Test-DOM) läuft
+     `calculateBestMoveWorker` → `calculateBestMoveParallel` **synchron**; die Deadline
+     greift nie, die Suche ist unbeschränkt. Der Test-Timeout kann nicht feuern, solange
+     die Schleife den Event-Loop blockiert — daher die 621 s.
+
+  Fix: der Test flusht keine Fake-Zeit mehr, sondern prüft die Verzögerung direkt
+  (`moveHistory` unverändert + `vi.getTimerCount() > 0`), plus `localStorage.clear()`
+  gegen den persistierten `autoBattle`-Wert und `isAutoBattleActive()` (neu exportiert)
+  als explizite Vorbedingung. Verifiziert: 18 parallele Läufe unter Last (vorher 14/18
+  Hänger) und die volle Suite im CI-Pool ohne Hänger.
 
 ## Mess-Integrität
 

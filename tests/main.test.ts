@@ -390,42 +390,39 @@ describe("Main UI & Events", () => {
   });
 
   test("triggerAutoMove delays if game state is not SELECT_PIECE", async () => {
-    // Isolate from persisted user settings: happy-dom keeps localStorage
-    // across tests, so a previous test may have saved autoBattle:true. With it,
-    // applySettings() starts its own auto-battle chain whose timers reach beyond
-    // the 1000 ms window below — the flush never settles and this test hangs into
-    // its timeout (observed 360 s instead of 160 ms). Reset first, then wait for
-    // main.ts's async init() to finish applying the settings.
+    // Isolate from persisted settings: happy-dom keeps localStorage across
+    // tests in this file, and an earlier test saves autoBattle:true by clicking
+    // the Auto-Battle button. With it the deferred callback would really search.
     localStorage.clear();
     await import("../js/main.ts");
     const { game, triggerAutoMove, isAutoBattleActive } =
       await import("../js/main.ts");
-    // Drain the microtask queue (and the init chain's own timers) so
-    // applySettings() has run before we start asserting.
-    await vi.runAllTicks();
-    await vi.advanceTimersByTimeAsync(0);
 
+    // The guard's first condition (`!autoBattleActive`) must hold, otherwise
+    // the assertion below tests a different code path than the one intended.
     expect(isAutoBattleActive()).toBe(false);
 
     game.state = "select_target";
     game.moveHistory = [];
     triggerAutoMove(); // Should hit the setTimeout, NOT move synchronously
 
-    // The whole point of the guard is that the move is deferred to a
-    // timer, so no game state may change synchronously here.
+    // The whole point of the guard is that the move is deferred to a timer, so
+    // no game state may change synchronously — but a timer must be pending.
     expect(game.moveHistory.length).toBe(0);
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
 
-    // Park the game before flushing: the timer callback starts an async AI
-    // chain whose own timers reach beyond the 1000 ms fake-time window, so
-    // awaiting `advanceTimersByTimeAsync` here hung this test into the 180 s
-    // global timeout on loaded CI runners. With `game_over` the callback
-    // returns at its guard clause, so the flush stays bounded and is a no-op.
-    game.state = "game_over";
-    await vi.advanceTimersByTimeAsync(1000);
-    // Nothing may have happened: the callback returned at its guard clause, so
-    // the auto-battle chain is not running and the game stays parked.
-    expect(isAutoBattleActive()).toBe(false);
-    expect(game.state).toBe("game_over");
+    // Deliberately NO timer flush here. Advancing fake time also fires timers
+    // that *stale* main.ts instances from earlier tests schedule into this
+    // clock: `vi.resetModules()` gives every test a fresh module, but the old
+    // instances' async init chains stay alive, and their `setTimeout` resolves
+    // through the global at call time — i.e. onto this test's clock. Such a
+    // callback (autoBattleActive still true on that instance) runs a
+    // *synchronous* engine search. Under `vi.useFakeTimers()` `Date.now()`,
+    // `performance.now()` and `process.hrtime` are all frozen, so the search
+    // deadline never trips and the search is unbounded: measured 621 s in CI,
+    // and the test timeout cannot fire while the loop runs. Asserting the
+    // pending timer keeps the deferral covered without that risk.
+    vi.clearAllTimers();
   }, 15000);
 
   test("replay analysis renders PV line and RPS explanation", async () => {
