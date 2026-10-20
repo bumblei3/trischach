@@ -3,7 +3,8 @@
 `main` (4d27466) enthält Capture-Reply + Kingmaker + Zobrist/State-Fix + Tagespuzzle,
 dazu **unreleased seit Tag `v1.6.0`** (2026-08-24, 16 Commits): Solo-Modus gegen die KI,
 Code-Splitting (`game.ts` eigener Chunk), 145 transitive Pseudo-Dependencies entfernt,
-`evaluateLeaf` an den Minimax-_Leafs_, Bench-Artefakt. `package.json` steht noch auf
+Modus-Chunks für Puzzle/Replay/Analyse, `evaluateLeaf` an die Minimax-_Leafs_,
+Bench-Artefakt. `package.json` steht noch auf
 `1.6.0` → Release `v1.7.0` ist fällig.
 
 - Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
@@ -17,10 +18,10 @@ Alle Gates grün (Node 24, CI-Version):
 | ---------- | ------------------------ | -------------------------- |
 | Typecheck  | `npm run typecheck`      | grün                       |
 | Lint       | `npm run lint`           | grün                       |
-| Unit-Tests | `npm test`               | 868/868 (52 Files)         |
+| Unit-Tests | `npm test`               | 871/871 (53 Files)         |
 | E2E        | `npm run test:e2e`       | 33/33                      |
-| Coverage   | `npm test -- --coverage` | 94.8% Stmts / 84.8% Branch |
-| Build      | `npm run build`          | grün, main ≈ 30.7 KB gzip  |
+| Coverage   | `npm test -- --coverage` | 94.6% Stmts / 84.6% Branch |
+| Build      | `npm run build`          | grün, main ≈ 24.7 KB gzip  |
 
 **Node-Version:** CI pinnt Node 24. Lokal **nicht** Node 26 verwenden — die
 happy-dom-Umgebung stellt dort kein `localStorage` bereit, was 90 Unit-Tests
@@ -128,7 +129,8 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
 ## Infrastruktur-Notizen
 
 - **Bundle-Gate-Historie** (`.github/workflows/ci-cd.yml`): 29000 → 31000 (#141,
-  Statistik-Dashboard) → 33000 (Feedback-Kanal; real heute 30.70 KB gzip, Marge ~2.3 KB).
+  Statistik-Dashboard) → 33000 (Feedback-Kanal). Real heute: main.js **24.71 KB gzip**
+  (Marge ~8 KB), nachdem puzzle.ts/replay.ts/analysis.ts in eigene Chunks gewandert sind.
   Das Gate läuft im
   `e2e-tests`-Job **vor** den E2E-Tests; ein zu niedriger Wert macht alle offenen PRs
   rot, ohne dass je ein Test lief. Bei Feature-Zuwächsen mitziehen.
@@ -138,9 +140,19 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
 - **`tspn-viewer.html` ist kaputt** (42 KB): importiert `./js/*.js`, die es nicht gibt
   (nur `.ts`), ist kein Vite-Entry, wird nicht deployt. Reparieren oder löschen.
 - **`engines`-Feld** ist gesetzt (`>=24 <25`) — siehe Node-Hinweis oben.
-- **Code-Splitting offen:** `js/puzzle.ts` (~30 KB raw) und `js/replay.ts` (~30 KB raw)
-  liegen statisch im Initial-Bundle; `js/game.ts` + `js/opening-book.ts` werden doppelt
-  gebundelt (statisch + dynamisch, siehe INEFFECTIVE_DYNAMIC_IMPORT im Build).
+- **Modus-Chunks (2026-10-20):** `puzzle.ts`, `replay.ts` und `analysis.ts` liegen in
+  eigenen Chunks — main.js 30.7 → **24.7 KB gzip** (Gate-Marge ~8 KB). Sie werden nach
+  `initApp()` im Hintergrund vorgeladen (`prefetchLazyModes` in `js/main.ts`, Loader in
+  `js/*-loader.ts`), weil ein Fetch **erst beim Klick** im Vite-Dev-Server unter Last
+  sporadisch mit „Failed to fetch dynamically imported module“ scheitert: das
+  Puzzle-Overlay blieb dann leer und zwei E2E-Tests liefen in den Timeout — nur in der
+  vollen Suite, nie isoliert. Absicherung: Vorladung + `server.warmup` in
+  `vite.config.ts` + Retry (`js/lazy-retry.ts`). Der Browser cacht einen
+  fehlgeschlagenen Module-Fetch, ein Retry mit **identischem** Specifier greift deshalb
+  nicht immer — die Vorladung ist die eigentliche Absicherung.
+- **Code-Splitting weiter offen:** `js/rps-puzzle.ts` (10 KB) und `js/coach.ts` liegen
+  noch statisch im main-Chunk (`rps-puzzle.ts` braucht `rpsCaptureTitleFromPieces` im
+  heißen Render-Pfad, ein Split verlangt das Herausziehen dieses Helfers).
 
 ## Mess-Integrität
 

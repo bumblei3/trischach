@@ -28,6 +28,16 @@ export default defineConfig({
     minify: "terser",
     target: "es2022",
   },
+  // Dev-Server: Die lazy geladenen Modul-Chunks beim Start vortransformieren.
+  // Ohne das scheitert der jeweils erste Dynamic-Import unter Last sporadisch
+  // ("Failed to fetch dynamically imported module"), was die E2E-Suite kippt:
+  // der Aufruf-await wirft, das Overlay bleibt leer und der Test läuft in den
+  // Timeout. Im Production-Build (statische Chunks) tritt das nicht auf.
+  server: {
+    warmup: {
+      clientFiles: ["./js/puzzle.ts", "./js/replay.ts", "./js/analysis.ts"],
+    },
+  },
   resolve: {
     alias: {
       "@": resolve(__dirname, "js"),

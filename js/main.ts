@@ -49,49 +49,23 @@ import {
   loadLearnedDataFromFile,
 } from "./opening-book.ts";
 import { sounds } from "./sounds.ts";
-import {
-  serializeGame,
-  downloadGame,
-  copyGameToClipboard,
-  loadGameFromFile,
-  parseTSPN,
-  reconstructGameFromTSPN,
-  ReplayController,
-  ReplayStateSnapshot,
-} from "./replay.ts";
+import type { ReplayController, ReplayStateSnapshot } from "./replay.ts";
+import { loadReplayModule } from "./replay-loader.ts";
 import {
   loadGameStats,
   recordGameResult,
   resetGameStats,
   type GameMode,
 } from "./game-stats.ts";
-import {
-  loadPuzzle,
-  getPuzzleState,
-  makePuzzleMove,
-  requestHint,
-  resetPuzzle,
-  abandonPuzzle,
-  getDailyPuzzle,
-  getPuzzleSessionStats,
-  loadShippedPuzzles,
-  getPuzzleStreak,
-  isTodaysDailyPuzzle,
-  isDailySolvedToday,
-  recordDailyPuzzleSolved,
-  preferredDifficulty,
-  todayISO,
-  Puzzle,
-  PuzzleMove,
-  PuzzleState,
-} from "./puzzle.ts";
+import type { Puzzle, PuzzleMove, PuzzleState } from "./puzzle.ts";
+import { loadPuzzleModule, puzzleApi } from "./puzzle-loader.ts";
 import {
   getTutorialSteps,
   markTutorialDone,
   shouldShowTutorialOnStartup,
   resetTutorial,
 } from "./tutorial.ts";
-import { analyzePosition, renderAnalysisToHTML } from "./analysis.ts";
+import { loadAnalysisModule } from "./analysis-loader.ts";
 import { Hex } from "./hex.ts";
 import { isSoloAiTurn, parseHumanFaction } from "./solo.ts";
 import { Piece, PIECE_TYPE } from "./pieces.ts";
@@ -216,10 +190,12 @@ const promotionOverlay = document.getElementById(
 const puzzleOverlay = document.getElementById("puzzle-overlay") as HTMLElement;
 
 /** Show the statistics dashboard (reuses the puzzle overlay styling). */
-function showStatsDashboard(): void {
+async function showStatsDashboard(): Promise<void> {
+  // Statistik braucht die Puzzle-Statistiken — Modul hier nachladen.
+  await loadPuzzleModule();
   const gs = loadGameStats();
-  const ps = getPuzzleSessionStats();
-  const streak = getPuzzleStreak();
+  const ps = puzzleApi().getPuzzleSessionStats();
+  const streak = puzzleApi().getPuzzleStreak();
   const pct = (a: number, b: number) =>
     b > 0 ? `${Math.round((a / b) * 100)}%` : "–";
   const factionLine = (name: string, wins: number) =>
@@ -1607,7 +1583,7 @@ function showContextMenu(
 
   menu.querySelectorAll(".context-menu-item").forEach((btn) => {
     btn.addEventListener("click", () => {
-      handleContextMenuAction((btn as HTMLElement).dataset.action, piece);
+      void handleContextMenuAction((btn as HTMLElement).dataset.action, piece);
       hideContextMenu();
     });
   });
@@ -1621,7 +1597,7 @@ function showContextMenu(
   setTimeout(() => document.addEventListener("click", closeOnClick), 0);
 }
 
-function handleContextMenuAction(
+async function handleContextMenuAction(
   action: string | undefined,
   piece: {
     id: string;
@@ -1630,7 +1606,7 @@ function handleContextMenuAction(
     pos: Hex;
     symbol: string;
   },
-): void {
+): Promise<void> {
   if (!action) return;
 
   switch (action) {
@@ -1676,6 +1652,7 @@ function handleContextMenuAction(
       break;
     }
     case "save": {
+      const { downloadGame } = await loadReplayModule();
       downloadGame(
         game,
         `trischach-${new Date().toISOString().slice(0, 10)}.tspn`,
@@ -2254,7 +2231,8 @@ function initEventListeners(): void {
   });
 
   const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
-  saveBtn?.addEventListener("click", () => {
+  saveBtn?.addEventListener("click", async () => {
+    const { downloadGame } = await loadReplayModule();
     downloadGame(
       game,
       `trischach-${new Date().toISOString().slice(0, 10)}.tspn`,
@@ -2264,6 +2242,7 @@ function initEventListeners(): void {
   const copyBtn = document.getElementById("copy-btn") as HTMLButtonElement;
   copyBtn?.addEventListener("click", async () => {
     try {
+      const { copyGameToClipboard } = await loadReplayModule();
       await copyGameToClipboard(game);
       copyBtn.textContent = "✅ Kopiert!";
       setTimeout(() => {
@@ -2305,6 +2284,8 @@ function initEventListeners(): void {
     if (!file) return;
 
     try {
+      const { loadGameFromFile, reconstructGameFromTSPN } =
+        await loadReplayModule();
       const parsed = await loadGameFromFile(file);
       console.log("Loaded game:", parsed.headers);
 
@@ -2363,6 +2344,8 @@ function initEventListeners(): void {
   async function jumpToMove(moveIndex: number): Promise<void> {
     if (game.moveHistory.length === 0) return;
     try {
+      const { serializeGame, parseTSPN, reconstructGameFromTSPN } =
+        await loadReplayModule();
       const tspn = serializeGame(game);
       const parsed = parseTSPN(tspn);
       if (parsed.moves.length === 0) return;
@@ -2428,8 +2411,10 @@ function initEventListeners(): void {
     panel.hidden = false;
 
     // Defer so the "Analysiere…" paint can show before a blocking search.
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
       try {
+        const { analyzePosition, renderAnalysisToHTML } =
+          await loadAnalysisModule();
         const depth = Math.min(3, getAIDepth());
         const result = analyzePosition(game, depth);
         text.innerHTML = renderAnalysisToHTML(result);
@@ -2735,7 +2720,7 @@ function initEventListeners(): void {
   let puzzleStartTime: number = 0;
 
   function puzzleStatsHtml(): string {
-    const s = getPuzzleSessionStats();
+    const s = puzzleApi().getPuzzleSessionStats();
     if (s.attempts === 0) return "";
     const rate = Math.round((s.solved / s.attempts) * 100);
     const avg = s.solved > 0 ? Math.round(s.totalSeconds / s.solved) : null;
@@ -2753,18 +2738,20 @@ function initEventListeners(): void {
 
   /** CSS class for the current day's daily-puzzle difficulty tier. */
   function dailyDifficultyClass(): string {
-    return preferredDifficulty(todayISO());
+    return puzzleApi().preferredDifficulty(puzzleApi().todayISO());
   }
 
   /** Human-readable label for the current day's daily-puzzle difficulty. */
   function dailyDifficultyLabel(): string {
-    const tier = preferredDifficulty(todayISO());
+    const tier = puzzleApi().preferredDifficulty(puzzleApi().todayISO());
     return tier === "easy" ? "Leicht" : tier === "medium" ? "Medium" : "Schwer";
   }
 
   async function showPuzzleMenu(): Promise<void> {
-    const streak = getPuzzleStreak();
-    const dailyDone = isDailySolvedToday();
+    // Puzzle-Statistiken & -Logik kommen aus dem Lazy-Chunk.
+    await loadPuzzleModule();
+    const streak = puzzleApi().getPuzzleStreak();
+    const dailyDone = puzzleApi().isDailySolvedToday();
     puzzleOverlay.innerHTML = `
       <div class="puzzle-box">
         <div class="puzzle-header">
@@ -2816,14 +2803,14 @@ function initEventListeners(): void {
     document
       .getElementById("puzzle-continue-btn")
       ?.addEventListener("click", async () => {
-        const state = getPuzzleState();
+        const state = puzzleApi().getPuzzleState();
         if (state.currentPuzzle) {
           await showPuzzleBoard(state.currentPuzzle, { resume: true });
         }
       });
 
     // Check for saved progress
-    const state = getPuzzleState();
+    const state = puzzleApi().getPuzzleState();
     if (state.currentPuzzle) {
       (
         document.getElementById("puzzle-continue-btn") as HTMLButtonElement
@@ -2833,7 +2820,7 @@ function initEventListeners(): void {
 
   async function loadAndShowDailyPuzzle(): Promise<void> {
     showLoading("Lade Tagespuzzle...");
-    const daily = await getDailyPuzzle();
+    const daily = await puzzleApi().getDailyPuzzle();
     hideLoading();
     if (daily) {
       await showPuzzleBoard(daily);
@@ -2844,7 +2831,7 @@ function initEventListeners(): void {
 
   async function generateAndShowPuzzles(): Promise<void> {
     showLoading("Lade Puzzles...");
-    const puzzles = await loadShippedPuzzles();
+    const puzzles = await puzzleApi().loadShippedPuzzles();
     hideLoading();
     // Show a random sample of up to 10 from the shipped pool.
     const sample = [...puzzles].sort(() => Math.random() - 0.5).slice(0, 10);
@@ -3001,10 +2988,10 @@ function initEventListeners(): void {
 
     // Fresh open resets progress; "Fortsetzen" keeps in-memory puzzle state.
     if (!options.resume) {
-      loadPuzzle(puzzle);
+      puzzleApi().loadPuzzle(puzzle);
     }
     puzzleGame = testGame;
-    const state = getPuzzleState();
+    const state = puzzleApi().getPuzzleState();
     puzzleStartTime = state.startTime || Date.now();
 
     // Create a temporary renderer for the puzzle board
@@ -3076,7 +3063,7 @@ function initEventListeners(): void {
     document
       .getElementById("puzzle-close-btn")
       ?.addEventListener("click", () => {
-        abandonPuzzle();
+        puzzleApi().abandonPuzzle();
         cleanupPuzzle();
         showPuzzleMenu();
       });
@@ -3084,7 +3071,7 @@ function initEventListeners(): void {
     document
       .getElementById("puzzle-hint-btn")
       ?.addEventListener("click", () => {
-        const hint = requestHint();
+        const hint = puzzleApi().requestHint();
         if (hint) {
           showHintToast(`Zug: ${hint.san}`);
         }
@@ -3099,7 +3086,7 @@ function initEventListeners(): void {
     document
       .getElementById("puzzle-reset-btn")
       ?.addEventListener("click", async () => {
-        resetPuzzle();
+        puzzleApi().resetPuzzle();
         await showPuzzleBoard(puzzle);
       });
 
@@ -3111,7 +3098,7 @@ function initEventListeners(): void {
 
   function renderSolutionList(puzzle: Puzzle): void {
     const listEl = document.getElementById("puzzle-solution-list")!;
-    const state = getPuzzleState();
+    const state = puzzleApi().getPuzzleState();
 
     listEl.innerHTML = puzzle.solution
       .map((move, i) => {
@@ -3142,7 +3129,7 @@ function initEventListeners(): void {
   }
 
   function handlePuzzleBoardClick(event: MouseEvent, pg: Game): void {
-    if (!pg || getPuzzleState().isComplete) return;
+    if (!pg || puzzleApi().getPuzzleState().isComplete) return;
 
     // Find clicked hex from SVG coordinates
     const svg = event.target as SVGElement;
@@ -3170,7 +3157,7 @@ function initEventListeners(): void {
       const piece = pg.getAlivePieces().find((p) => p.id === pieceId);
       if (!piece) return;
 
-      const state = getPuzzleState();
+      const state = puzzleApi().getPuzzleState();
       if (state.currentMoveIndex >= state.currentPuzzle!.solution.length)
         return;
 
@@ -3193,10 +3180,14 @@ function initEventListeners(): void {
 
       // Try to make the move
       const expectedMove =
-        getPuzzleState().currentPuzzle!.solution[
-          getPuzzleState().currentMoveIndex
+        puzzleApi().getPuzzleState().currentPuzzle!.solution[
+          puzzleApi().getPuzzleState().currentMoveIndex
         ]!;
-      const result = makePuzzleMove(pg, expectedMove.pieceId, targetHex);
+      const result = puzzleApi().makePuzzleMove(
+        pg,
+        expectedMove.pieceId,
+        targetHex,
+      );
 
       if (result.correct) {
         // Move was correct
@@ -3206,18 +3197,22 @@ function initEventListeners(): void {
         puzzleGame
           ?.getAlivePieces()
           .forEach((p) => puzzleRenderer?.renderPiece(p));
-        renderSolutionList(getPuzzleState().currentPuzzle!);
+        renderSolutionList(puzzleApi().getPuzzleState().currentPuzzle!);
 
         if (result.gameOver) {
           setTimeout(
-            () => showPuzzleResult(true, getPuzzleState().currentPuzzle!),
+            () =>
+              showPuzzleResult(
+                true,
+                puzzleApi().getPuzzleState().currentPuzzle!,
+              ),
             500,
           );
         }
       } else {
         // Wrong move
         sounds.playError();
-        showPuzzleResult(false, getPuzzleState().currentPuzzle!);
+        showPuzzleResult(false, puzzleApi().getPuzzleState().currentPuzzle!);
       }
     }
 
@@ -3245,7 +3240,7 @@ function initEventListeners(): void {
       puzzleTimerInterval = null;
     }
 
-    const state = getPuzzleState();
+    const state = puzzleApi().getPuzzleState();
     const elapsed = Math.floor((Date.now() - puzzleStartTime) / 1000);
     const mins = Math.floor(elapsed / 60)
       .toString()
@@ -3253,8 +3248,8 @@ function initEventListeners(): void {
     const secs = (elapsed % 60).toString().padStart(2, "0");
 
     let streakHtml = "";
-    if (success && isTodaysDailyPuzzle(puzzle)) {
-      const streak = recordDailyPuzzleSolved();
+    if (success && puzzleApi().isTodaysDailyPuzzle(puzzle)) {
+      const streak = puzzleApi().recordDailyPuzzleSolved();
       streakHtml = `<span>🔥 Streak: <strong>${streak.current}</strong> (Best ${streak.best})</span>`;
     }
 
@@ -3291,7 +3286,7 @@ function initEventListeners(): void {
     document
       .getElementById("puzzle-again-btn")
       ?.addEventListener("click", async () => {
-        resetPuzzle();
+        puzzleApi().resetPuzzle();
         await showPuzzleBoard(puzzle);
       });
 
@@ -4359,6 +4354,28 @@ function initEventListeners(): void {
 function initApp(): void {
   initEventListeners();
   init();
+  prefetchLazyModes();
+}
+
+/**
+ * Lädt die Modul-Chunks der Modi (Puzzle, Replay) im Hintergrund nach.
+ *
+ * Sie liegen bewusst außerhalb von main.js: das hält den kritischen Pfad klein
+ * (Bundle-Gate, schnellerer First Paint). Ein Fetch erst beim Klick trifft den
+ * Dev-Server unter Last und scheitert dort sporadisch ("Failed to fetch
+ * dynamically imported module") — dann bleibt z. B. das Puzzle-Menü leer.
+ * Deshalb wird direkt nach dem Start vorgeladen; der Fehler wird geschluckt,
+ * der Klick lädt notfalls selbst nach (siehe retryImport).
+ *
+ * analysis.ts bleibt absichtlich ungeladen — der Analyse-Modus ist eine
+ * seltene Aktion aus dem Replay-Panel heraus.
+ */
+function prefetchLazyModes(): void {
+  const ignore = () => {
+    /* bewusst still: der Aufruf lädt bei Bedarf erneut */
+  };
+  void loadPuzzleModule().catch(ignore);
+  void loadReplayModule().catch(ignore);
 }
 
 if (document.readyState === "loading") {
