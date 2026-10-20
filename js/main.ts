@@ -10,17 +10,8 @@ import {
   generateBoard,
 } from "./board.ts";
 import type { Faction, IGame, GameState } from "./types.ts";
-import {
-  getCoachMessage,
-  isDisadvantageHex,
-  rpsCaptureTitleFromPieces,
-  type RpsBuckets,
-} from "./coach.ts";
-import {
-  generateRpsPuzzles,
-  deserializeRpsPosition,
-  evaluateRpsMove,
-} from "./rps-puzzle.ts";
+import { retryImport } from "./lazy-retry.ts";
+import type { CoachModule, RpsBuckets } from "./coach-loader";
 import { applySkin, loadSkinId, saveSkinId, SKINS } from "./skins.ts";
 import { GAME_STATE, PROMOTION_CHOICES } from "./game-constants.ts";
 import type { Game, GameResult } from "./game.ts";
@@ -109,6 +100,10 @@ function escapeHtml(value: unknown): string {
 }
 
 // ─── Settings Persistence (localStorage) ────────────────────────────────
+
+// ─── Lazy-Module-Chunks (nicht in main.js) ─────────────────────────────
+let rpsPuzzleModule: typeof import("./rps-puzzle.ts") | null = null;
+let coachModule: typeof import("./coach.ts") | null = null;
 
 const STORAGE_KEY = "trischach-settings";
 
@@ -1161,7 +1156,13 @@ function updateCoachStrip(flash = false): void {
     return;
   }
   if (!coachStripEl) return;
-  const msg = getCoachMessage({
+  if (!coachModule) {
+    void loadCoachModule()
+      .then(() => updateCoachStrip(flash))
+      .catch(() => {});
+    return;
+  }
+  const msg = coachApi().getCoachMessage({
     state: game.state,
     currentFaction: game.currentFaction,
     rpsEnabled: game.rpsEnabled,
@@ -1208,7 +1209,10 @@ function applyRpsHexTitles(
       if (!el) continue;
       el.polygon.setAttribute(
         "title",
-        rpsCaptureTitleFromPieces(attacker as import("./types.ts").Piece, def),
+        coachApi().rpsCaptureTitleFromPieces(
+          attacker as import("./types.ts").Piece,
+          def,
+        ),
       );
     }
   };
@@ -1386,11 +1390,11 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
     game.state === GAME_STATE.SELECT_TARGET &&
     game.rpsEnabled &&
     game.selectedPiece &&
-    isDisadvantageHex(hexObj, lastRpsAttacks)
+    coachModule && coachApi().isDisadvantageHex(hexObj, lastRpsAttacks)
   ) {
     const def = game.getPieceAt(hexObj);
-    const title = def
-      ? rpsCaptureTitleFromPieces(game.selectedPiece, def)
+    const title = def && coachModule
+      ? coachApi().rpsCaptureTitleFromPieces(game.selectedPiece, def)
       : "RPS-Nachteil";
     const ok = window.confirm(
       `${title}\n\nBei Nachteil stirbt DEINE Figur — der Verteidiger bleibt.\nTrotzdem angreifen?`,
@@ -2880,7 +2884,9 @@ function initEventListeners(): void {
     });
   }
 
-  function showRpsTacticPuzzle(): void {
+  async function showRpsTacticPuzzle(): Promise<void> {
+    const { generateRpsPuzzles, deserializeRpsPosition, evaluateRpsMove } =
+      rpsPuzzleApi();
     const puzzles = generateRpsPuzzles(1);
     const puzzle = puzzles[0];
     if (!puzzle) {
@@ -4349,6 +4355,33 @@ function initEventListeners(): void {
   }
 }
 
+  // ─── Lazy-Module-Chunks (nicht in main.js) ─────────────────────────────
+  export async function loadRpsPuzzleModule(): Promise<typeof import("./rps-puzzle.ts")> {
+    rpsPuzzleModule ??= await retryImport(() => import("./rps-puzzle.ts"));
+    return rpsPuzzleModule;
+  }
+
+  /** Synchroner Zugriff auf das bereits geladene RPS-Puzzle-Modul. */
+  export function rpsPuzzleApi(): typeof import("./rps-puzzle.ts") {
+    if (!rpsPuzzleModule) {
+      throw new Error("RPS-Puzzle-Modul noch nicht geladen – zuerst loadRpsPuzzleModule() aufrufen.");
+    }
+    return rpsPuzzleModule;
+  }
+
+  export async function loadCoachModule(): Promise<typeof import("./coach.ts")> {
+    coachModule ??= await retryImport(() => import("./coach.ts"));
+    return coachModule;
+  }
+
+  /** Synchroner Zugriff auf das bereits geladene Coach-Modul. */
+  export function coachApi(): typeof import("./coach.ts") {
+    if (!coachModule) {
+      throw new Error("Coach-Modul noch nicht geladen – zuerst loadCoachModule() aufrufen.");
+    }
+    return coachModule;
+  }
+
 // ─── Start ──────────────────────────────────────────────────────────
 
 function initApp(): void {
@@ -4376,6 +4409,8 @@ function prefetchLazyModes(): void {
   };
   void loadPuzzleModule().catch(ignore);
   void loadReplayModule().catch(ignore);
+  void loadCoachModule().catch(ignore);
+  void loadRpsPuzzleModule().catch(ignore);
 }
 
 if (document.readyState === "loading") {

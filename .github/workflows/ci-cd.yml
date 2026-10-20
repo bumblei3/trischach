@@ -56,6 +56,22 @@ jobs:
       - name: Check formatting
         run: npx prettier --check .
 
+  engine-bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Setup Node 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run engine strength bench
+        run: npm run bench -- --games=10 --depth=3 --opponent=depth1 --budget=400
+
   unit-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15

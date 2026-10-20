@@ -35,7 +35,13 @@ export default defineConfig({
   // Timeout. Im Production-Build (statische Chunks) tritt das nicht auf.
   server: {
     warmup: {
-      clientFiles: ["./js/puzzle.ts", "./js/replay.ts", "./js/analysis.ts"],
+      clientFiles: [
+        "./js/puzzle.ts",
+        "./js/replay.ts",
+        "./js/analysis.ts",
+        "./js/coach.ts",
+        "./js/rps-puzzle.ts",
+      ],
     },
   },
   resolve: {
