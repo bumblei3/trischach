@@ -3568,6 +3568,10 @@ function initEventListeners(): void {
       case "d":
         toggleDarkMode();
         break;
+      case "escape":
+        settingsOverlay?.classList.remove("visible");
+        hideTutorial();
+        break;
       case "?":
         showHintToast(
           "Shortcuts: ←/→ Nav, Space Play/Pause, F Flip, D Dark, C Copy, ? Help",
