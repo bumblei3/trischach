@@ -1899,7 +1899,7 @@ export function minimax(
     Date.now() - searchStart > MAX_SEARCH_MS
   ) {
     return {
-      score: evaluateBoard(game, maximizingFaction),
+      score: evaluateLeaf(game, maximizingFaction),
       action: null,
       timeout: true,
     };
@@ -1926,12 +1926,12 @@ export function minimax(
   }
 
   if (game.state === "game_over") {
-    return { score: evaluateBoard(game, maximizingFaction), action: null };
+    return { score: evaluateLeaf(game, maximizingFaction), action: null };
   }
 
   const actions = getAllActions(game, currentFaction);
   if (actions.length === 0) {
-    return { score: evaluateBoard(game, maximizingFaction), action: null };
+    return { score: evaluateLeaf(game, maximizingFaction), action: null };
   }
 
   if (depth <= 0) {
