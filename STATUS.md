@@ -1,10 +1,9 @@
-`# trischach — Status (Stand: 2026-10-20, HEAD dead64a) — **Release v1.7.0 ausgerollt**
+`# trischach — Status (Stand: 2026-10-20, HEAD d295303) — **Release v1.7.0 ausgerollt**
 
-`main` enthält seit `v1.6.0` (2026-08-24) **23 Commits** (2026-08-31 bis 2026-10-20) und ist
-als `v1.7.0` auf GitHub veröffentlicht: Solo-Modus gegen die KI, Engine-Stärke-Baseline
-mit reproduzierbarer Instrumentation, Modus-Chunks, Code-Splitting, Zug-Budget 200–600 ms,
-evaluateLeaf an alle Minimax-Blaetter, 145 transitive Pseudo-Dependencies entfernt.
-Neueste Releases: `v1.7.0` (2026-10-20, heute) → `v1.6.0` (2026-08-24).
+`main` enthält seit `v1.6.0` (2026-08-24) **25 Commits** und ist als `v1.7.0` auf GitHub
+veröffentlicht. Zusätzlich: Code-Splitting komplett (coach.ts + rps-puzzle.ts lazy
+geladen), `chore/node-engines`-Branch gemerged (Node 24, ESLint flat config, vitest 4.x),
+`tspn-viewer.html` gelöscht. main.js **23.03 KB gzip** (83.71 KB raw).
 
 - Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
   alle verbleibenden Hebel gemessen negativ/flach (Details unten).
@@ -151,8 +150,7 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
 - **`package.json`:** 145 transitive Pseudo-Dependencies entfernt (2026-10-19). Die
   App hat faktisch null Runtime-Dependencies (nur `fs`/`path`/`process` sowie
   `vite`/`vitest`/`@playwright/test` aus devDeps). `npm audit --omit=dev`: 4 → 0.
-- **`tspn-viewer.html` ist kaputt** (42 KB): importiert `./js/*.js`, die es nicht gibt
-  (nur `.ts`), ist kein Vite-Entry, wird nicht deployt. Reparieren oder löschen.
+- **`tspn-viewer.html` (2026-10-20):** gelöscht (war 42 KB, kaputt — importierte nicht existierende `.js`-Dateien, kein Vite-Entry, nicht deployt). Reparieren oder löschen war die Empfehlung; gelöscht.
 - **`engines`-Feld** ist gesetzt (`>=24 <25`) — siehe Node-Hinweis oben.
 - **Modus-Chunks (2026-10-20):** `puzzle.ts`, `replay.ts` und `analysis.ts` liegen in
   eigenen Chunks — main.js 30.7 → **24.7 KB gzip** (Gate-Marge ~8 KB). Sie werden nach
@@ -164,9 +162,7 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
   `vite.config.ts` + Retry (`js/lazy-retry.ts`). Der Browser cacht einen
   fehlgeschlagenen Module-Fetch, ein Retry mit **identischem** Specifier greift deshalb
   nicht immer — die Vorladung ist die eigentliche Absicherung.
-- **Code-Splitting weiter offen:** `js/rps-puzzle.ts` (10 KB) und `js/coach.ts` liegen
-  noch statisch im main-Chunk (`rps-puzzle.ts` braucht `rpsCaptureTitleFromPieces` im
-  heißen Render-Pfad, ein Split verlangt das Herausziehen dieses Helfers).
+- **Code-Splitting (2026-10-20):** `js/rps-puzzle.ts` (10 KB) und `js/coach.ts` sind jetzt **lazy geladen** via `js/rps-puzzle-loader.ts` und `js/coach-loader.ts` (retryImport + warmup). main.js 30.7 → **24.7 KB gzip** → nach dem Merge der `chore/node-engines`-Branch weiter auf **23.03 KB gzip** (83.71 KB raw). `puzzle.ts`, `replay.ts`, `analysis.ts` waren schon vorher in eigenen Chunks. Der Bundle-Gate hat ~8 KB Marge.
 - **Flaky-Test entschärft (2026-10-20):** `tests/main.test.ts > triggerAutoMove delays if
 game state is not SELECT_PIECE` lief in CI in den Timeout (gemessen 621 s statt 160 ms;
   der `unit-tests`-Job 305 s statt 27 s). Die Ursache war zwei Sessions lang falsch
