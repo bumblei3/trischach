@@ -153,6 +153,34 @@ describe("game-feedback", () => {
     expect(FEEDBACK_KEY.startsWith("trischach-")).toBe(true);
   });
 
+  it("summarizeFeedback — submit ohne rating/draft wird ignoriert (Branch)", () => {
+    saveFeedback([
+      { timestamp: "t", kind: "submit", text: "x" },
+    ]);
+    const s = summarizeFeedback();
+    expect(s.submits).toBe(1);
+    expect(s.ratingCount).toBe(0);
+    expect(s.latestDraft).toBeNull();
+  });
+
+  it("loadFeedback — Storage-Fehler liefert []", () => {
+    const orig = localStorage.getItem.bind(localStorage);
+    localStorage.getItem = () => {
+      throw new Error("boom");
+    };
+    expect(loadFeedback()).toEqual([]);
+    localStorage.getItem = orig;
+  });
+
+  it("resetFeedback — Storage-Fehler wirft nicht", () => {
+    const orig = localStorage.removeItem.bind(localStorage);
+    localStorage.removeItem = () => {
+      throw new Error("boom");
+    };
+    expect(() => resetFeedback()).not.toThrow();
+    localStorage.removeItem = orig;
+  });
+
   it("saveFeedback — wirft bei kaputter Storage nicht", () => {
     const original = localStorage.setItem.bind(localStorage);
     localStorage.setItem = () => {
