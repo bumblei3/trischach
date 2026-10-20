@@ -14,10 +14,8 @@ export default defineConfig({
     testTimeout: 180000,
     // Run tests sequentially in CI to avoid memory issues
     pool: isCI ? "forks" : "threads",
-    poolOptions: {
-      forks: { singleFork: true },
-      threads: { singleThread: true },
-    },
+    forks: { singleFork: true },
+    threads: { singleThread: true },
     coverage: {
       // Istanbul instead of the default `v8` provider. Vitest 3.2+ v8 uses
       // AST-based remapping (ast-v8-to-istanbul) which cannot map TypeScript
