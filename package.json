@@ -37,6 +37,7 @@
   "directories": {
     "test": "tests"
   },
+  "dependencies": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/bumblei3/trischach.git"
