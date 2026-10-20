@@ -1390,12 +1390,14 @@ renderer.onCellClick = (hex: { q: number; r: number }) => {
     game.state === GAME_STATE.SELECT_TARGET &&
     game.rpsEnabled &&
     game.selectedPiece &&
-    coachModule && coachApi().isDisadvantageHex(hexObj, lastRpsAttacks)
+    coachModule &&
+    coachApi().isDisadvantageHex(hexObj, lastRpsAttacks)
   ) {
     const def = game.getPieceAt(hexObj);
-    const title = def && coachModule
-      ? coachApi().rpsCaptureTitleFromPieces(game.selectedPiece, def)
-      : "RPS-Nachteil";
+    const title =
+      def && coachModule
+        ? coachApi().rpsCaptureTitleFromPieces(game.selectedPiece, def)
+        : "RPS-Nachteil";
     const ok = window.confirm(
       `${title}\n\nBei Nachteil stirbt DEINE Figur — der Verteidiger bleibt.\nTrotzdem angreifen?`,
     );
@@ -4355,32 +4357,38 @@ function initEventListeners(): void {
   }
 }
 
-  // ─── Lazy-Module-Chunks (nicht in main.js) ─────────────────────────────
-  export async function loadRpsPuzzleModule(): Promise<typeof import("./rps-puzzle.ts")> {
-    rpsPuzzleModule ??= await retryImport(() => import("./rps-puzzle.ts"));
-    return rpsPuzzleModule;
-  }
+// ─── Lazy-Module-Chunks (nicht in main.js) ─────────────────────────────
+export async function loadRpsPuzzleModule(): Promise<
+  typeof import("./rps-puzzle.ts")
+> {
+  rpsPuzzleModule ??= await retryImport(() => import("./rps-puzzle.ts"));
+  return rpsPuzzleModule;
+}
 
-  /** Synchroner Zugriff auf das bereits geladene RPS-Puzzle-Modul. */
-  export function rpsPuzzleApi(): typeof import("./rps-puzzle.ts") {
-    if (!rpsPuzzleModule) {
-      throw new Error("RPS-Puzzle-Modul noch nicht geladen – zuerst loadRpsPuzzleModule() aufrufen.");
-    }
-    return rpsPuzzleModule;
+/** Synchroner Zugriff auf das bereits geladene RPS-Puzzle-Modul. */
+export function rpsPuzzleApi(): typeof import("./rps-puzzle.ts") {
+  if (!rpsPuzzleModule) {
+    throw new Error(
+      "RPS-Puzzle-Modul noch nicht geladen – zuerst loadRpsPuzzleModule() aufrufen.",
+    );
   }
+  return rpsPuzzleModule;
+}
 
-  export async function loadCoachModule(): Promise<typeof import("./coach.ts")> {
-    coachModule ??= await retryImport(() => import("./coach.ts"));
-    return coachModule;
-  }
+export async function loadCoachModule(): Promise<typeof import("./coach.ts")> {
+  coachModule ??= await retryImport(() => import("./coach.ts"));
+  return coachModule;
+}
 
-  /** Synchroner Zugriff auf das bereits geladene Coach-Modul. */
-  export function coachApi(): typeof import("./coach.ts") {
-    if (!coachModule) {
-      throw new Error("Coach-Modul noch nicht geladen – zuerst loadCoachModule() aufrufen.");
-    }
-    return coachModule;
+/** Synchroner Zugriff auf das bereits geladene Coach-Modul. */
+export function coachApi(): typeof import("./coach.ts") {
+  if (!coachModule) {
+    throw new Error(
+      "Coach-Modul noch nicht geladen – zuerst loadCoachModule() aufrufen.",
+    );
   }
+  return coachModule;
+}
 
 // ─── Start ──────────────────────────────────────────────────────────
 
