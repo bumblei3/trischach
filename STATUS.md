@@ -170,12 +170,18 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
   heißen Render-Pfad, ein Split verlangt das Herausziehen dieses Helfers).
 - **Flaky-Test entschärft (2026-10-20):** `tests/main.test.ts > triggerAutoMove delays if
 game state is not SELECT_PIECE` lief in CI in den globalen 180-s-Timeout („Test timed
-  out in 180000ms", gemessen 322 s; der ganze unit-tests-Job 333 s statt 27 s). Ursache:
-  der gefeuerte Timer-Callback läuft bei `game.state === "select_target"` in
-  `handleCellClick` → Combat, dessen Timer bei **2200 ms** liegt — außerhalb des
-  1000-ms-Fensters von `vi.advanceTimersByTimeAsync(1000)`, dessen Promise damit nie
-  settlet. Fix: Spiel vor dem Flush auf `game_over` parken (Callback no-op't an der
-  Guard-Clause) plus expliziter Test-Timeout 15 s.
+  out in 180000ms“, gemessen 322 s; der ganze unit-tests-Job 333 s statt 27 s). Erster
+  Fix (Spiel vor dem Flush auf `game_over` parken) griff nicht, weil die Ursache woanders
+  lag: happy-dom behält `localStorage` über Tests hinweg, und ein vorheriger Test
+  speichert `autoBattle:true`. `applySettings()` startet dann ihre eigene Auto-Battle-
+  Kette, deren Timer weit über das 1000-ms-Fenster von
+  `vi.advanceTimersByTimeAsync(1000)` hinausreicht — die Flush-Promise settlet nie.
+  Die Verzweigung ist zufällig (Reihenfolge/Microtasks), deshalb war der Test lokal
+  „manchmal grün". Fix: `localStorage.clear()` vor dem Import, `vi.runAllTicks()` +
+  `advanceTimersByTimeAsync(0)` damit `applySettings()` gelaufen ist, und
+  `isAutoBattleActive()` (neu exportiert) als Assertion, die die Bedingung prüft statt
+  nur zu hoffen. Verifiziert: 8/8 isolierte Läufe und 6/6 volle Suite (CI-Pool) stabil,
+  Testzeit ~160 ms statt 360 s.
 
 ## Mess-Integrität
 

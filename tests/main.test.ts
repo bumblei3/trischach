@@ -390,8 +390,22 @@ describe("Main UI & Events", () => {
   });
 
   test("triggerAutoMove delays if game state is not SELECT_PIECE", async () => {
+    // Isolate from persisted user settings: happy-dom keeps localStorage
+    // across tests, so a previous test may have saved autoBattle:true. With it,
+    // applySettings() starts its own auto-battle chain whose timers reach beyond
+    // the 1000 ms window below — the flush never settles and this test hangs into
+    // its timeout (observed 360 s instead of 160 ms). Reset first, then wait for
+    // main.ts's async init() to finish applying the settings.
+    localStorage.clear();
     await import("../js/main.ts");
-    const { game, triggerAutoMove } = await import("../js/main.ts");
+    const { game, triggerAutoMove, isAutoBattleActive } =
+      await import("../js/main.ts");
+    // Drain the microtask queue (and the init chain's own timers) so
+    // applySettings() has run before we start asserting.
+    await vi.runAllTicks();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(isAutoBattleActive()).toBe(false);
 
     game.state = "select_target";
     game.moveHistory = [];
@@ -408,6 +422,10 @@ describe("Main UI & Events", () => {
     // returns at its guard clause, so the flush stays bounded and is a no-op.
     game.state = "game_over";
     await vi.advanceTimersByTimeAsync(1000);
+    // Nothing may have happened: the callback returned at its guard clause, so
+    // the auto-battle chain is not running and the game stays parked.
+    expect(isAutoBattleActive()).toBe(false);
+    expect(game.state).toBe("game_over");
   }, 15000);
 
   test("replay analysis renders PV line and RPS explanation", async () => {

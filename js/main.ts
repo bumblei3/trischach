@@ -4384,4 +4384,4 @@ if (document.readyState === "loading") {
   initApp();
 }
 
-export { game, renderer, triggerAutoMove };
+export { game, renderer, triggerAutoMove, isAutoBattleActive };
