@@ -309,11 +309,11 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
   });
 
   describe("calculateTimeBudget", () => {
-    test("returns budget within bounds (1000-8000)", () => {
+    test("returns budget within bounds (100-1000)", () => {
       const gameState = createGameState();
       const budget = calculateTimeBudget(gameState);
-      expect(budget).toBeGreaterThanOrEqual(1000);
-      expect(budget).toBeLessThanOrEqual(8000);
+      expect(budget).toBeGreaterThanOrEqual(100);
+      expect(budget).toBeLessThanOrEqual(1000);
     });
 
     test("higher piece count = lower budget (opening)", () => {
@@ -345,8 +345,8 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       // Note: isKingdomCheck is imported in ai-worker.js, can't easily mock here
       // Just test that the function returns a valid budget
       const budget = calculateTimeBudget(gameState);
-      expect(budget).toBeGreaterThanOrEqual(1000);
-      expect(budget).toBeLessThanOrEqual(8000);
+      expect(budget).toBeGreaterThanOrEqual(100);
+      expect(budget).toBeLessThanOrEqual(1000);
     });
   });
 

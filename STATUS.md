@@ -29,23 +29,38 @@ fälschlich rot macht (`Cannot read properties of undefined (reading 'clear')`).
 `package.json` pinnt inzwischen `"engines": { "node": ">=24 <25" }` — CI fährt Node 24,
 das Feld ist also nicht mehr offen.
 
-## Engine-Stärke (absolut, depth 3, seed 12345)
+## Engine-Stärke (gemessen 2026-10-20, depth 3, seed 12345)
 
-Quelle: `bench-current.log` (n=40) und Nachmessung 2026-10-19 (n=12).
+**Kernzahl: die Engine ist so stark wie _ein_ Gegner, nicht stärker.** Gegen depth1
+(n=20) ergibt jeder Lauf **35,0 % (W7/L13, −108 Elo)** — bei Routing 16/30 wie 24/45, bei
+Budget 400 ms, 800 ms und Default, und in fünf Wiederholungen mit **Spread 0,0 pp**
+(`bench/engine-strength-depth3-n20-depth1-repeats5.txt`,
+`bench/engine-strength-routing-16-30-vs-24-45.txt`). Fairness-Niveau bei drei Fraktionen
+ist 33 % → **kein Vorteil gegen depth1**.
 
-| Gegner   | n=40 (Artefakt)        | n=12 (Nachmessung)      |
-| -------- | ---------------------- | ----------------------- |
-| random   | 62.5% / +89 [−22..200] | 58.3% / +58 [−141..257] |
-| material | 36.3% / −98 [−210..14] | —                       |
-| depth1   | 35.0% / −108 [−221..5] | 33.3% / −120 [−329..89] |
+| Gegner   | n=20, aktuelle Engine                       | Anmerkung                                        |
+| -------- | ------------------------------------------- | ------------------------------------------------ |
+| depth1   | 35,0 % / −108 [−268..52]                    | stabil, 5 Wiederholungen identisch               |
+| random   | 59,0 % Mittel (Spread 52,5–65,0 %, 12,5 pp) | Einzelläufe 40–72,5 % → **nicht reproduzierbar** |
+| material | 36,3 % / −98 [−210..14]                     | alter Stand (n=40), nicht neu gemessen           |
 
-**Neuestes Artefakt im Tree** (`bench/engine-strength-baseline-depth3-n20-random.txt`,
-Commit 4d27466): depth 3 vs random, n=20, seed 12345 → **40.0% / −70 [−225..85]** (W8/L12).
-Das liegt unter der 62.5%-Baseline (n=40) und unter der Skill-Notiz von 57.5% (n=20).
-Die 95-%-CIs überlappen 0, es ist also **kein** bewiesener Rückschritt — aber der Vorteil
-gegen random reproduziert sich im aktuellen Stand nicht. Der n=20-Lauf ist der einzige
-Messpunkt nach den `evaluateLeaf`-Leafs; ein frischer n=40-Lauf gegen dasselbe Artefakt
-ist die offene Nachmessung.
+**Der Bench ist nicht reproduzierbar, solange die Zeit-Deadline greift.** Die Suche ist
+wall-clock-budgetiert (`searchDeadline`), die erreichte Tiefe hängt also von der
+Maschinenlast ab. Belege: identischer Befehl, gleicher Seed, gleicher Code lieferte gegen
+random 40,0 % (Artefakt vom 20.10., 12:57, Leerlauf) _und_ 72,5 % (Lauf unter Last), sowie
+mit `--budget=400`, n=10: 50 % / 50 % / 60 %; die 5-Lauf-Reihe mit dem neuen Budget streut
+52,5–65,0 % (12,5 pp, `bench/engine-strength-depth3-n20-random-repeats5.txt`). Gegen depth1
+ist das Ergebnis stabil
+(kurze Partien) — deshalb ist 35,0 % die belastbare Zahl und **alle random-Zahlen in
+diesem Dokument sind Rauschen**, inklusive der alten 62,5 % (n=40, v1.5.0), die sich mit
+keiner Konfiguration bei n=20 wiederfindet. Einzelläufe sind keine Evidenz: der Bench hat
+jetzt `--repeats=N` (Mittel + Spread + Warnung bei >5 pp) und `--budget=N`.
+
+**Konsequenz (2026-10-20): Zug-Budget gesenkt.** Es lag bei 1500–5500 ms und wurde bis
+4 s lang ausgenutzt (⌀ 1776 ms, max 4048 ms laut Trace vom 19.10.) — für den Spieler reine
+Wartezeit, denn das Ergebnis ändert sich messbar nicht. Neue Skala 200–600 ms (+150
+Königscheck, +150 bei <5 Zügen), `MAX_SEARCH_MS` 4000 → 1500. Nebeneffekt: Unit-Suite
+15 s → 7,5 s, Benches wieder bezahlbar.
 
 **Wichtig — Score-Semantik bei 3 Fraktionen:** Der Bench wertet „letzte überlebende
 Fraktion gewinnt". Bei _drei_ Fraktionen ist das Fairness-Niveau **33 %**, nicht 50 %.
@@ -156,12 +171,24 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
 
 ## Mess-Integrität
 
-- Autoritative Artefakte: `bench-current.log` (v1.5.0), `bench/cr-vs-*-n40.log`,
-  `bench/km-vs-*-n40.log`.
-- **Regel:** Keine Engine-Stärke-Behauptung ohne Bench-Artefakt im Tree — und keine
+- Autoritative Artefakte: `bench/engine-strength-depth3-n20-depth1-repeats5.txt` (stabil),
+  `bench/engine-strength-routing-16-30-vs-24-45.txt` (Routing-Vergleich);
+  historisch/nur noch als Rauschen lesbar: `bench-current.log` (v1.5.0),
+  `bench/cr-vs-*-n40.log`, `bench/km-vs-*-n40.log` sowie
+  `bench/engine-strength-baseline-depth3-n20-random.txt` (40 %).
+- **Regel 1:** Keine Engine-Stärke-Behauptung ohne Bench-Artefakt im Tree — und keine
   Aussage aus Prosa (README) ableiten, siehe Fehldiagnose oben.
+- **Regel 2 (neu): Einzelläufe sind keine Evidenz.** Die Suche ist wall-clock-budgetiert,
+  gleiche Flags liefern unterschiedliche Zahlen. Immer `--repeats=N` (≥3) fahren und
+  Mittel + Spread berichten; Spread >5 pp heißt „Aussage unmöglich". Gegen `random` streut
+  es stark (Partien bis 200 Plies), gegen `depth1` ist es stabil — für Engine-Aussagen
+  daher `depth1` bevorzugen. Umgekehrt gilt: solange die Deadline greift, ist ein Lauf
+  auch nicht als „gleich/ungleich" interpretierbar.
 - `scripts/engine-strength.ts` ist nicht als npm-Script hinterlegt und läuft in keiner
-  CI. Aufruf: `npx tsx scripts/engine-strength.ts --games=40 --depth=3 --opponent=random`
+  CI. Aufruf:
+  `npx tsx scripts/engine-strength.ts --games=20 --depth=3 --opponent=depth1 --repeats=5`
+  (optional `--budget=N`, `--seed=N`, `--max-plies=N`). Einzellauf-Format bleibt
+  kompatibel zu den alten Artefakten.
 
 ## Cleanup-Historie (2026-08-22)
 

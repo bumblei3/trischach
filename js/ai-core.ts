@@ -90,26 +90,33 @@ export function calculateTimeBudget(game: IGame): number {
 
   let budget = 3000;
 
+  // Zug-Budget bewusst klein: gemessen (2026-10-20) bringt die frühere Skala
+  // (1500-5500 ms) gegen depth1 und random KEINEN Unterschied — identische
+  // Ergebnisse bei 400/800/Default-Budget und über fünf Wiederholungen hinweg
+  // (bench/engine-strength-depth3-n20-depth1-budget400-repeats5.txt). Die
+  // Bedenkzeit war also reine Latenz für den Spieler (bis 4 s pro Zug) — und
+  // ein zeitbudgetierter Lauf ist nur reproduzierbar, solange die Deadline
+  // nicht greift. Skala daher ~1/8, Form (mehr Steine = weniger Zeit) bleibt.
   if (pieceCount > 35) {
-    budget = 1500;
+    budget = 200;
   } else if (pieceCount > 25) {
-    budget = 2500;
+    budget = 300;
   } else if (pieceCount > 15) {
-    budget = 3500;
+    budget = 400;
   } else if (pieceCount > 8) {
-    budget = 4500;
+    budget = 500;
   } else {
-    budget = 5500;
+    budget = 600;
   }
 
   if (isKingdomCheck(game, game.currentFaction)) {
-    budget += 1000;
+    budget += 150;
   }
 
   if (legalMoves < 5) {
-    budget += 1000;
+    budget += 150;
   } else if (legalMoves > 40) {
-    budget -= 500;
+    budget -= 50;
   }
 
   budget = Math.max(100, Math.min(TIME_LIMIT_MS, budget));
@@ -125,7 +132,9 @@ export let TIME_LIMIT_MS = 5000;
 // per-node deadline sampling, this guarantees the search thread/fork returns
 // even on slow runtimes (e.g. CI on a shared runner) where one deep iteration
 // can exceed the soft budget and would otherwise block the process.
-export const MAX_SEARCH_MS = 4000;
+// 1500 statt 4000: passt zur neuen Budget-Skala (150-900 ms je Zug, Pondern
+// 3x) — ein einzelner Zug darf den Spieler nicht sekundenlang warten lassen.
+export const MAX_SEARCH_MS = 1500;
 
 export function setAIDepth(depth: number): void {
   MAX_DEPTH = Math.max(1, Math.min(12, depth));
