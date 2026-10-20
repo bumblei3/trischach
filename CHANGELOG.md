@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Unit-Test-Hänger** (dead64a): `tests/main.test.ts > triggerAutoMove delays if game
-  state is not SELECT_PIECE` lief in CI in 621 s (globaler Timeout 180 s, Job 305 s statt
+state is not SELECT_PIECE` lief in CI in 621 s (globaler Timeout 180 s, Job 305 s statt
   27 s). Ursache zweier Sessions lang falsch gefunden: Erst stale `main.ts`-Instanzen aus
   vorherigen Tests, deren Timer in den aktuellen Test hineinwirken (hoffe
   `autoBattleActive === true`, `Date.now()`-basierte Deadline der Engine ist unter

@@ -1,11 +1,10 @@
-# trischach — Status (Stand: 2026-10-20, HEAD 4d27466)
+`# trischach — Status (Stand: 2026-10-20, HEAD dead64a) — **Release v1.7.0 ausgerollt**
 
-`main` (4d27466) enthält Capture-Reply + Kingmaker + Zobrist/State-Fix + Tagespuzzle,
-dazu **unreleased seit Tag `v1.6.0`** (2026-08-24, 16 Commits): Solo-Modus gegen die KI,
-Code-Splitting (`game.ts` eigener Chunk), 145 transitive Pseudo-Dependencies entfernt,
-Modus-Chunks für Puzzle/Replay/Analyse, `evaluateLeaf` an die Minimax-_Leafs_,
-Bench-Artefakt. `package.json` steht noch auf
-`1.6.0` → Release `v1.7.0` ist fällig.
+`main` enthält seit `v1.6.0` (2026-08-24) **23 Commits** (2026-08-31 bis 2026-10-20) und ist
+als `v1.7.0` auf GitHub veröffentlicht: Solo-Modus gegen die KI, Engine-Stärke-Baseline
+mit reproduzierbarer Instrumentation, Modus-Chunks, Code-Splitting, Zug-Budget 200–600 ms,
+evaluateLeaf an alle Minimax-Blaetter, 145 transitive Pseudo-Dependencies entfernt.
+Neueste Releases: `v1.7.0` (2026-10-20, heute) → `v1.6.0` (2026-08-24).
 
 - Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
   alle verbleibenden Hebel gemessen negativ/flach (Details unten).
