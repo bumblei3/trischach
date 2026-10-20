@@ -1,6 +1,10 @@
-# trischach — Status (Stand: 2026-10-19, v1.6.0)
+# trischach — Status (Stand: 2026-10-20, HEAD 4d27466)
 
-`main` (0a3164e) enthält Capture-Reply + Kingmaker + Zobrist/State-Fix + Tagespuzzle
+`main` (4d27466) enthält Capture-Reply + Kingmaker + Zobrist/State-Fix + Tagespuzzle,
+dazu **unreleased seit Tag `v1.6.0`** (2026-08-24, 16 Commits): Solo-Modus gegen die KI,
+Code-Splitting (`game.ts` eigener Chunk), 145 transitive Pseudo-Dependencies entfernt,
+`evaluateLeaf` an den Minimax-_Leafs_, Bench-Artefakt. `package.json` steht noch auf
+`1.6.0` → Release `v1.7.0` ist fällig.
 
 - Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
   alle verbleibenden Hebel gemessen negativ/flach (Details unten).
@@ -13,15 +17,16 @@ Alle Gates grün (Node 24, CI-Version):
 | ---------- | ------------------------ | -------------------------- |
 | Typecheck  | `npm run typecheck`      | grün                       |
 | Lint       | `npm run lint`           | grün                       |
-| Unit-Tests | `npm test`               | 859/859 (51 Files)         |
-| E2E        | `npm run test:e2e`       | 31/31                      |
-| Coverage   | `npm test -- --coverage` | 94.4% Stmts / 84.7% Branch |
-| Build      | `npm run build`          | grün, main ≈ 31.9 KB gzip  |
+| Unit-Tests | `npm test`               | 868/868 (52 Files)         |
+| E2E        | `npm run test:e2e`       | 33/33                      |
+| Coverage   | `npm test -- --coverage` | 94.8% Stmts / 84.8% Branch |
+| Build      | `npm run build`          | grün, main ≈ 30.7 KB gzip  |
 
 **Node-Version:** CI pinnt Node 24. Lokal **nicht** Node 26 verwenden — die
 happy-dom-Umgebung stellt dort kein `localStorage` bereit, was 90 Unit-Tests
 fälschlich rot macht (`Cannot read properties of undefined (reading 'clear')`).
-Ein `engines`-Feld fehlt in `package.json`; das ist offen.
+`package.json` pinnt inzwischen `"engines": { "node": ">=24 <25" }` — CI fährt Node 24,
+das Feld ist also nicht mehr offen.
 
 ## Engine-Stärke (absolut, depth 3, seed 12345)
 
@@ -32,6 +37,14 @@ Quelle: `bench-current.log` (n=40) und Nachmessung 2026-10-19 (n=12).
 | random   | 62.5% / +89 [−22..200] | 58.3% / +58 [−141..257] |
 | material | 36.3% / −98 [−210..14] | —                       |
 | depth1   | 35.0% / −108 [−221..5] | 33.3% / −120 [−329..89] |
+
+**Neuestes Artefakt im Tree** (`bench/engine-strength-baseline-depth3-n20-random.txt`,
+Commit 4d27466): depth 3 vs random, n=20, seed 12345 → **40.0% / −70 [−225..85]** (W8/L12).
+Das liegt unter der 62.5%-Baseline (n=40) und unter der Skill-Notiz von 57.5% (n=20).
+Die 95-%-CIs überlappen 0, es ist also **kein** bewiesener Rückschritt — aber der Vorteil
+gegen random reproduziert sich im aktuellen Stand nicht. Der n=20-Lauf ist der einzige
+Messpunkt nach den `evaluateLeaf`-Leafs; ein frischer n=40-Lauf gegen dasselbe Artefakt
+ist die offene Nachmessung.
 
 **Wichtig — Score-Semantik bei 3 Fraktionen:** Der Bench wertet „letzte überlebende
 Fraktion gewinnt". Bei _drei_ Fraktionen ist das Fairness-Niveau **33 %**, nicht 50 %.
@@ -115,7 +128,8 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
 ## Infrastruktur-Notizen
 
 - **Bundle-Gate-Historie** (`.github/workflows/ci-cd.yml`): 29000 → 31000 (#141,
-  Statistik-Dashboard) → 33000 (Feedback-Kanal, ~31.9 KB gzip). Das Gate läuft im
+  Statistik-Dashboard) → 33000 (Feedback-Kanal; real heute 30.70 KB gzip, Marge ~2.3 KB).
+  Das Gate läuft im
   `e2e-tests`-Job **vor** den E2E-Tests; ein zu niedriger Wert macht alle offenen PRs
   rot, ohne dass je ein Test lief. Bei Feature-Zuwächsen mitziehen.
 - **`package.json`:** 145 transitive Pseudo-Dependencies entfernt (2026-10-19). Die
@@ -123,7 +137,7 @@ Eval-Qualität, und jede Methode, eine bessere zu LERNEN, scheitert an der
   `vite`/`vitest`/`@playwright/test` aus devDeps). `npm audit --omit=dev`: 4 → 0.
 - **`tspn-viewer.html` ist kaputt** (42 KB): importiert `./js/*.js`, die es nicht gibt
   (nur `.ts`), ist kein Vite-Entry, wird nicht deployt. Reparieren oder löschen.
-- **`engines`-Feld fehlt** — siehe Node-Hinweis oben.
+- **`engines`-Feld** ist gesetzt (`>=24 <25`) — siehe Node-Hinweis oben.
 - **Code-Splitting offen:** `js/puzzle.ts` (~30 KB raw) und `js/replay.ts` (~30 KB raw)
   liegen statisch im Initial-Bundle; `js/game.ts` + `js/opening-book.ts` werden doppelt
   gebundelt (statisch + dynamisch, siehe INEFFECTIVE_DYNAMIC_IMPORT im Build).
