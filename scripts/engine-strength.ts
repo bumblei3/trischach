@@ -31,6 +31,17 @@
  *   --opponent=random|depth1   (default random)
  *   --max-plies=N     hard cap per game (default 200)
  *   --seed=N          PRNG seed for the random opponent (default 12345)
+ *   --budget=N        per-move search budget in ms (setAITimeLimit, default:
+ *                     engine default = 2500-5500 ms depending on piece count).
+ *                     Small values (400) measure the strength cost of a
+ *                     shorter thinking time — and run the whole bench in
+ *                     seconds instead of minutes, because the 24/45 routing
+ *                     lets middlegame minimax burn the full budget per move.
+ *   --repeats=N       run the whole n-game bench N times and report mean +
+ *                     spread. Nötig, weil die Suche zeitbudgetiert ist: der
+ *                     erreichte Tiefe hängt von der Maschinenlast ab, also ist
+ *                     ein Einzellauf KEINE Evidenz. Drei Läufe mit identischem
+ *                     Seed/Budget lieferten schon 50/50/60 %.
  */
 
 import { Game } from "../js/game.ts";
@@ -39,6 +50,7 @@ import type { Faction } from "../js/types.ts";
 import {
   calculateBestMove,
   setAIDepth,
+  setAITimeLimit,
   setTieBreakMode,
   getLegalMoves,
 } from "../js/ai-core.ts";
@@ -244,20 +256,27 @@ function parseFlags(argv: string[]): {
   opponent: Opponent;
   seed: number;
   maxPlies: number;
+  budget: number | null;
+  repeats: number;
 } {
   let games = 40;
   let depth = 3;
   let opponent: Opponent = "random";
   let seed = 12345;
   let maxPlies = 200;
+  let budget: number | null = null;
+  let repeats = 1;
   for (const a of argv) {
     if (a.startsWith("--games=")) games = Number(a.slice(8));
     else if (a.startsWith("--depth=")) depth = Number(a.slice(8));
     else if (a.startsWith("--opponent=")) opponent = a.slice(11) as Opponent;
     else if (a.startsWith("--seed=")) seed = Number(a.slice(7));
     else if (a.startsWith("--max-plies=")) maxPlies = Number(a.slice(12));
+    else if (a.startsWith("--budget=")) budget = Number(a.slice(9));
+    else if (a.startsWith("--repeats="))
+      repeats = Math.max(1, Number(a.slice(10)));
   }
-  return { games, depth, opponent, seed, maxPlies };
+  return { games, depth, opponent, seed, maxPlies, budget, repeats };
 }
 
 function main(): void {
@@ -268,14 +287,48 @@ function main(): void {
   const depth = positional[1] ? Number(positional[1]) : flags.depth;
   const opponent = (positional[2] as Opponent) ?? flags.opponent;
 
+  if (flags.budget !== null) setAITimeLimit(flags.budget);
+
   console.log(
-    `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed}`,
+    `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed} budget=${flags.budget ?? "engine-default"}`,
   );
   const s = runStrength(games, depth, opponent, flags.seed, flags.maxPlies);
-  console.log(`Engine W${s.engineWins} | Opp W${s.engineLosses} | D${s.draws}`);
+  const scores = [s.score];
+
+  if (flags.repeats === 1) {
+    // Einzellauf: Format der bestehenden Artefakte beibehalten.
+    console.log(
+      `Engine W${s.engineWins} | Opp W${s.engineLosses} | D${s.draws}`,
+    );
+    console.log(
+      `Engine score ${(s.score * 100).toFixed(1)}% | rel-Elo(engine vs ${opponent}) ${s.elo} [95% CI ${s.eloLo}..${s.eloHi}]`,
+    );
+    return;
+  }
+
   console.log(
-    `Engine score ${(s.score * 100).toFixed(1)}% | rel-Elo(engine vs ${opponent}) ${s.elo} [95% CI ${s.eloLo}..${s.eloHi}]`,
+    `Run 1/${flags.repeats}: W${s.engineWins} | L${s.engineLosses} | D${s.draws} | score ${(s.score * 100).toFixed(1)}% | rel-Elo ${s.elo} [95% CI ${s.eloLo}..${s.eloHi}]`,
   );
+  for (let r = 2; r <= flags.repeats; r++) {
+    const rep = runStrength(games, depth, opponent, flags.seed, flags.maxPlies);
+    scores.push(rep.score);
+    console.log(
+      `Run ${r}/${flags.repeats}: W${rep.engineWins} | L${rep.engineLosses} | D${rep.draws} | score ${(rep.score * 100).toFixed(1)}% | rel-Elo ${rep.elo} [95% CI ${rep.eloLo}..${rep.eloHi}]`,
+    );
+  }
+
+  const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const min = Math.min(...scores);
+  const max = Math.max(...scores);
+  const spreadPp = (max - min) * 100;
+  console.log(
+    `Repeats=${scores.length}: Mittel ${(mean * 100).toFixed(1)}% | Spread ${(min * 100).toFixed(1)}%..${(max * 100).toFixed(1)}% (${spreadPp.toFixed(1)} pp)`,
+  );
+  if (spreadPp > 5) {
+    console.log(
+      "WARNUNG: Die Läufe weichen ab. Die Suche ist zeitbudgetiert (Wall-Clock), das Ergebnis hängt von der Maschinenlast ab — Einzelläufe sind keine Evidenz.",
+    );
+  }
 }
 
 const isDirectRun =

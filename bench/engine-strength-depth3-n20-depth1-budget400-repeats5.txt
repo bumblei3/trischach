@@ -1,0 +1,7 @@
+Engine strength baseline | engine depth=3 vs depth1 | games=20 seed=12345 budget=400
+Run 1/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Run 2/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Run 3/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Run 4/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Run 5/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Repeats=5: Mittel 35.0% | Spread 35.0%..35.0% (0.0 pp)

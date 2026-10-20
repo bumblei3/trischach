@@ -1,0 +1,28 @@
+Engine-Stärke-Vergleich Routing-Schwelle (gemessen 2026-10-20)
+================================================================
+
+A: Stand a03b553 (Routing `pieceCount > 16 || usableActions.length > 30`,
+   d. h. Greedy dominiert, Middlegame-Minimax praktisch nie) — Worktree.
+B: Stand HEAD (Routing `> 24 || > 45`, Middlegame sucht) — HEAD-Baum.
+
+Befehl: npx tsx scripts/engine-strength.ts --games=20 --depth=3 --opponent=<X>
+
+--- A: Routing 16/30, vs random, n=20, budget=engine-default (2-5,5 s) ---
+Engine strength baseline | engine depth=3 vs random | games=20 seed=12345
+Engine W10 | Opp W10 | D0
+Engine score 50.0% | rel-Elo(engine vs random) 0 [95% CI -152..152]
+
+--- A: Routing 16/30, vs depth1, n=20, budget=engine-default ---
+Engine strength baseline | engine depth=3 vs depth1 | games=20 seed=12345
+Engine W7 | Opp W13 | D0
+Engine score 35.0% | rel-Elo(engine vs depth1) -108 [95% CI -268..52]
+
+--- B: Routing 24/45, vs depth1, n=20 ---
+   identisch 35.0% (W7/L13) bei Default-Budget, 400 ms und 800 ms, sowie in
+   fünf Wiederholungen mit Spread 0.0 pp — siehe
+   bench/engine-strength-depth3-n20-depth1-repeats5.txt
+
+Befund: die Routing-Schwelle ändert das Ergebnis gegen depth1 und random
+NICHT nachweisbar (alle CIs überlappen), kostet aber bis 4 s pro Zug. Die
+früher dokumentierten 62.5 % gegen random (bench-current.log, n=40, v1.5.0)
+reproduzieren sich mit keiner Konfiguration bei n=20.

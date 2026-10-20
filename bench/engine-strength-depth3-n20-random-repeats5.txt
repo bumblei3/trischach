@@ -1,0 +1,8 @@
+Engine strength baseline | engine depth=3 vs random | games=20 seed=12345 budget=engine-default
+Run 1/5: W12 | L8 | D0 | score 60.0% | rel-Elo 70 [95% CI -85..225]
+Run 2/5: W11 | L6 | D3 | score 62.5% | rel-Elo 89 [95% CI -68..246]
+Run 3/5: W12 | L6 | D2 | score 65.0% | rel-Elo 108 [95% CI -52..268]
+Run 4/5: W10 | L9 | D1 | score 52.5% | rel-Elo 17 [95% CI -135..169]
+Run 5/5: W10 | L8 | D2 | score 55.0% | rel-Elo 35 [95% CI -118..188]
+Repeats=5: Mittel 59.0% | Spread 52.5%..65.0% (12.5 pp)
+WARNUNG: Die Läufe weichen ab. Die Suche ist zeitbudgetiert (Wall-Clock), das Ergebnis hängt von der Maschinenlast ab — Einzelläufe sind keine Evidenz.
