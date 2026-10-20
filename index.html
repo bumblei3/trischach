@@ -332,10 +332,15 @@
     </div>
 
     <!-- Settings Modal -->
-    <div id="settings-overlay">
+    <div
+      id="settings-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-title"
+    >
       <div class="settings-box">
         <header class="settings-header">
-          <h2>⚙️ Einstellungen</h2>
+          <h2 id="settings-title">⚙️ Einstellungen</h2>
           <button
             id="settings-close"
             class="settings-close-btn"
