@@ -2,7 +2,7 @@ import { getValidMoves, PIECE_STRENGTH, PIECE_TYPE } from "./pieces.ts";
 import { getRPSResult, FACTION, generateBoard } from "./board.ts";
 import { Hex } from "./hex.ts";
 import { isKingdomCheck } from "./game-check.ts";
-import type { IGame, Faction, GameState } from "./types.ts";
+import type { IGame, Faction, GameState, Piece } from "./types.ts";
 import {
   pickBookMove,
   buildOpeningBook,
@@ -129,6 +129,11 @@ export function deserializeGame(state: SerializedGameState): IGame {
     boardCells: generateBoard(),
     getAlivePieces: () => game.pieces.filter((p) => p.alive),
     getPieces: () => game.pieces,
+    // Checkmate detection calls `game.getLegalMoves(piece)`. The real Game
+    // class has that method; this plain object did not, so calculateBestMove
+    // in the worker threw and the engine never returned a move.
+    getLegalMoves: (piece: Piece) =>
+      getLegalMoves(game as unknown as IGame, piece),
   };
 
   rebuildOccupiedMap(game as unknown as IGame);

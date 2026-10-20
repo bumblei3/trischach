@@ -3,7 +3,7 @@
  *
  * Runs minimax search off the main thread to prevent UI freezing.
  * Communicates via postMessage:
- *   - Main -> Worker: { type: 'calculate', gameState, faction, depth }
+ *   - Main -> Worker: { type: 'calculate', gameState, faction, depth, personality }
  *   - Main -> Worker: { type: 'startPonder', gameState, opponentFaction }
  *   - Main -> Worker: { type: 'stopPonder' }
  *   - Worker -> Main: { type: 'result', move } or { type: 'progress', depth, score, nodes }
@@ -65,7 +65,7 @@ import {
 } from "./ai-core.ts";
 import { deserializeGame } from "./ai.ts";
 import type { SerializedGameState } from "./ai.ts";
-import type { Faction, AIAction } from "./types.ts";
+import type { Faction, AIAction, AIPersonality } from "./types.ts";
 
 /** Shape of messages posted from the main thread into the AI worker. */
 interface WorkerRequest {
@@ -77,6 +77,8 @@ interface WorkerRequest {
   subset?: { pieceId: string; targetQ: number; targetR: number }[];
   searchDepth?: number;
   timeBudget?: number;
+  /** Echoed on the result so the main thread can drop a stale search. */
+  callId?: number;
 }
 
 // Re-export for unit testing (coverage)
@@ -148,28 +150,35 @@ ctx.onmessage = function (e: MessageEvent) {
   const { type, gameState, faction, depth, personality } = msg;
 
   if (type === "calculate") {
-    // Reconstruct game object from serialized state
+    // Reconstruct game object from serialized state.
+    // Personality lives in this worker's own ai-core copy. A missing field
+    // keeps the personality the last setPersonality message stored.
+    applyIncomingPersonality(personality);
     const game = deserializeGame(gameState!);
     if (depth !== undefined) setAIDepth(depth);
 
     const move = calculateBestMove(game, faction!);
-
-    if (move) {
-      ctx.postMessage({
-        type: "result",
-        move: {
-          pieceId: move.piece.id,
-          targetQ: move.target.q,
-          targetR: move.target.r,
-          moveType: move.type,
-          rps: move.rps,
-        },
-      });
-    } else {
-      ctx.postMessage({ type: "result", move: null });
-    }
+    const result = move
+      ? {
+          type: "result" as const,
+          move: {
+            pieceId: move.piece.id,
+            targetQ: move.target.q,
+            targetR: move.target.r,
+            moveType: move.type,
+            rps: move.rps,
+          },
+          ...(msg.callId !== undefined ? { callId: msg.callId } : {}),
+        }
+      : {
+          type: "result" as const,
+          move: null,
+          ...(msg.callId !== undefined ? { callId: msg.callId } : {}),
+        };
+    ctx.postMessage(result);
   } else if (type === "searchSubset") {
     // Root-move splitting: search only the assigned subset of root moves.
+    applyIncomingPersonality(personality);
     const game = deserializeGame(gameState!);
     if (depth !== undefined) setAIDepth(depth);
     const subset = (msg.subset ?? [])
@@ -203,6 +212,7 @@ ctx.onmessage = function (e: MessageEvent) {
         : null,
     });
   } else if (type === "startPonder") {
+    applyIncomingPersonality(personality);
     // Stop any existing pondering
     _ponderAbort = true;
 
@@ -267,7 +277,8 @@ ctx.onmessage = function (e: MessageEvent) {
   } else if (type === "setDepth") {
     setAIDepth(depth ?? getAIDepth());
   } else if (type === "setPersonality") {
-    _workerPersonality = personality ?? "balanced";
+    // Unknown ids must not wipe the personality the search is already using.
+    applyIncomingPersonality(personality ?? "balanced");
   } else if (type === "initBook") {
     _bookBuilt = true;
     ctx.postMessage({ type: "bookReady" });
@@ -282,4 +293,18 @@ export function getWorkerPersonality(): string {
 }
 export function setWorkerPersonality(p: string): void {
   _workerPersonality = p;
+}
+
+const KNOWN_PERSONALITIES: ReadonlySet<string> = new Set([
+  "balanced",
+  "aggressive",
+  "defensive",
+  "tactical",
+]);
+
+function applyIncomingPersonality(personality: string | undefined): void {
+  if (personality == null || !KNOWN_PERSONALITIES.has(personality)) return;
+  if (setPersonality(personality as AIPersonality)) {
+    _workerPersonality = personality;
+  }
 }

@@ -33,6 +33,7 @@ import {
   getAIDepth,
   getAllActions,
   setAIPersonality,
+  getPersonality,
   getAIPersonalities,
   buildOpeningBook,
   // Pondering
@@ -92,6 +93,7 @@ import {
 } from "./tutorial.ts";
 import { analyzePosition, renderAnalysisToHTML } from "./analysis.ts";
 import { Hex } from "./hex.ts";
+import { isSoloAiTurn, parseHumanFaction } from "./solo.ts";
 import { Piece, PIECE_TYPE } from "./pieces.ts";
 import {
   logFeedbackClick,
@@ -145,6 +147,8 @@ interface GameSettings {
   aiPersonality: "balanced" | "aggressive" | "defensive" | "tactical";
   autoQueen?: boolean;
   animationsEnabled?: boolean;
+  /** Faction the human plays. Null is hotseat (everyone is human). */
+  humanFaction?: Faction | null;
   // Auto-Battle Learning settings
   abGames?: number;
   abDepth?: number;
@@ -647,6 +651,9 @@ function initAIWorker(): void {
         console.log(`AI depth ${depth}: score ${score}, nodes ${nodes}`);
       } else if (type === "bookReady" || type === "ready") {
         workerReady = true;
+        // This worker's ai-core copy starts at balanced. Push the saved
+        // personality once its handler is listening.
+        postWorkerPersonality(worker);
       } else if (type === "ponderReady") {
         // Worker pondering ready
       } else if (type === "ponderResult") {
@@ -664,7 +671,15 @@ function initAIWorker(): void {
     // legacy worker is never disturbed).
     for (let i = 0; i < PARALLEL_WORKERS; i++) {
       const poolWorker = spawnWorker();
-      if (poolWorker) workerPool.push(poolWorker);
+      if (poolWorker) {
+        poolWorker.addEventListener("message", (e: MessageEvent) => {
+          const kind = (e.data as { type?: string } | null)?.type;
+          if (kind === "ready" || kind === "bookReady") {
+            postWorkerPersonality(poolWorker);
+          }
+        });
+        workerPool.push(poolWorker);
+      }
     }
   } catch (e) {
     console.warn("Web Worker not supported, using main thread AI");
@@ -715,7 +730,12 @@ function calculateBestMoveWorker(
       if (allActions.length === 1) {
         // Degenerate case — let the legacy worker do a full search.
         pendingWorkerCallback = resolve;
-        aiWorker!.postMessage({ type: "calculate", gameState, faction });
+        aiWorker!.postMessage({
+          type: "calculate",
+          gameState,
+          faction,
+          personality: getPersonality(),
+        });
         return;
       }
 
@@ -781,6 +801,7 @@ function calculateBestMoveWorker(
           gameState,
           faction,
           depth: searchDepth,
+          personality: getPersonality(),
           subset: groups[idx],
         });
       });
@@ -790,8 +811,26 @@ function calculateBestMoveWorker(
     // Legacy single-worker path (pool unavailable).
     pendingWorkerCallback = resolve;
     const gameState = serializeGameForWorker(game);
-    aiWorker!.postMessage({ type: "calculate", gameState, faction });
+    aiWorker!.postMessage({
+      type: "calculate",
+      gameState,
+      faction,
+      personality: getPersonality(),
+    });
   });
+}
+
+/** KI-Modus for one worker. Each worker has its own ai-core copy. */
+function postWorkerPersonality(worker: Worker): void {
+  worker.postMessage({
+    type: "setPersonality",
+    personality: getPersonality(),
+  });
+}
+
+function broadcastPersonality(): void {
+  if (aiWorker) postWorkerPersonality(aiWorker);
+  for (const worker of workerPool) postWorkerPersonality(worker);
 }
 
 function serializeGameForWorker(game: Game): GameStateForWorker {
@@ -819,9 +858,207 @@ function serializeGameForWorker(game: Game): GameStateForWorker {
   };
 }
 
+/**
+ * One engine move through calculateBestMove — the same entry
+ * scripts/engine-strength.ts measures. The worker pool's searchSubset path
+ * always minimaxes and is a different player, so solo mode does not use it.
+ * Passes the KI-Tiefe slider (getAIDepth) into the worker, which has its own
+ * module copy of MAX_DEPTH.
+ */
+async function requestEngineMove(
+  g: Game,
+  faction: Faction,
+): Promise<WorkerMove | null> {
+  const depth = getAIDepth();
+  setAIDepth(depth);
+  // The worker posts "ready" after its module loads. Wait briefly so the
+  // first move of a game does not fall onto the main thread and freeze the UI.
+  if (aiWorker && !workerReady) {
+    const start = Date.now();
+    while (!workerReady && Date.now() - start < 500) {
+      await new Promise((r) => setTimeout(r, 30));
+    }
+  }
+  if (!aiWorker || !workerReady) {
+    return workerMoveFromAction(calculateBestMove(g, faction));
+  }
+  const callId = ++engineCallId;
+  const worker = aiWorker;
+  return new Promise((resolve) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const finish = (move: WorkerMove | null) => {
+      clearTimeout(timer);
+      worker.removeEventListener("message", handler);
+      worker.removeEventListener("error", onError);
+      resolve(move);
+    };
+    const handler = (e: MessageEvent) => {
+      const data = e.data as {
+        type?: string;
+        callId?: number;
+        move?: WorkerMove | null;
+      };
+      if (!data || data.type !== "result" || data.callId !== callId) return;
+      finish(data.move ?? null);
+    };
+    // A worker that dies mid-search (or never answers) must not leave the
+    // human staring at an idle board. Same entry point as the bench.
+    const onError = () => {
+      finish(workerMoveFromAction(calculateBestMove(g, faction)));
+    };
+    timer = setTimeout(() => onError(), 15000);
+    worker.addEventListener("message", handler);
+    worker.addEventListener("error", onError);
+    worker.postMessage({
+      type: "calculate",
+      gameState: serializeGameForWorker(g),
+      faction,
+      depth,
+      personality: getPersonality(),
+      callId,
+    });
+  });
+}
+
+let engineCallId = 0;
+
+function workerMoveFromAction(
+  move: {
+    piece: { id: string };
+    target: { q: number; r: number };
+    type: string;
+    rps?: string;
+  } | null,
+): WorkerMove | null {
+  if (!move) return null;
+  return {
+    pieceId: move.piece.id,
+    targetQ: move.target.q,
+    targetR: move.target.r,
+    moveType: move.type,
+    rps: String(move.rps ?? ""),
+  };
+}
+
+function cancelSoloSearch(): void {
+  soloGeneration += 1;
+  aiMoveInFlight = false;
+  soloGaveUp = false;
+}
+
+function soloGameOver(): boolean {
+  return (
+    game.state === GAME_STATE.GAME_OVER ||
+    game.state === GAME_STATE.DRAW_REPETITION ||
+    game.state === GAME_STATE.DRAW_50MOVE
+  );
+}
+
+function soloUiBlocked(): boolean {
+  if (game.state === GAME_STATE.PROMOTION) return true;
+  for (const id of [
+    "combat-overlay",
+    "promotion-overlay",
+    "puzzle-overlay",
+    "tutorial-overlay",
+  ]) {
+    const el = document.getElementById(id);
+    if (el?.classList.contains("visible")) return true;
+  }
+  const replay = document.getElementById("replay-controls");
+  return replay?.style.display === "flex";
+}
+
+function maybePlaySoloMove(): void {
+  if (soloGaveUp) return;
+  if (
+    !isSoloAiTurn({
+      humanFaction,
+      currentFaction: game.currentFaction,
+      autoBattle: autoBattleActive,
+      gameOver: soloGameOver(),
+      blocked: soloUiBlocked(),
+      inFlight: aiMoveInFlight,
+    })
+  ) {
+    return;
+  }
+  void playSoloMove();
+}
+
+async function playSoloMove(): Promise<void> {
+  if (aiMoveInFlight) return;
+  const gen = soloGeneration;
+  aiMoveInFlight = true;
+  updateUI();
+  try {
+    const faction = game.currentFaction;
+    const historyBefore = game.moveHistory.length;
+    const move = await requestEngineMove(game, faction);
+    if (gen !== soloGeneration) return;
+    if (
+      autoBattleActive ||
+      game.currentFaction !== faction ||
+      soloGameOver() ||
+      soloUiBlocked()
+    ) {
+      return;
+    }
+    if (!move) {
+      soloGaveUp = true;
+      return;
+    }
+    const piece = game.pieces.find((p) => p.id === move.pieceId);
+    if (!piece) {
+      soloGaveUp = true;
+      return;
+    }
+    game.handleCellClick(piece.pos);
+    const target = new Hex(move.targetQ, move.targetR);
+    const result = game.handleCellClick(target);
+    renderer.clearHighlights();
+    renderer.clearSelection();
+    if (!result || !result.piece || game.moveHistory.length === historyBefore) {
+      soloGaveUp = true;
+      return;
+    }
+    soloGaveUp = false;
+    const played = result.piece;
+    if (result.action === "combat") {
+      addToLog(result);
+      if (result.promotion && game.pendingPromotion) {
+        const promo = game.completePromotion("queen");
+        if (promo) addToLog(promo);
+      }
+      showCombat(result);
+      return;
+    }
+    if (result.action === "move") {
+      sounds.playMove();
+      addToLog(result);
+      if (result.promotion && game.pendingPromotion) {
+        const promo = game.completePromotion("queen");
+        if (promo) addToLog(promo);
+      }
+      renderer.renderPiece(played);
+    }
+  } finally {
+    if (gen === soloGeneration) {
+      aiMoveInFlight = false;
+      updateUI();
+    }
+  }
+}
+
 // ─── Global State ───────────────────────────────────────────────────
 
 let autoBattleActive = false;
+/** Faction the human plays. Null keeps the hotseat (all three are human). */
+let humanFaction: Faction | null = null;
+let soloGeneration = 0;
+let aiMoveInFlight = false;
+/** Stops a failed engine search from immediately scheduling itself again. */
+let soloGaveUp = false;
 
 function isAutoBattleActive(): boolean {
   return autoBattleActive;
@@ -877,6 +1114,7 @@ function applySettings(settings: GameSettings): void {
   }
 
   setAIPersonality(settings.aiPersonality);
+  broadcastPersonality();
   const personalitySelect = document.getElementById(
     "personality-select",
   ) as HTMLSelectElement;
@@ -891,6 +1129,10 @@ function applySettings(settings: GameSettings): void {
     "animations-toggle",
   ) as HTMLInputElement | null;
   if (animationsToggle) animationsToggle.checked = animationsEnabled;
+
+  humanFaction = parseHumanFaction(settings.humanFaction);
+  const playAs = document.getElementById("play-as") as HTMLSelectElement | null;
+  if (playAs) playAs.value = humanFaction ?? "";
 
   updateUI();
 }
@@ -931,6 +1173,17 @@ function init(): void {
 }
 
 function updateCoachStrip(flash = false): void {
+  if (aiMoveInFlight && humanFaction) {
+    if (coachStripEl) {
+      coachStripEl.textContent = "KI denkt…";
+      coachStripEl.className = "coach-strip coach-strip--info";
+    }
+    if (statusEl && game.state !== GAME_STATE.GAME_OVER) {
+      statusEl.textContent = "KI denkt…";
+      statusEl.style.color = "";
+    }
+    return;
+  }
   if (!coachStripEl) return;
   const msg = getCoachMessage({
     state: game.state,
@@ -1027,8 +1280,12 @@ function updateUI(): void {
 
   for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
     const el = document.getElementById(`panel-${fac}`);
-    if (el && game.eliminatedFactions.has(fac)) el.classList.add("eliminated");
+    if (!el) continue;
+    el.classList.toggle("eliminated", game.eliminatedFactions.has(fac));
+    el.classList.toggle("solo-human", humanFaction === fac);
   }
+
+  maybePlaySoloMove();
 
   const rpsInfoEl = document.getElementById("rps-info") as HTMLElement | null;
   if (game.rpsEnabled) {
@@ -1126,6 +1383,10 @@ renderer.onCellHover = (hex: { q: number; r: number } | null) => {
     renderer.showMovePreview(undefined, undefined);
     return;
   }
+  if (humanFaction && game.currentFaction !== humanFaction) {
+    renderer.clearMovePreview();
+    return;
+  }
   const piece = game.getPieceAt(new Hex(hex.q, hex.r));
   if (!piece || piece.faction !== game.currentFaction || !piece.alive) {
     renderer.clearMovePreview();
@@ -1136,6 +1397,12 @@ renderer.onCellHover = (hex: { q: number; r: number } | null) => {
 };
 
 renderer.onCellClick = (hex: { q: number; r: number }) => {
+  if (aiMoveInFlight) return;
+  if (humanFaction && game.currentFaction !== humanFaction) {
+    soloGaveUp = false;
+    maybePlaySoloMove();
+    return;
+  }
   const hexObj = new Hex(hex.q, hex.r);
 
   // Confirm suicidal RPS captures before the engine applies them
@@ -1842,6 +2109,7 @@ function initEventListeners(): void {
   ) as HTMLButtonElement;
   autoBattleBtn?.addEventListener("click", () => {
     if (game.state === "game_over") return;
+    cancelSoloSearch();
     autoBattleActive = !autoBattleActive;
     if (autoBattleActive) {
       autoBattleBtn.textContent = "⏹ Auto Battle Stoppen";
@@ -1919,6 +2187,7 @@ function initEventListeners(): void {
     "restart-btn",
   ) as HTMLButtonElement;
   restartBtn?.addEventListener("click", () => {
+    cancelSoloSearch();
     const combatOverlay = document.getElementById(
       "combat-overlay",
     ) as HTMLElement;
@@ -1953,6 +2222,35 @@ function initEventListeners(): void {
 
     saveSettings({ ...loadSettings(), autoBattle: false });
     updateUI();
+  });
+
+  const playAs = document.getElementById("play-as") as HTMLSelectElement | null;
+  playAs?.addEventListener("change", () => {
+    cancelSoloSearch();
+    humanFaction = parseHumanFaction(playAs.value);
+    if (humanFaction && autoBattleActive) {
+      autoBattleActive = false;
+      clearTimeout(autoBattleTimer!);
+      const autoBtn = document.getElementById(
+        "auto-battle-btn",
+      ) as HTMLButtonElement | null;
+      if (autoBtn) {
+        autoBtn.textContent = "🤖 Auto Battle";
+        autoBtn.classList.remove("active");
+      }
+    }
+    saveSettings({
+      ...loadSettings(),
+      humanFaction,
+      autoBattle: autoBattleActive,
+    });
+    updateUI();
+  });
+
+  // Overlay close buttons hide themselves and do not call updateUI. A click
+  // that bubbles here resumes an engine turn once the overlay is gone.
+  document.addEventListener("click", () => {
+    maybePlaySoloMove();
   });
 
   const saveBtn = document.getElementById("save-btn") as HTMLButtonElement;
@@ -3119,9 +3417,7 @@ function initEventListeners(): void {
     const personality = (e.target as HTMLSelectElement).value as
       "balanced" | "aggressive" | "defensive" | "tactical";
     setAIPersonality(personality);
-    if (aiWorker && workerReady) {
-      aiWorker.postMessage({ type: "setPersonality", personality });
-    }
+    broadcastPersonality();
     saveSettings({ ...loadSettings(), aiPersonality: personality });
   });
 

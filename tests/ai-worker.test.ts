@@ -8,6 +8,11 @@ import { FACTION, generateBoard } from "../js/board.ts";
 import { PIECE_STRENGTH, PIECE_TYPE, Piece } from "../js/pieces.ts";
 import { GAME_STATE, Game } from "../js/game.ts";
 import {
+  evaluateLeaf,
+  kingmakerTerm,
+  captureReplyPenalty,
+} from "../js/ai-core.ts";
+import {
   IGame,
   GameState,
   Cell,
@@ -36,7 +41,7 @@ import {
   calculateBestMove,
   deserializeGame,
   getWorkerPersonality,
-  setWorkerPersonality,
+  getPersonality,
   TURN_ORDER,
   AI_PERSONALITIES,
   setAIDepth,
@@ -127,6 +132,97 @@ function createGameState(overrides: Partial<IGame> = {}): IGame {
 }
 
 // Helper to create Piece instances for test overrides
+/**
+ * Position where the greedy eval's personality weights disagree.
+ * Fire pawn -5,5: capture the nature pawn on -5,4, or move to -4,4 and
+ * attack the nature king on -3,3. Extra nature pawns push the piece count
+ * past the greedy gate and keep the endgame term off.
+ */
+function personalityForkState(): {
+  pieces: {
+    id: string;
+    type: PieceType;
+    faction: Faction;
+    pos: { q: number; r: number };
+    symbol: string;
+    alive: boolean;
+    hasMoved: boolean;
+  }[];
+  currentFactionIdx: number;
+  currentFaction: Faction;
+  state: GameState;
+  eliminatedFactions: Faction[];
+  rpsEnabled: boolean;
+  capturedPieces: { fire: string[]; water: string[]; nature: string[] };
+  _halfmoveClock: number;
+} {
+  const board = generateBoard();
+  const origin = new Hex(-5, 5);
+  const victimPos = new Hex(-5, 4);
+  const quiet = new Hex(-4, 4);
+  const nKing = new Hex(-3, 3);
+  const fKing = new Hex(0, 5);
+  const wKing = new Hex(-6, 6);
+  const pawn = new Piece(PIECE_TYPE.PAWN, FACTION.FIRE, origin);
+  pawn.hasMoved = true;
+  const victim = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, victimPos);
+  victim.hasMoved = true;
+  const pieces: Piece[] = [
+    pawn,
+    victim,
+    new Piece(PIECE_TYPE.KING, FACTION.NATURE, nKing),
+    new Piece(PIECE_TYPE.KING, FACTION.FIRE, fKing),
+    new Piece(PIECE_TYPE.KING, FACTION.WATER, wKing),
+  ];
+  const used = new Set(pieces.map((p) => p.pos.key));
+  used.add(quiet.key);
+  for (const [dq, dr] of [
+    [1, 0],
+    [1, -1],
+    [0, -1],
+    [-1, 0],
+    [-1, 1],
+    [0, 1],
+  ] as const) {
+    used.add(`${fKing.q + dq},${fKing.r + dr}`);
+  }
+  for (const cell of board.values()) {
+    if (pieces.length >= 26) break;
+    const hex = cell.hex;
+    if (used.has(hex.key)) continue;
+    const touch =
+      Math.max(
+        Math.abs(hex.q - nKing.q),
+        Math.abs(hex.r - nKing.r),
+        Math.abs(hex.q + nKing.q + hex.r + nKing.r),
+      ) <= 2;
+    if (touch) continue;
+    used.add(hex.key);
+    const filler = new Piece(PIECE_TYPE.PAWN, FACTION.NATURE, hex);
+    filler.hasMoved = true;
+    pieces.push(filler);
+  }
+
+  return {
+    pieces: pieces.map((p) => ({
+      id: p.id,
+      type: p.type,
+      faction: p.faction,
+      pos: { q: p.pos.q, r: p.pos.r },
+      symbol: p.symbol,
+      alive: p.alive,
+      hasMoved: p.hasMoved,
+    })),
+    currentFactionIdx: 0,
+    currentFaction: FACTION.FIRE,
+    state: GAME_STATE.SELECT_PIECE,
+    eliminatedFactions: [],
+    rpsEnabled: true,
+    capturedPieces: { fire: [], water: [], nature: [] },
+    _halfmoveClock: 0,
+  };
+}
+
 function createPiece(
   type: PieceType,
   faction: Faction,
@@ -713,12 +809,13 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       expect(richScore).toBeGreaterThan(poorScore);
     });
 
-    test("quiesce returns stand-pat (evaluateBoard) score at depth limit", () => {
-      // At qDepth >= 4 quiesce short-circuits and returns the static board
-      // evaluation for the maximizing faction (ai-core.ts:1923). Assert that
-      // contract directly instead of only checking the result shape.
+    test("quiesce returns stand-pat (evaluateLeaf) score at depth limit", () => {
+      // At qDepth >= 4 quiesce short-circuits and returns the leaf evaluation
+      // (evaluateLeaf = evaluateBoard + kingmakerTerm - captureReplyPenalty).
+      // Assert the enhanced leaf contract directly instead of only checking
+      // the result shape.
       const gameState = createGameState();
-      const expected = evaluateBoard(gameState, FACTION.FIRE);
+      const expected = evaluateLeaf(gameState, FACTION.FIRE);
       const result = quiesce(
         gameState,
         -Infinity,
@@ -729,6 +826,15 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       ); // qDepth >= 4
       expect(typeof result.score).toBe("number");
       expect(result.score).toBe(expected);
+    });
+
+    test("evaluateLeaf adds kingmakerTerm and subtracts captureReplyPenalty", () => {
+      const base = evaluateBoard(createGameState(), FACTION.FIRE);
+      const expected =
+        base +
+        kingmakerTerm(createGameState(), FACTION.FIRE) -
+        captureReplyPenalty(createGameState(), FACTION.FIRE);
+      expect(evaluateLeaf(createGameState(), FACTION.FIRE)).toBe(expected);
     });
 
     test("iterativeDeepening returns a legal action for the moving faction", () => {
@@ -911,6 +1017,9 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
       // Always stop any pondering the test may have left running, so the
       // background search can't bleed into the next test or block the suite.
       workerCtx.onmessage!({ data: { type: "stopPonder" } } as MessageEvent);
+      workerCtx.onmessage!({
+        data: { type: "setPersonality", personality: "balanced" },
+      } as MessageEvent);
     });
 
     function runHandler(data: any): void {
@@ -1078,10 +1187,43 @@ describe("AI Worker: Exported Core Functions (Unit Tests)", () => {
         runHandler({ type: "setPersonality", personality: "aggressive" }),
       ).not.toThrow();
       expect(getWorkerPersonality()).toBe("aggressive");
+      expect(getPersonality()).toBe("aggressive");
 
-      // Reset so other tests see the default.
-      setWorkerPersonality("balanced");
+      // An unknown id must leave the active personality in place.
+      runHandler({ type: "setPersonality", personality: "nope" });
+      expect(getWorkerPersonality()).toBe("aggressive");
+      expect(getPersonality()).toBe("aggressive");
+
+      runHandler({ type: "setPersonality", personality: "balanced" });
       expect(getWorkerPersonality()).toBe("balanced");
+      expect(getPersonality()).toBe("balanced");
+    });
+
+    test("aggressive and defensive pick different moves in the same position", () => {
+      // 26 pieces so calculateBestMove stays on the 1-ply greedy path the
+      // opening uses. The fire pawn can take a nature pawn or step onto a
+      // square that attacks the nature king. Aggressive's king-threat weight
+      // takes the check; defensive's material weight takes the pawn.
+      const gameState = personalityForkState();
+
+      runHandler({
+        type: "calculate",
+        gameState,
+        faction: FACTION.FIRE,
+        personality: "aggressive",
+      });
+      const aggressive = posted.find((m) => m.type === "result");
+      expect(aggressive?.move).toMatchObject({ targetQ: -4, targetR: 4 });
+
+      posted.length = 0;
+      runHandler({
+        type: "calculate",
+        gameState,
+        faction: FACTION.FIRE,
+        personality: "defensive",
+      });
+      const defensive = posted.find((m) => m.type === "result");
+      expect(defensive?.move).toMatchObject({ targetQ: -5, targetR: 4 });
     });
 
     test("'initBook' marks the book built and posts bookReady", () => {

@@ -1263,7 +1263,31 @@ export function evaluateBoard(game: IGame, faction: Faction): number {
   return score;
 }
 
-// ─── Check Escape Detection ────────────────────────────────────
+/*
+ * Leaf (terminal-node) evaluation for the iterative-deepening / quiesce search.
+ *
+ * Plain `evaluateBoard` is a static estimate used for futility/razoring/probcut
+ * pruning decisions. The true leaf evaluation also accounts for the two
+ * kingmaker / capture-reply dynamics that quiet material gains miss:
+ *   - kingmakerTerm : 2v1 RPS survival / game-win value (the engine must see
+ *                     that mating a faction in a losing RPS cycle is still a
+ *                     loss, and vice versa).
+ *   - captureReplyPenalty : the SEE value of the most valuable piece the
+ *                     next player can take for free, so leaf positions that
+ *                     leave material hanging are scored down.
+ *
+ * These terms belong on the leaf only: futility/razoring/probcut positions
+ * still use the raw static `evaluateBoard`. At the leaf they are cheap enough
+ * (quiesce only follows capture / tactical lines) and they are what turns the
+ * deeper path from "cautious" into "winning".
+ */
+export function evaluateLeaf(game: IGame, faction: Faction): number {
+  return (
+    evaluateBoard(game, faction) +
+    kingmakerTerm(game, faction) -
+    captureReplyPenalty(game, faction)
+  );
+}
 
 /**
  * Determines if a move resolves check for the given faction.
@@ -2191,7 +2215,7 @@ export function quiesce(
   currentFaction: Faction,
   qDepth = 0,
 ): SearchResult {
-  const standPat = evaluateBoard(game, maximizingFaction);
+  const standPat = evaluateLeaf(game, maximizingFaction);
   if (qDepth >= 4) return { score: standPat };
 
   // Honor the search deadline so a tactical explosion (many RPS captures)

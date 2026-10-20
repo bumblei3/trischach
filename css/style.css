@@ -478,6 +478,27 @@ header h1 {
   color: #fff;
 }
 
+.controls select.play-as-select {
+  padding: 0.6rem 0.75rem;
+  min-height: 44px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.controls select.play-as-select:hover {
+  border-color: var(--text-dim);
+}
+
+.faction-panel.solo-human {
+  outline: 2px solid var(--water);
+  outline-offset: 2px;
+}
+
 .controls button.btn-ghost {
   background: transparent;
   border: 1px solid var(--border);
