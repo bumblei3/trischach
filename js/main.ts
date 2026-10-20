@@ -1680,6 +1680,13 @@ function hideContextMenu(): void {
 function triggerAutoMove(): void {
   if (autoBattleTimer) clearTimeout(autoBattleTimer);
   autoBattleTimer = setTimeout(async () => {
+    if ((globalThis as unknown as Record<string, unknown>).__DIAG_SEARCH__)
+      console.error(
+        "[DIAG-CB] active=",
+        autoBattleActive,
+        "state=",
+        game.state,
+      );
     if (!autoBattleActive || game.state === "game_over") return;
 
     if (game.state === "select_target" && game.selectedPiece) {

@@ -397,13 +397,23 @@ describe("Main UI & Events", () => {
     // its timeout (observed 360 s instead of 160 ms). Reset first, then wait for
     // main.ts's async init() to finish applying the settings.
     localStorage.clear();
+    (globalThis as unknown as Record<string, unknown>).__DIAG_SEARCH__ = true;
+    const t0 = performance.now();
+    const mark = (m: string) =>
+      console.error(
+        `[DIAG-STEP] ${m} +${(performance.now() - t0).toFixed(0)}ms`,
+      );
+    mark("start");
     await import("../js/main.ts");
+    mark("imported");
     const { game, triggerAutoMove, isAutoBattleActive } =
       await import("../js/main.ts");
     // Drain the microtask queue (and the init chain's own timers) so
     // applySettings() has run before we start asserting.
     await vi.runAllTicks();
+    mark("runAllTicks");
     await vi.advanceTimersByTimeAsync(0);
+    mark("flush0");
 
     expect(isAutoBattleActive()).toBe(false);
 
@@ -420,8 +430,11 @@ describe("Main UI & Events", () => {
     // awaiting `advanceTimersByTimeAsync` here hung this test into the 180 s
     // global timeout on loaded CI runners. With `game_over` the callback
     // returns at its guard clause, so the flush stays bounded and is a no-op.
+    mark("before game_over");
     game.state = "game_over";
+    mark("before flush1000");
     await vi.advanceTimersByTimeAsync(1000);
+    mark("after flush1000");
     // Nothing may have happened: the callback returned at its guard clause, so
     // the auto-battle chain is not running and the game stays parked.
     expect(isAutoBattleActive()).toBe(false);

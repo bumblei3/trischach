@@ -2289,6 +2289,9 @@ export function iterativeDeepening(
   game: IGame,
   faction: Faction,
 ): AIAction | null {
+  if ((globalThis as unknown as Record<string, unknown>).__DIAG_SEARCH__)
+    console.error("[DIAG-ID]", new Error().stack);
+
   const timeBudget = calculateTimeBudget(game);
   searchStart = Date.now();
   searchDeadline = searchStart + Math.min(timeBudget, MAX_SEARCH_MS);
@@ -2434,6 +2437,9 @@ export function calculateBestMoveParallel(
   workerCount = 2,
   depth?: number,
 ): AIAction | null {
+  if ((globalThis as unknown as Record<string, unknown>).__DIAG_SEARCH__)
+    console.error("[DIAG-CBM-PAR]", new Error().stack);
+
   const actions = getAllActions(game, faction);
   if (actions.length === 0) return null;
   if (actions.length === 1 || workerCount < 2) {
@@ -2665,6 +2671,9 @@ export function calculateBestMove(
   game: IGame,
   faction: Faction,
 ): AIAction | null {
+  if ((globalThis as unknown as Record<string, unknown>).__DIAG_SEARCH__)
+    console.error("[DIAG-CBM]", new Error().stack);
+
   if (!_bookBuilt) {
     // The Game class is only available on the main thread. In the worker the
     // game arrives as a serialized plain object (no .init method), so skip
