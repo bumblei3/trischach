@@ -401,10 +401,14 @@ describe("Main UI & Events", () => {
     // timer, so no game state may change synchronously here.
     expect(game.moveHistory.length).toBe(0);
 
-    // Flush the (async) timer; use the async variant so the awaited
-    // import()/worker promises inside the callback resolve.
+    // Park the game before flushing: the timer callback starts an async AI
+    // chain whose own timers reach beyond the 1000 ms fake-time window, so
+    // awaiting `advanceTimersByTimeAsync` here hung this test into the 180 s
+    // global timeout on loaded CI runners. With `game_over` the callback
+    // returns at its guard clause, so the flush stays bounded and is a no-op.
+    game.state = "game_over";
     await vi.advanceTimersByTimeAsync(1000);
-  });
+  }, 15000);
 
   test("replay analysis renders PV line and RPS explanation", async () => {
     const { analyzePosition, renderAnalysisToHTML } =
