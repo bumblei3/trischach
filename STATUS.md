@@ -1,4 +1,4 @@
-`# trischach — Status (Stand: 2026-10-20, HEAD d295303) — **Release v1.7.0 ausgerollt**
+`# trischach — Status (Stand: 2026-10-20, HEAD c2ab248) — **Release v1.7.0 ausgerollt**`
 
 `main` enthält seit `v1.6.0` (2026-08-24) **25 Commits** und ist als `v1.7.0` auf GitHub
 veröffentlicht. Zusätzlich: Code-Splitting komplett (coach.ts + rps-puzzle.ts lazy
