@@ -154,9 +154,7 @@ describe("game-feedback", () => {
   });
 
   it("summarizeFeedback — submit ohne rating/draft wird ignoriert (Branch)", () => {
-    saveFeedback([
-      { timestamp: "t", kind: "submit", text: "x" },
-    ]);
+    saveFeedback([{ timestamp: "t", kind: "submit", text: "x" }]);
     const s = summarizeFeedback();
     expect(s.submits).toBe(1);
     expect(s.ratingCount).toBe(0);
