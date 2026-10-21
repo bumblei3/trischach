@@ -333,9 +333,21 @@ export class BoardRenderer {
       label.style.transition = "transform 0.5s ease";
       cg.appendChild(label);
 
+      cg.setAttribute("role", "button");
+      cg.setAttribute("tabindex", "0");
+      cg.setAttribute(
+        "aria-label",
+        `Hex ${cell.hex.q},${cell.hex.r}${cell.faction ? " (" + cell.faction + ")" : ""}`,
+      );
       cg.addEventListener("pointerdown", (e: PointerEvent) => {
         e.preventDefault();
         if (this.onCellClick) this.onCellClick(cell.hex, cell);
+      });
+      cg.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          if (this.onCellClick) this.onCellClick(cell.hex, cell);
+        }
       });
       cg.addEventListener(
         "pointerenter",
