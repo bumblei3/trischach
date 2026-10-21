@@ -200,7 +200,7 @@ async function showStatsDashboard(): Promise<void> {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title">📊 Statistiken</h2>
-          <button class="puzzle-close-btn" id="stats-close-btn" title="Schließen">✕</button>
+          <button class="puzzle-close-btn" id="stats-close-btn" title="Schließen" aria-label="Schließen">✕</button>
         </div>
 
         <div class="puzzle-info" id="stats-games">
@@ -280,7 +280,7 @@ function showFeedbackForm(): void {
     <div class="puzzle-box">
       <div class="puzzle-header">
         <h2 class="puzzle-title">💬 Feedback</h2>
-        <button class="puzzle-close-btn" id="feedback-close-btn" title="Schließen">✕</button>
+        <button class="puzzle-close-btn" id="feedback-close-btn" title="Schließen" aria-label="Schließen">✕</button>
       </div>
 
       <div class="puzzle-info">
@@ -379,7 +379,7 @@ function showFeedbackThankYou(
     <div class="puzzle-box">
       <div class="puzzle-header">
         <h2 class="puzzle-title">💬 Danke!</h2>
-        <button class="puzzle-close-btn" id="feedback-thankyou-close-btn" title="Schließen">✕</button>
+        <button class="puzzle-close-btn" id="feedback-thankyou-close-btn" title="Schließen" aria-label="Schließen">✕</button>
       </div>
 
       <div class="feedback-thankyou">
@@ -1959,7 +1959,7 @@ function showPromotion(piece: Piece): void {
         )
           .map(
             (type: "queen" | "rook" | "bishop" | "knight") => `
-          <button class="promotion-choice" data-type="${type}" data-key="${keyHints[type]}" style="border-color:${color.primary}" title="${names[type]} (Taste: ${keyHints[type]})">
+          <button class="promotion-choice" data-type="${type}" data-key="${keyHints[type]}" style="border-color:${color.primary}" title="${names[type]} (Taste: ${keyHints[type]})" aria-label="${names[type]} (Taste: ${keyHints[type]})">
             <span class="choice-symbol">${symbols[type]}</span>
             <span class="choice-name">${names[type]}</span>
             <span class="choice-key">${keyHints[type]}</span>
@@ -2762,7 +2762,7 @@ function initEventListeners(): void {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title">♟ Puzzle Modus</h2>
-          <button class="puzzle-close-btn" id="puzzle-close-btn" title="Schließen">✕</button>
+          <button class="puzzle-close-btn" id="puzzle-close-btn" title="Schließen" aria-label="Schließen">✕</button>
         </div>
         <div class="puzzle-info" id="puzzle-menu-info">
           <div class="puzzle-info-item"><strong>Tagespuzzle</strong></div>
@@ -2853,7 +2853,7 @@ function initEventListeners(): void {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title">Wähle ein Puzzle</h2>
-          <button class="puzzle-close-btn" id="puzzle-back-btn" title="Zurück">✕</button>
+          <button class="puzzle-close-btn" id="puzzle-back-btn" title="Zurück" aria-label="Zurück">✕</button>
         </div>
         <div class="puzzle-solution-list" style="max-height: 400px;">
           ${puzzles
@@ -2905,7 +2905,7 @@ function initEventListeners(): void {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title">🎯 RPS-Taktik</h2>
-          <button class="puzzle-close-btn" id="rps-close-btn" title="Abbrechen">✕</button>
+          <button class="puzzle-close-btn" id="rps-close-btn" title="Abbrechen" aria-label="Abbrechen">✕</button>
         </div>
         <div class="puzzle-info">
           <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(puzzle.difficulty.toUpperCase())}</span>
@@ -3010,7 +3010,7 @@ function initEventListeners(): void {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title">♟ Matt in ${puzzle.mateIn}</h2>
-          <button class="puzzle-close-btn" id="puzzle-close-btn" title="Abbrechen">✕</button>
+          <button class="puzzle-close-btn" id="puzzle-close-btn" title="Abbrechen" aria-label="Abbrechen">✕</button>
         </div>
         <div class="puzzle-info">
           <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(puzzle.difficulty.toUpperCase())}</span>
@@ -3265,7 +3265,7 @@ function initEventListeners(): void {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title">${success ? "🎉 Gelöst!" : "😔 Gescheitert"}</h2>
-          <button class="puzzle-close-btn" id="puzzle-result-close" title="Schließen">✕</button>
+          <button class="puzzle-close-btn" id="puzzle-result-close" title="Schließen" aria-label="Schließen">✕</button>
         </div>
         <div class="puzzle-result ${success ? "success" : "failed"}">
           <div class="puzzle-result-title">${success ? "Matt gesetzt!" : "Falscher Zug"}</div>
