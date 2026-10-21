@@ -176,12 +176,11 @@ function buildPrincipalVariation(
   const line: string[] = [formatEngineMove(firstMove)];
   const undos: ReturnType<typeof simulateMove>[] = [];
   let undoAll = (): void => {
-    for (let i = undos.length - 1; i >= 0; i--)
-      undoMove(game as any, undos[i]!);
+    for (let i = undos.length - 1; i >= 0; i--) undoMove(game, undos[i]!);
   };
   try {
     // Apply the first move so we can search the reply.
-    undos.push(simulateMove(game as any, firstMove.piece, firstMove.target));
+    undos.push(simulateMove(game, firstMove.piece, firstMove.target));
     rebuildOccupiedMap(game);
     for (let p = 1; p < plies; p++) {
       // After a move the side to move rotates (FIRE→WATER→NATURE).
@@ -189,7 +188,7 @@ function buildPrincipalVariation(
       const mv = calculateBestMove(game, nextFaction);
       if (!mv) break;
       line.push(formatEngineMove(mv));
-      undos.push(simulateMove(game as any, mv.piece, mv.target));
+      undos.push(simulateMove(game, mv.piece, mv.target));
       rebuildOccupiedMap(game);
     }
   } finally {
