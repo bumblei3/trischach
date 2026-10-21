@@ -2,6 +2,11 @@
 // Kept as a separate module (not inline) so a strict CSP
 // `script-src 'self'` can block all injected/inline scripts.
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+}
+
 // Register Service Worker for PWA offline support
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
@@ -25,12 +30,12 @@ if ("serviceWorker" in navigator) {
 }
 
 // Handle install prompt
-let deferredPrompt: any;
+let deferredPrompt: BeforeInstallPromptEvent | null = null;
 const installBtn = document.getElementById("install-btn");
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
-  deferredPrompt = e;
+  deferredPrompt = e as BeforeInstallPromptEvent;
   console.log("[PWA] Install prompt available");
   if (installBtn) installBtn.style.display = "inline-block";
 });

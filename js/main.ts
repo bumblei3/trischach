@@ -3380,7 +3380,7 @@ function initEventListeners(): void {
       <div class="puzzle-box">
         <div class="puzzle-header">
           <h2 class="puzzle-title" style="color: var(--fire)">⚠️ Fehler</h2>
-          <button class="puzzle-close-btn" id="puzzle-error-close">✕</button>
+          <button class="puzzle-close-btn" id="puzzle-error-close" aria-label="Schließen">✕</button>
         </div>
         <p style="color: var(--text-dim); margin: 1rem 0;">${message}</p>
         <button class="puzzle-btn primary" id="puzzle-error-retry">OK</button>
