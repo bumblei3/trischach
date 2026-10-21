@@ -2954,10 +2954,10 @@ function initEventListeners(): void {
         const result = evaluateRpsMove(puzzle, selectedPieceKey, piece.pos.key);
         const fb = document.getElementById("rps-feedback")!;
         if (result.correct) {
-          fb.innerHTML = `✅ <strong>Richtig!</strong> ${result.rationale}`;
+          fb.innerHTML = `✅ <strong>Richtig!</strong> ${escapeHtml(result.rationale)}`;
           rpsRenderer.clearHighlights();
         } else {
-          fb.innerHTML = `❌ <strong>Falsch.</strong> ${result.rationale}`;
+          fb.innerHTML = `❌ <strong>Falsch.</strong> ${escapeHtml(result.rationale)}`;
         }
         selectedPieceKey = null;
       }
