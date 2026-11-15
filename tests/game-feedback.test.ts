@@ -129,9 +129,9 @@ describe("game-feedback", () => {
     const title = feedbackIssueTitle(4, "der Solo-Start ist unklar");
     expect(title).toBe("Feedback: 4 von 5 — der Solo-Start ist unklar");
     const url = githubFeedbackUrl(title, "x".repeat(20000));
-    expect(url.startsWith("https://github.com/bumblei3/trischach/issues/new?")).toBe(
-      true,
-    );
+    expect(
+      url.startsWith("https://github.com/bumblei3/trischach/issues/new?"),
+    ).toBe(true);
     expect(url).toContain("labels=feedback");
     expect(url.length).toBeLessThanOrEqual(7000);
     expect(decodeURIComponent(url)).toContain("[gekürzt]");
