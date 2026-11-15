@@ -208,7 +208,7 @@ async function showStatsDashboard(): Promise<void> {
 
         <div class="puzzle-info" id="stats-games">
           <div class="puzzle-info-item"><strong>Partien:</strong> ${gs.totalGames}</div>
-          <span>🤖 Auto-Battle: <strong>${gs.autoGames}</strong></span>
+          <span>🤖 Automatisch: <strong>${gs.autoGames}</strong></span>
           <span>👤 Manuell: <strong>${gs.manualGames}</strong></span>
         </div>
         <div class="puzzle-streak">
@@ -230,7 +230,7 @@ async function showStatsDashboard(): Promise<void> {
           <div class="puzzle-info-item"><strong>Puzzles:</strong></div>
           <span>✅ Gelöst: <strong>${ps.solved}</strong>/${ps.attempts} (${pct(ps.solved, ps.attempts)})</span>
           <span>💡 Hinweise: <strong>${ps.hintsUsed}</strong></span>
-          <span>🔥 Daily-Streak: <strong>${streak.current}</strong> (Best: <strong>${streak.best}</strong>)</span>
+          <span>🔥 Tages-Serie: <strong>${streak.current}</strong> (Bestwert: <strong>${streak.best}</strong>)</span>
         </div>
 
         <div class="puzzle-info" id="stats-feedback-section">

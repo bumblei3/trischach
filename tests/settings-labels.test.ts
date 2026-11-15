@@ -31,4 +31,22 @@ describe("Einstellungen", () => {
     expect(main).not.toContain("Opening Book Daten");
     expect(main).not.toContain("In localStorage gespeichert");
   });
+
+  test("nennt in der Statistik Automatisch, Tages-Serie und Bestwert", () => {
+    // eslint-disable-next-line no-undef
+    const main = fs.readFileSync(
+      path.resolve(__dirname, "../js/main.ts"),
+      "utf8",
+    );
+    const stats = main.slice(
+      main.indexOf("📊 Statistiken"),
+      main.indexOf("stats-feedback-section"),
+    );
+    expect(stats).toContain("🤖 Automatisch:");
+    expect(stats).toContain("Tages-Serie:");
+    expect(stats).toContain("(Bestwert:");
+    expect(stats).not.toContain("Auto-Battle");
+    expect(stats).not.toContain("Daily-Streak");
+    expect(stats).not.toContain("Best:");
+  });
 });
