@@ -357,11 +357,9 @@
           <button class="settings-tab active" data-tab="general">
             Allgemein
           </button>
-          <button class="settings-tab" data-tab="learning">
-            Auto-Battle Learning
-          </button>
+          <button class="settings-tab" data-tab="learning">Lernen</button>
           <button class="settings-tab" data-tab="opening-book">
-            Opening Book
+            Eröffnungsbuch
           </button>
         </div>
         <div class="settings-content">
@@ -449,12 +447,11 @@
           <!-- Learning Tab -->
           <div class="settings-panel" id="panel-learning">
             <div class="setting-group">
-              <h3>Auto-Battle Learning Konfiguration</h3>
+              <h3>Lernen</h3>
               <p class="setting-desc">
                 Führt viele KI-Selbstspiele durch, um das Eröffnungsbuch durch
-                Erfahrung zu verbessern. Die gelernten Gewichte werden in
-                <code>opening-book.learned.json</code> gespeichert und beim
-                nächsten Spielstart automatisch geladen.
+                Erfahrung zu verbessern. Die gelernten Gewichte bleiben in
+                diesem Browser und werden beim nächsten Spielstart geladen.
               </p>
             </div>
             <div class="setting-row">
@@ -522,7 +519,7 @@
             </div>
             <div class="setting-row">
               <button id="run-auto-battle-learning" class="btn-primary">
-                🚀 Auto-Battle Learning starten
+                🚀 Lernen starten
               </button>
               <button
                 id="resume-auto-battle-learning"
@@ -552,13 +549,13 @@
               ></div>
             </div>
           </div>
-          <!-- Opening Book Tab -->
+          <!-- Eröffnungsbuch -->
           <div class="settings-panel" id="panel-opening-book">
             <div class="setting-group">
-              <h3>Opening Book Statistiken</h3>
+              <h3>Eröffnungsbuch</h3>
               <p class="setting-desc">
-                Zeigt Informationen zum geladenen Eröffnungsbuch und den
-                gelernten Gewichten aus Auto-Battle Self-Play.
+                Zeigt das geladene Eröffnungsbuch und die Gewichte aus den
+                Selbstspielen.
               </p>
             </div>
             <div class="setting-row">
@@ -599,7 +596,7 @@
                   📥 Gelernte Daten exportieren
                 </button>
                 <button id="ob-reset-learned" class="btn-danger">
-                  🗑️ Learning zurücksetzen
+                  🗑️ Lernen zurücksetzen
                 </button>
               </div>
             </div>

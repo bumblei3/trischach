@@ -3868,9 +3868,9 @@ function initEventListeners(): void {
           `✅ Fertig! ${games} Spiele gespielt.\\n` +
           `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\\n` +
           `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\\n` +
-          `💾 In localStorage gespeichert. Beim nächsten Spielstart aktiv.`;
+          `💾 In diesem Browser gespeichert. Beim nächsten Spielstart aktiv.`;
       }
-      showHintToast(`✅ Auto-Battle Learning abgeschlossen (${games} Spiele)`);
+      showHintToast(`✅ Lernen abgeschlossen (${games} Spiele)`);
     } catch (err) {
       console.error("Auto-Battle Learning failed:", err);
       if (abProgress) abProgress.style.display = "none";
@@ -3878,7 +3878,7 @@ function initEventListeners(): void {
         abResult.style.display = "block";
         abResult.textContent = `❌ Fehler: ${err instanceof Error ? err.message : String(err)}`;
       }
-      showHintToast("❌ Auto-Battle Learning fehlgeschlagen");
+      showHintToast("❌ Lernen fehlgeschlagen");
       clearLearnState();
     } finally {
       if (runAbBtn) runAbBtn.disabled = false;
@@ -3893,7 +3893,7 @@ function initEventListeners(): void {
       !savedState.isRunning ||
       savedState.completedGames >= savedState.games
     ) {
-      showHintToast("⚠️ Kein State zum Fortsetzen gefunden");
+      showHintToast("⚠️ Nichts zum Fortsetzen gefunden");
       return;
     }
 
@@ -4076,10 +4076,10 @@ function initEventListeners(): void {
           `✅ Fortgesetzt & abgeschlossen! ${games} Spiele insgesamt.\\n` +
           `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\\n` +
           `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\\n` +
-          `💾 In localStorage gespeichert. Beim nächsten Spielstart aktiv.`;
+          `💾 In diesem Browser gespeichert. Beim nächsten Spielstart aktiv.`;
       }
       showHintToast(
-        `✅ Auto-Battle Learning fortgesetzt & abgeschlossen (${games} Spiele)`,
+        `✅ Lernen fortgesetzt und abgeschlossen (${games} Spiele)`,
       );
 
       if (resumeAbBtn) resumeAbBtn.style.display = "none";
@@ -4091,7 +4091,7 @@ function initEventListeners(): void {
         abResult.style.display = "block";
         abResult.textContent = `❌ Fehler: ${err instanceof Error ? err.message : String(err)}`;
       }
-      showHintToast("❌ Auto-Battle Learning Fortsetzen fehlgeschlagen");
+      showHintToast("❌ Fortsetzen fehlgeschlagen");
     } finally {
       if (resumeAbBtn) resumeAbBtn.disabled = false;
     }
@@ -4175,7 +4175,7 @@ function initEventListeners(): void {
 
   // Refresh button
   obRefresh?.addEventListener("click", async () => {
-    showHintToast("🔄 Lade Opening Book Statistiken...");
+    showHintToast("🔄 Lade das Eröffnungsbuch…");
     await loadOpeningBookStats();
     showHintToast("✅ Statistiken aktualisiert");
   });
@@ -4210,7 +4210,7 @@ function initEventListeners(): void {
   obResetLearned?.addEventListener("click", () => {
     if (
       !confirm(
-        "⚠️ Alle gelernten Opening Book Daten wirklich löschen?\nDies kann nicht rückgängig gemacht werden.",
+        "⚠️ Alle gelernten Daten zum Eröffnungsbuch wirklich löschen?\nDies kann nicht rückgängig gemacht werden.",
       )
     ) {
       return;
@@ -4218,7 +4218,7 @@ function initEventListeners(): void {
     localStorage.removeItem("trischach-opening-book-learned");
     if (obLearned) obLearned.textContent = "0";
     if (obUpdated) obUpdated.textContent = "–";
-    showHintToast("🗑️ Learning zurückgesetzt");
+    showHintToast("🗑️ Lernen zurückgesetzt");
   });
 
   // Initial load when Opening Book tab is opened
