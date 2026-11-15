@@ -1076,10 +1076,10 @@ function applySettings(settings: GameSettings): void {
   ) as HTMLButtonElement;
   if (autoBattleBtn) {
     if (autoBattleActive) {
-      autoBattleBtn.textContent = "⏹ Auto Battle Stoppen";
+      autoBattleBtn.textContent = "⏹ Automatisch stoppen";
       autoBattleBtn.classList.add("active");
     } else {
-      autoBattleBtn.textContent = "🤖 Auto Battle";
+      autoBattleBtn.textContent = "🤖 Automatisch";
       autoBattleBtn.classList.remove("active");
     }
   }
@@ -1793,7 +1793,7 @@ function triggerAutoMove(): void {
           "auto-battle-btn",
         ) as HTMLButtonElement;
         if (autoBattleBtn) {
-          autoBattleBtn.textContent = "🤖 Auto Battle";
+          autoBattleBtn.textContent = "🤖 Automatisch";
           autoBattleBtn.classList.remove("active");
         }
         updateUI();
@@ -1856,7 +1856,7 @@ function showCombat(result: GameResult): void {
       ${result.stalemate ? `<div class="combat-stalemate">🤖 Patt! ${FACTION_COLORS[result.stalemate].name} ist eliminiert!</div>` : ""}
       ${result.inCheck && !result.checkmate ? `<div class="combat-check">⚠️ Schach!</div>` : ""}
       ${result.gameOver ? `<div class="combat-winner">🏆 ${FACTION_COLORS[result.winner_faction!].name} gewinnt!</div>` : ""}
-      ${autoBattleActive && !result.gameOver ? `<button id="stop-auto-combat" class="combat-stop-btn">⏹ Auto Battle Stoppen</button>` : ""}
+      ${autoBattleActive && !result.gameOver ? `<button id="stop-auto-combat" class="combat-stop-btn">⏹ Automatisch stoppen</button>` : ""}
     </div>
   `;
   if (combatOverlay) combatOverlay.classList.add("visible");
@@ -1869,7 +1869,7 @@ function showCombat(result: GameResult): void {
         "auto-battle-btn",
       ) as HTMLButtonElement;
       if (autoBattleBtn) {
-        autoBattleBtn.textContent = "🤖 Auto Battle";
+        autoBattleBtn.textContent = "🤖 Automatisch";
         autoBattleBtn.classList.remove("active");
       }
       clearTimeout(autoBattleTimer!);
@@ -1903,7 +1903,7 @@ function showCombat(result: GameResult): void {
         "auto-battle-btn",
       ) as HTMLButtonElement;
       if (autoBattleBtn) {
-        autoBattleBtn.textContent = "🤖 Auto Battle";
+        autoBattleBtn.textContent = "🤖 Automatisch";
         autoBattleBtn.classList.remove("active");
       }
 
@@ -2095,7 +2095,7 @@ function initEventListeners(): void {
     cancelSoloSearch();
     autoBattleActive = !autoBattleActive;
     if (autoBattleActive) {
-      autoBattleBtn.textContent = "⏹ Auto Battle Stoppen";
+      autoBattleBtn.textContent = "⏹ Automatisch stoppen";
       autoBattleBtn.classList.add("active");
       // NOTE: main-thread pondering (startPondering) intentionally omitted here
       // too — it runs a synchronous minimax (depth up to 12) in the calling
@@ -2103,7 +2103,7 @@ function initEventListeners(): void {
       // Auto-Battle uses calculateBestMoveWorker() (the AI Web Worker) instead.
       triggerAutoMove();
     } else {
-      autoBattleBtn.textContent = "🤖 Auto Battle";
+      autoBattleBtn.textContent = "🤖 Automatisch";
       autoBattleBtn.classList.remove("active");
       clearTimeout(autoBattleTimer!);
     }
@@ -2198,7 +2198,7 @@ function initEventListeners(): void {
       "auto-battle-btn",
     ) as HTMLButtonElement;
     if (autoBattleBtn) {
-      autoBattleBtn.textContent = "🤖 Auto Battle";
+      autoBattleBtn.textContent = "🤖 Automatisch";
       autoBattleBtn.classList.remove("active");
     }
     clearTimeout(autoBattleTimer!);
@@ -2218,7 +2218,7 @@ function initEventListeners(): void {
         "auto-battle-btn",
       ) as HTMLButtonElement | null;
       if (autoBtn) {
-        autoBtn.textContent = "🤖 Auto Battle";
+        autoBtn.textContent = "🤖 Automatisch";
         autoBtn.classList.remove("active");
       }
     }
@@ -2304,7 +2304,7 @@ function initEventListeners(): void {
         "auto-battle-btn",
       ) as HTMLButtonElement;
       if (autoBattleBtn) {
-        autoBattleBtn.textContent = "🤖 Auto Battle";
+        autoBattleBtn.textContent = "🤖 Automatisch";
         autoBattleBtn.classList.remove("active");
       }
       clearTimeout(autoBattleTimer!);
@@ -2365,7 +2365,7 @@ function initEventListeners(): void {
         "auto-battle-btn",
       ) as HTMLButtonElement;
       if (autoBattleBtn) {
-        autoBattleBtn.textContent = "🤖 Auto Battle";
+        autoBattleBtn.textContent = "🤖 Automatisch";
         autoBattleBtn.classList.remove("active");
       }
       clearTimeout(autoBattleTimer!);
