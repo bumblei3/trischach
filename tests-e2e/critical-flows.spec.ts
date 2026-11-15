@@ -178,6 +178,10 @@ test.describe("TriSchach - Critical User Flows", () => {
     // Check initial value (default is 3 = Schwer)
     await expect(depthSlider).toHaveValue("3");
     await expect(depthLabel).toContainText("Schwer");
+    await expect(page.locator("#depth-hint")).toBeVisible();
+    await expect(page.locator("#depth-hint")).toContainText(
+      "weniger als 25 Figuren",
+    );
 
     // Change to depth 4
     await depthSlider.fill("4");
