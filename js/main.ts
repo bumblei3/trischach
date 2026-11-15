@@ -64,8 +64,11 @@ import {
   logFeedbackClick,
   logFeedbackSubmit,
   generateFeedbackDraft,
+  feedbackIssueTitle,
+  githubFeedbackUrl,
   summarizeFeedback,
   resetFeedback,
+  type FeedbackContext,
 } from "./game-feedback.ts";
 
 // ─── Global Type Augmentation ────────────────────────────────────────
@@ -364,10 +367,21 @@ function showFeedbackForm(): void {
   showDraftBtn.addEventListener("click", () => {
     const text = textArea?.value.trim() ?? "";
     if (selectedRating === 0 && text === "") return;
-    const draft = generateFeedbackDraft(selectedRating || 3, text);
-    logFeedbackSubmit(selectedRating || 3, text, draft);
-    showFeedbackThankYou(draft, selectedRating || 3, text);
+    const rating = selectedRating || 3;
+    const draft = generateFeedbackDraft(rating, text, currentFeedbackContext());
+    logFeedbackSubmit(rating, text, draft);
+    showFeedbackThankYou(draft, rating, text);
   });
+}
+
+function currentFeedbackContext(): FeedbackContext {
+  const names = { fire: "Feuer", water: "Wasser", nature: "Natur" } as const;
+  return {
+    version: "1.7.0",
+    mode: humanFaction ? `Solo ${names[humanFaction]}` : "Runde zu dritt",
+    auto: autoBattleActive,
+    moves: game.moveHistory.length,
+  };
 }
 
 function showFeedbackThankYou(
@@ -383,9 +397,9 @@ function showFeedbackThankYou(
       </div>
 
       <div class="feedback-thankyou">
-        <p>Dein Feedback-Entwurf ist fertig. Kopiere den Text und poste ihn auf
-        GitHub, wenn du möchtest. Wir haben ihn nicht automatisch gesendet —
-        das bleibt bei dir.</p>
+        <p>Dein Entwurf ist fertig. Auf GitHub öffnen legt das Issue an, du
+        sendest es dort selbst ab. Kopieren bleibt. Wir haben nichts
+        automatisch gesendet.</p>
       </div>
 
       <div class="feedback-draft-box">
@@ -393,21 +407,35 @@ function showFeedbackThankYou(
       </div>
 
       <div class="puzzle-actions">
-        <button class="puzzle-btn" id="feedback-copy-btn">📋 Kopieren</button>
-        <button class="puzzle-btn secondary" id="feedback-edit-btn">✏️ Bearbeiten</button>
-        <button class="puzzle-btn secondary" id="feedback-done-btn">Fertig</button>
+        <button class="puzzle-btn primary" id="feedback-github-btn" type="button">Auf GitHub öffnen</button>
+        <button class="puzzle-btn secondary" id="feedback-copy-btn" type="button">📋 Kopieren</button>
+        <button class="puzzle-btn secondary" id="feedback-edit-btn" type="button">✏️ Bearbeiten</button>
+        <button class="puzzle-btn secondary" id="feedback-done-btn" type="button">Fertig</button>
       </div>
     </div>
   `;
   puzzleOverlay.classList.add("visible");
 
   const closeBtn = document.getElementById("feedback-thankyou-close-btn")!;
+  const githubBtn = document.getElementById("feedback-github-btn")!;
   const copyBtn = document.getElementById("feedback-copy-btn")!;
   const editBtn = document.getElementById("feedback-edit-btn")!;
   const doneBtn = document.getElementById("feedback-done-btn")!;
 
   closeBtn.addEventListener("click", () => {
     puzzleOverlay.classList.remove("visible");
+  });
+
+  githubBtn.addEventListener("click", async () => {
+    const url = githubFeedbackUrl(feedbackIssueTitle(rating, text), draft);
+    const popup = window.open(url, "_blank", "noopener,noreferrer");
+    if (popup) return;
+    try {
+      await navigator.clipboard.writeText(draft);
+      githubBtn.textContent = "Popup blockiert, Entwurf kopiert";
+    } catch {
+      githubBtn.textContent = "Popup blockiert";
+    }
   });
 
   copyBtn.addEventListener("click", async () => {

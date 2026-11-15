@@ -5,6 +5,8 @@ import {
   logFeedbackClick,
   logFeedbackSubmit,
   generateFeedbackDraft,
+  feedbackIssueTitle,
+  githubFeedbackUrl,
   resetFeedback,
   summarizeFeedback,
   FEEDBACK_KEY,
@@ -107,6 +109,32 @@ describe("game-feedback", () => {
     expect(draft).toContain(
       "*Dieses Feedback wurde von trischach vorbereitet.",
     );
+  });
+
+  it("generateFeedbackDraft — hängt die Partie an, ohne den Speicher", () => {
+    const draft = generateFeedbackDraft(4, "der Solo-Start ist unklar", {
+      version: "1.7.0",
+      mode: "Solo Feuer",
+      auto: true,
+      moves: 12,
+    });
+    expect(draft).toContain("- Version: 1.7.0");
+    expect(draft).toContain("- Modus: Solo Feuer");
+    expect(draft).toContain("- Automatisch: ja");
+    expect(draft).toContain("- Züge: 12");
+    expect(draft).not.toContain("localStorage");
+  });
+
+  it("githubFeedbackUrl — öffnet das trischach-Issue und bleibt kurz", () => {
+    const title = feedbackIssueTitle(4, "der Solo-Start ist unklar");
+    expect(title).toBe("Feedback: 4 von 5 — der Solo-Start ist unklar");
+    const url = githubFeedbackUrl(title, "x".repeat(20000));
+    expect(url.startsWith("https://github.com/bumblei3/trischach/issues/new?")).toBe(
+      true,
+    );
+    expect(url).toContain("labels=feedback");
+    expect(url.length).toBeLessThanOrEqual(7000);
+    expect(decodeURIComponent(url)).toContain("[gekürzt]");
   });
 
   it("generateFeedbackDraft — Rating-Wörter", () => {

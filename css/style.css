@@ -1764,6 +1764,17 @@ input:checked + .slider:before {
   transform: none !important;
 }
 
+.feedback-thankyou p {
+  margin: 0;
+}
+
+.feedback-draft-text {
+  margin: 0;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .puzzle-progress {
   height: 4px;
   background: var(--border);

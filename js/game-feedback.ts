@@ -83,8 +83,24 @@ export function logFeedbackSubmit(
   return entries;
 }
 
+export interface FeedbackContext {
+  version: string;
+  /** "Runde zu dritt" oder "Solo Feuer" / "Solo Wasser" / "Solo Natur". */
+  mode: string;
+  auto: boolean;
+  moves: number;
+}
+
+const ISSUE_NEW_URL = "https://github.com/bumblei3/trischach/issues/new";
+/** Browsers and GitHub drop very long new-issue URLs. Stay under this. */
+const MAX_ISSUE_URL_LENGTH = 7000;
+
 /** Generiere einen GitHub-Issue-Draft-Text aus Rating + Freitext. */
-export function generateFeedbackDraft(rating: number, text: string): string {
+export function generateFeedbackDraft(
+  rating: number,
+  text: string,
+  context?: FeedbackContext,
+): string {
   const ratingWords: Record<number, string> = {
     1: "sehr schlecht",
     2: "schlecht",
@@ -100,11 +116,55 @@ export function generateFeedbackDraft(rating: number, text: string): string {
     "",
     "> " + text.replace(/\n/g, "\n> "),
     "",
+  ];
+  if (context) {
+    lines.push(
+      "## Partie",
+      "",
+      `- Version: ${context.version}`,
+      `- Modus: ${context.mode}`,
+      `- Automatisch: ${context.auto ? "ja" : "nein"}`,
+      `- Züge: ${context.moves}`,
+      "",
+    );
+  }
+  lines.push(
     "---",
     "",
     "*Dieses Feedback wurde von trischach vorbereitet. Bitte auf GitHub posten.*",
-  ];
+  );
   return lines.join("\n");
+}
+
+export function feedbackIssueTitle(rating: number, text: string): string {
+  const clip = text.replace(/\s+/g, " ").trim().slice(0, 60);
+  const base = `Feedback: ${rating} von 5`;
+  return clip ? `${base} — ${clip}` : base;
+}
+
+/**
+ * Prefilled new-issue URL. Shrinks the body until the URL fits.
+ * The tester still has to submit the issue in their own browser.
+ */
+export function githubFeedbackUrl(title: string, body: string): string {
+  let report = body;
+  let url = issueUrl(title, report);
+  while (url.length > MAX_ISSUE_URL_LENGTH && report.length > 200) {
+    report =
+      report.slice(0, Math.floor(report.length * 0.75)).trimEnd() +
+      "\n\n[gekürzt]";
+    url = issueUrl(title, report);
+  }
+  return url;
+}
+
+function issueUrl(title: string, body: string): string {
+  const params = new URLSearchParams({
+    labels: "feedback",
+    title,
+    body,
+  });
+  return `${ISSUE_NEW_URL}?${params.toString()}`;
 }
 
 /** Löscht alle Feedback-Einträge (Nutzungsreset). */
