@@ -36,5 +36,7 @@ describe("Spiel-Leiste", () => {
     expect(main).toContain("Der Text bleibt in diesem Browser.");
     expect(main).toContain("Dafür brauchst du ein GitHub-Konto.");
     expect(main).not.toContain("Kein Account nötig");
+    expect(main).toContain("← Zurück zur Statistik");
+    expect(main).not.toContain("Zurück zum Dashboard");
   });
 });

@@ -327,7 +327,7 @@ function showFeedbackForm(returnTo: FeedbackReturn = "stats"): void {
 
       <div class="puzzle-actions">
         <button class="puzzle-btn secondary" id="feedback-show-draft-btn">📋 Vorschau anzeigen</button>
-        <button class="puzzle-btn secondary" id="feedback-back-btn">${returnTo === "stats" ? "← Zurück zum Dashboard" : "Schließen"}</button>
+        <button class="puzzle-btn secondary" id="feedback-back-btn">${returnTo === "stats" ? "← Zurück zur Statistik" : "Schließen"}</button>
       </div>
     </div>
   `;
