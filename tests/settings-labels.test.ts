@@ -74,6 +74,10 @@ describe("Einstellungen", () => {
     expect(html).toContain('title="Puzzle (Matt in N)"');
     expect(html).toContain('aria-label="Puzzle (Matt in N)"');
     expect(html).not.toContain("Puzzle Modus");
+    expect(html).toContain("Zuletzt kompiliert");
+    expect(html).toContain("Zuletzt aktualisiert");
+    expect(html).not.toContain("Letztes Kompiliert");
+    expect(html).not.toContain("Letztes Update");
   });
 
   test("Lernergebnis bricht mit echten Zeilen um", () => {
