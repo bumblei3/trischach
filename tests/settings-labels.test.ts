@@ -82,6 +82,10 @@ describe("Einstellungen", () => {
     expect(html).toContain("Zuletzt aktualisiert");
     expect(html).not.toContain("Letztes Kompiliert");
     expect(html).not.toContain("Letztes Update");
+    expect(html).toContain('<label for="sound-toggle">Ton</label>');
+    expect(html).toContain('<label for="skin-select">Farben</label>');
+    expect(html).not.toContain(">Sound<");
+    expect(html).not.toContain("Skin (Farben)");
   });
 
   test("Lernergebnis bricht mit echten Zeilen um", () => {
