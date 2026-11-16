@@ -278,7 +278,17 @@ async function showStatsDashboard(): Promise<void> {
 
 // ─── Feedback Formular ────────────────────────────────────────────────
 
-function showFeedbackForm(): void {
+type FeedbackReturn = "stats" | "close";
+
+function leaveFeedback(returnTo: FeedbackReturn): void {
+  if (returnTo === "stats") {
+    showStatsDashboard();
+    return;
+  }
+  puzzleOverlay.classList.remove("visible");
+}
+
+function showFeedbackForm(returnTo: FeedbackReturn = "stats"): void {
   puzzleOverlay.innerHTML = `
     <div class="puzzle-box">
       <div class="puzzle-header">
@@ -318,7 +328,7 @@ function showFeedbackForm(): void {
 
       <div class="puzzle-actions">
         <button class="puzzle-btn secondary" id="feedback-show-draft-btn">📋 Vorschau anzeigen</button>
-        <button class="puzzle-btn secondary" id="feedback-back-btn">← Zurück zum Dashboard</button>
+        <button class="puzzle-btn secondary" id="feedback-back-btn">${returnTo === "stats" ? "← Zurück zum Dashboard" : "Schließen"}</button>
       </div>
     </div>
   `;
@@ -360,8 +370,7 @@ function showFeedbackForm(): void {
   });
 
   backBtn.addEventListener("click", () => {
-    puzzleOverlay.classList.remove("visible");
-    showStatsDashboard();
+    leaveFeedback(returnTo);
   });
 
   showDraftBtn.addEventListener("click", () => {
@@ -370,7 +379,7 @@ function showFeedbackForm(): void {
     const rating = selectedRating || 3;
     const draft = generateFeedbackDraft(rating, text, currentFeedbackContext());
     logFeedbackSubmit(rating, text, draft);
-    showFeedbackThankYou(draft, rating, text);
+    showFeedbackThankYou(draft, rating, text, returnTo);
   });
 }
 
@@ -388,6 +397,7 @@ function showFeedbackThankYou(
   draft: string,
   rating: number,
   text: string,
+  returnTo: FeedbackReturn = "stats",
 ): void {
   puzzleOverlay.innerHTML = `
     <div class="puzzle-box">
@@ -458,12 +468,11 @@ function showFeedbackThankYou(
   editBtn.addEventListener("click", () => {
     // Zurück zum Formular — Zustand geht verloren, aber das ist okay für einen
     // ersten Entwurf. Nutzer kann neu eingeben.
-    showFeedbackForm();
+    showFeedbackForm(returnTo);
   });
 
   doneBtn.addEventListener("click", () => {
-    puzzleOverlay.classList.remove("visible");
-    showStatsDashboard();
+    leaveFeedback(returnTo);
   });
 }
 
@@ -2300,6 +2309,12 @@ function initEventListeners(): void {
   const statsBtn = document.getElementById("stats-btn") as HTMLButtonElement;
   statsBtn?.addEventListener("click", () => {
     showStatsDashboard();
+  });
+
+  const reportBtn = document.getElementById("report-btn") as HTMLButtonElement;
+  reportBtn?.addEventListener("click", () => {
+    logFeedbackClick("game-bar");
+    showFeedbackForm("close");
   });
 
   const loadBtn = document.getElementById("load-btn") as HTMLButtonElement;

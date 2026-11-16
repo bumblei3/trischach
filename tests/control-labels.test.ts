@@ -18,4 +18,20 @@ describe("Spiel-Leiste", () => {
     expect(main).toContain("⏹ Automatisch stoppen");
     expect(main).not.toContain("Auto Battle");
   });
+
+  test("Problem melden sits beside Statistik and opens the feedback form", () => {
+    // eslint-disable-next-line no-undef
+    const root = path.resolve(__dirname, "..");
+    const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
+    const main = fs.readFileSync(path.join(root, "js/main.ts"), "utf8");
+    const bar = html.slice(
+      html.indexOf('id="stats-btn"'),
+      html.indexOf('id="tutorial-btn"'),
+    );
+    expect(bar).toContain('id="report-btn"');
+    expect(bar).toContain("Problem melden");
+    expect(main).toContain('getElementById("report-btn")');
+    expect(main).toContain('logFeedbackClick("game-bar")');
+    expect(main).toContain('showFeedbackForm("close")');
+  });
 });
