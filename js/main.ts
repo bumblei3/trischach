@@ -2789,10 +2789,23 @@ function initEventListeners(): void {
     return puzzleApi().preferredDifficulty(puzzleApi().todayISO());
   }
 
+  function difficultyLabel(tier: string): string {
+    return tier === "easy" ? "Leicht" : tier === "medium" ? "Mittel" : "Schwer";
+  }
+
+  function factionLabel(faction: Faction): string {
+    return faction === "fire"
+      ? "Feuer"
+      : faction === "water"
+        ? "Wasser"
+        : "Natur";
+  }
+
   /** Human-readable label for the current day's daily-puzzle difficulty. */
   function dailyDifficultyLabel(): string {
-    const tier = puzzleApi().preferredDifficulty(puzzleApi().todayISO());
-    return tier === "easy" ? "Leicht" : tier === "medium" ? "Mittel" : "Schwer";
+    return difficultyLabel(
+      puzzleApi().preferredDifficulty(puzzleApi().todayISO()),
+    );
   }
 
   async function showPuzzleMenu(): Promise<void> {
@@ -2903,8 +2916,8 @@ function initEventListeners(): void {
               (p, i) => `
             <div class="puzzle-move" data-index="${i}">
               <span class="puzzle-move-number">${i + 1}.</span>
-              <span class="puzzle-move-san">Matt in ${p.mateIn} (${escapeHtml(p.difficulty)})</span>
-              <span class="puzzle-move-status pending">${p.faction}</span>
+              <span class="puzzle-move-san">Matt in ${p.mateIn} (${escapeHtml(difficultyLabel(p.difficulty))})</span>
+              <span class="puzzle-move-status pending">${escapeHtml(factionLabel(p.faction))}</span>
             </div>
           `,
             )
@@ -2950,7 +2963,7 @@ function initEventListeners(): void {
           <button class="puzzle-close-btn" id="rps-close-btn" title="Abbrechen" aria-label="Abbrechen">✕</button>
         </div>
         <div class="puzzle-info">
-          <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(puzzle.difficulty.toUpperCase())}</span>
+          <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(difficultyLabel(puzzle.difficulty))}</span>
           <span class="puzzle-info-item">Am Zug: <strong>${FACTION_COLORS[puzzle.sideToMove].name}</strong></span>
         </div>
         <div id="rps-board-wrapper" class="puzzle-board-container"></div>
@@ -3055,7 +3068,7 @@ function initEventListeners(): void {
           <button class="puzzle-close-btn" id="puzzle-close-btn" title="Abbrechen" aria-label="Abbrechen">✕</button>
         </div>
         <div class="puzzle-info">
-          <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(puzzle.difficulty.toUpperCase())}</span>
+          <span class="puzzle-difficulty ${escapeHtml(puzzle.difficulty)}">${escapeHtml(difficultyLabel(puzzle.difficulty))}</span>
           <span class="puzzle-info-item">Am Zug: <strong>${FACTION_COLORS[puzzle.faction].name}</strong></span>
         </div>
         <div id="puzzle-board-wrapper" class="puzzle-board-container"></div>

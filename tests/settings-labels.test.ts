@@ -64,6 +64,10 @@ describe("Einstellungen", () => {
     expect(main).not.toContain(">Best: <");
     expect(main).not.toContain("(Best ");
     expect(main).not.toContain('? "Medium"');
+    expect(main).toContain("difficultyLabel(p.difficulty)");
+    expect(main).toContain("difficultyLabel(puzzle.difficulty)");
+    expect(main).toContain("factionLabel(p.faction)");
+    expect(main).not.toContain("difficulty.toUpperCase()");
     expect(main).toContain("♟ Puzzle</h2>");
     expect(main).not.toContain("Puzzle Modus");
     // eslint-disable-next-line no-undef
