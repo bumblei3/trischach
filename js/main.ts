@@ -2803,7 +2803,7 @@ function initEventListeners(): void {
     puzzleOverlay.innerHTML = `
       <div class="puzzle-box">
         <div class="puzzle-header">
-          <h2 class="puzzle-title">♟ Puzzle Modus</h2>
+          <h2 class="puzzle-title">♟ Puzzle</h2>
           <button class="puzzle-close-btn" id="puzzle-close-btn" title="Schließen" aria-label="Schließen">✕</button>
         </div>
         <div class="puzzle-info" id="puzzle-menu-info">

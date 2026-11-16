@@ -64,6 +64,16 @@ describe("Einstellungen", () => {
     expect(main).not.toContain(">Best: <");
     expect(main).not.toContain("(Best ");
     expect(main).not.toContain('? "Medium"');
+    expect(main).toContain("♟ Puzzle</h2>");
+    expect(main).not.toContain("Puzzle Modus");
+    // eslint-disable-next-line no-undef
+    const html = fs.readFileSync(
+      path.resolve(__dirname, "../index.html"),
+      "utf8",
+    );
+    expect(html).toContain('title="Puzzle (Matt in N)"');
+    expect(html).toContain('aria-label="Puzzle (Matt in N)"');
+    expect(html).not.toContain("Puzzle Modus");
   });
 
   test("Lernergebnis bricht mit echten Zeilen um", () => {
