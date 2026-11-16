@@ -3879,9 +3879,9 @@ function initEventListeners(): void {
       if (abResult) {
         abResult.style.display = "block";
         abResult.textContent =
-          `✅ Fertig! ${games} Spiele gespielt.\\n` +
-          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\\n` +
-          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\\n` +
+          `✅ Fertig! ${games} Spiele gespielt.\n` +
+          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\n` +
+          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\n` +
           `💾 In diesem Browser gespeichert. Beim nächsten Spielstart aktiv.`;
       }
       showHintToast(`✅ Lernen abgeschlossen (${games} Spiele)`);
@@ -4087,9 +4087,9 @@ function initEventListeners(): void {
       if (abResult) {
         abResult.style.display = "block";
         abResult.textContent =
-          `✅ Fortgesetzt & abgeschlossen! ${games} Spiele insgesamt.\\n` +
-          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\\n` +
-          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\\n` +
+          `✅ Fortgesetzt & abgeschlossen! ${games} Spiele insgesamt.\n` +
+          `🔥 Feuer: ${stats.fire} | 🌊 Wasser: ${stats.water} | 🌿 Natur: ${stats.nature} | 🤝 Unentschieden: ${stats.draws}\n` +
+          `📚 Gelernte Positionen: ${Object.keys(learnedData).length}\n` +
           `💾 In diesem Browser gespeichert. Beim nächsten Spielstart aktiv.`;
       }
       showHintToast(

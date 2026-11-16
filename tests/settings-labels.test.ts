@@ -65,4 +65,21 @@ describe("Einstellungen", () => {
     expect(main).not.toContain("(Best ");
     expect(main).not.toContain('? "Medium"');
   });
+
+  test("Lernergebnis bricht mit echten Zeilen um", () => {
+    // eslint-disable-next-line no-undef
+    const main = fs.readFileSync(
+      path.resolve(__dirname, "../js/main.ts"),
+      "utf8",
+    );
+    const css = fs.readFileSync(
+      path.resolve(__dirname, "../css/style.css"),
+      "utf8",
+    );
+    expect(main).toContain("Spiele gespielt.\\n");
+    expect(main).toContain("Spiele insgesamt.\\n");
+    expect(main).not.toContain("gespielt.\\\\n");
+    expect(main).not.toContain("insgesamt.\\\\n");
+    expect(css).toContain("white-space: pre-wrap");
+  });
 });
