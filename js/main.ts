@@ -2780,7 +2780,7 @@ function initEventListeners(): void {
         <div class="puzzle-streak" id="puzzle-session-stats">
           <span>✅ Gelöst: <strong>${s.solved}</strong>/${s.attempts} (${rate}%)</span>
           <span>⏱ Ø: <strong>${fmt(avg)}</strong></span>
-          <span>🏅 Best: <strong>${fmt(s.bestTimeSeconds)}</strong></span>
+          <span>🏅 Bestzeit: <strong>${fmt(s.bestTimeSeconds)}</strong></span>
         </div>`;
   }
 
@@ -2792,7 +2792,7 @@ function initEventListeners(): void {
   /** Human-readable label for the current day's daily-puzzle difficulty. */
   function dailyDifficultyLabel(): string {
     const tier = puzzleApi().preferredDifficulty(puzzleApi().todayISO());
-    return tier === "easy" ? "Leicht" : tier === "medium" ? "Medium" : "Schwer";
+    return tier === "easy" ? "Leicht" : tier === "medium" ? "Mittel" : "Schwer";
   }
 
   async function showPuzzleMenu(): Promise<void> {
@@ -2811,8 +2811,8 @@ function initEventListeners(): void {
           <span class="puzzle-difficulty ${dailyDone ? "medium" : dailyDifficultyClass()}" id="puzzle-daily-difficulty">${dailyDone ? "GELÖST" : dailyDifficultyLabel()}</span>
         </div>
         <div class="puzzle-streak">
-          <span>🔥 Streak: <strong>${streak.current}</strong></span>
-          <span class="streak-best">Best: <strong>${streak.best}</strong></span>
+          <span>🔥 Tages-Serie: <strong>${streak.current}</strong></span>
+          <span class="streak-best">Bestwert: <strong>${streak.best}</strong></span>
           <span>Gesamt: <strong>${streak.totalDailySolved}</strong></span>
         </div>
         ${puzzleStatsHtml()}
@@ -3300,7 +3300,7 @@ function initEventListeners(): void {
     let streakHtml = "";
     if (success && puzzleApi().isTodaysDailyPuzzle(puzzle)) {
       const streak = puzzleApi().recordDailyPuzzleSolved();
-      streakHtml = `<span>🔥 Streak: <strong>${streak.current}</strong> (Best ${streak.best})</span>`;
+      streakHtml = `<span>🔥 Tages-Serie: <strong>${streak.current}</strong> (Bestwert: ${streak.best})</span>`;
     }
 
     puzzleOverlay.innerHTML = `

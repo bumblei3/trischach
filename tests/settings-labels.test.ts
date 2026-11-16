@@ -49,4 +49,20 @@ describe("Einstellungen", () => {
     expect(stats).not.toContain("Daily-Streak");
     expect(stats).not.toContain("Best:");
   });
+
+  test("Puzzle nennt Tages-Serie, Bestwert, Bestzeit und Mittel", () => {
+    // eslint-disable-next-line no-undef
+    const main = fs.readFileSync(
+      path.resolve(__dirname, "../js/main.ts"),
+      "utf8",
+    );
+    expect(main).toContain("🔥 Tages-Serie:");
+    expect(main).toContain("Bestwert:");
+    expect(main).toContain("🏅 Bestzeit:");
+    expect(main).toContain('? "Mittel"');
+    expect(main).not.toContain("🔥 Streak:");
+    expect(main).not.toContain(">Best: <");
+    expect(main).not.toContain("(Best ");
+    expect(main).not.toContain('? "Medium"');
+  });
 });
