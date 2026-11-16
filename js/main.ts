@@ -298,9 +298,8 @@ function showFeedbackForm(returnTo: FeedbackReturn = "stats"): void {
 
       <div class="puzzle-info">
         <p class="feedback-intro">
-          Wie findest du trischach? Dein Feedback hilft, das Spiel zu verbessern.
-          Kein Account nötig — alles bleibt lokal, bis du den fertigen Text
-          selbst auf GitHub posten möchtest.
+          Der Text bleibt in diesem Browser. Auf GitHub öffnen legt das Issue
+          an, du sendest es dort selbst ab. Dafür brauchst du ein GitHub-Konto.
         </p>
       </div>
 

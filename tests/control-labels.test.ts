@@ -33,5 +33,8 @@ describe("Spiel-Leiste", () => {
     expect(main).toContain('getElementById("report-btn")');
     expect(main).toContain('logFeedbackClick("game-bar")');
     expect(main).toContain('showFeedbackForm("close")');
+    expect(main).toContain("Der Text bleibt in diesem Browser.");
+    expect(main).toContain("Dafür brauchst du ein GitHub-Konto.");
+    expect(main).not.toContain("Kein Account nötig");
   });
 });
