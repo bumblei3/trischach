@@ -2,7 +2,7 @@
   "name": "TriSchach",
   "short_name": "TriSchach",
   "description": "3-Spieler Hexagonales Schach mit Stein-Schere-Papier Mechaniken",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#0a0a12",
   "theme_color": "#FF4500",
@@ -63,15 +63,27 @@
       "name": "Neues Spiel",
       "short_name": "Neu",
       "description": "Startet ein neues Spiel",
-      "url": "/?new=true",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "url": "./?new=true",
+      "icons": [
+        {
+          "src": "icons/icon-192.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
     },
     {
       "name": "Auto Battle",
       "short_name": "Auto",
       "description": "Startet Auto Battle Modus",
-      "url": "/?autobattle=true",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+      "url": "./?autobattle=true",
+      "icons": [
+        {
+          "src": "icons/icon-192.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ],
   "prefer_related_applications": false
