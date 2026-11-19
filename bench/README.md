@@ -12,7 +12,8 @@ Flags: `--games=N`, `--depth=N`, `--opponent=random|depth1|material`, `--seed=N`
 (default 12345), `--max-plies=N` (default 200), `--budget=N` (Zug-Budget in ms,
 setzt `setAITimeLimit`), `--repeats=N`, `--no-book` (Eröffnungsbuch NICHT laden —
 nur für A/B gegen die alte Messung; die App lädt das Buch immer, deshalb ist
-das der Default).
+das der Default), `--adversarial` (paranoider Minimax statt des Shippped-Pfads;
+experimentell, aktuell geparkt).
 
 ## Regel: Einzelläufe sind keine Evidenz
 

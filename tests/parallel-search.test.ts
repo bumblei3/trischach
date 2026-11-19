@@ -1,4 +1,6 @@
 import { test, expect } from "vitest";
+import fs from "fs";
+import path from "path";
 import { Hex } from "../js/hex.ts";
 import { FACTION, generateBoard } from "../js/board.ts";
 import type { Faction } from "../js/types.ts";
@@ -105,4 +107,20 @@ test("serializeSubsetActions produces the worker wire format", () => {
   expect(wire[0]).toHaveProperty("pieceId");
   expect(wire[0]).toHaveProperty("targetQ");
   expect(wire[0]).toHaveProperty("targetR");
+});
+
+// Regression: the single-thread fallback in main.ts called
+// `calculateBestMoveParallel(game, faction, searchDepth)` — i.e. it passed the
+// DEPTH into the `workerCount` slot (signature is (game, faction, workerCount,
+// depth)). The fallback therefore split into `searchDepth` groups and searched at
+// an unintended depth. Pin the corrected argument order so it cannot drift back.
+test("main.ts fallback passes depth as the fourth argument, not the third", () => {
+  // eslint-disable-next-line no-undef
+  const main = fs.readFileSync(
+    path.resolve(__dirname, "../js/main.ts"),
+    "utf8",
+  );
+  expect(main).toContain(
+    "calculateBestMoveParallel(\n        game,\n        faction as Faction,\n        2,\n        searchDepth,\n      )",
+  );
 });

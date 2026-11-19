@@ -1,12 +1,13 @@
-# trischach — Status (Stand: 2026-10-21, HEAD cc27e9c) — **Release v1.7.0 ausgerollt**
+# trischach — Status (Stand: 2026-11-19, HEAD 6977815)
 
-`main` enthält seit `v1.6.0` (2026-08-24) **25 Commits** und ist als `v1.7.0` auf GitHub
+`main` enthält seit `v1.6.0` (2026-08-24) **27 Commits** und ist als `v1.7.0` auf GitHub
 veröffentlicht. Zusätzlich: Code-Splitting komplett (coach.ts + rps-puzzle.ts lazy
 geladen), `chore/node-engines`-Branch gemerged (Node 24, ESLint flat config, vitest 4.x),
-`tspn-viewer.html` gelöscht. main.js **23.03 KB gzip** (83.71 KB raw).
+`tspn-viewer.html` gelöscht. main.js **23.5 KB gzip**.
 
 - Statistik-Dashboard + Feedback-Kanal. Engine-Arbeit ist **abgeschlossen geparkt** —
-  alle verbleibenden Hebel gemessen negativ/flach (Details unten).
+  alle verbleibenden Hebel gemessen negativ/flach (Details unten). **Grund dafür ist
+  jetzt belegt: die Suche ist Maximax, nicht Minimax** (siehe Root-Cause unten).
 
 ## Gesundheit
 
@@ -16,10 +17,10 @@ Alle Gates grün (Node 24, CI-Version):
 | ---------- | ------------------------ | -------------------------- |
 | Typecheck  | `npm run typecheck`      | grün                       |
 | Lint       | `npm run lint`           | grün                       |
-| Unit-Tests | `npm test`               | 871/871 (53 Files)         |
-| E2E        | `npm run test:e2e`       | 33/33                      |
-| Coverage   | `npm test -- --coverage` | 94.6% Stmts / 84.6% Branch |
-| Build      | `npm run build`          | grün, main ≈ 24.7 KB gzip  |
+| Unit-Tests | `npm test`               | 899/899 (58 Files)         |
+| E2E        | `npm run test:e2e`       | 35/35                      |
+| Coverage   | `npm test -- --coverage` | 94.8% Stmts / 84.9% Branch |
+| Build      | `npm run build`          | grün, main ≈ 23.7 KB gzip  |
 
 **Node-Version:** CI pinnt Node 24. Lokal **nicht** Node 26 verwenden — die
 happy-dom-Umgebung stellt dort kein `localStorage` bereit, was 90 Unit-Tests
@@ -74,11 +75,52 @@ Ein Score von 58.3% gegen random heißt also: Engine 58.3%, jeder der beiden Geg
 ~20.8% — klar überlegen. Ein Score von 33.3% gegen depth1 heißt: die Engine gewinnt
 exakt so oft wie jeder einzelne Gegner — **kein Vorteil**.
 
+## Root-Cause des Plateaus: die Suche ist Maximax, nicht Minimax (2026-11-19)
+
+`minimax()` (js/ai-core.ts) hat **keine Vorzeichenumkehr**: `alpha = Math.max(alpha,
+bestScore)` in _jedem_ Knoten, und die Rekursion holt `result.score` unverändert. Auch
+Gegner-Knoten maximieren also die Bewertung der eigenen Fraktion — die Gegner werden
+als _Mitspieler_ modelliert. `quiesce()` unterscheidet die Seiten dagegen korrekt
+(`currentFaction === maximizingFaction`), aber die Hauptscheidung fehlt.
+
+Beleg (Minimalposition, Feuer-Dame hängt, Wasser-Dame schlägt sie mit RPS-Vorteil;
+`minimax(depth=1, maximizingFaction=FIRE, currentFaction=WATER)`):
+
+| Größe                               | Wert                    |
+| ----------------------------------- | ----------------------- |
+| Bestes Blatt für Feuer (kooperativ) | −99.654,4               |
+| Schlimmstes Blatt für Feuer (Min)   | −109.883,8              |
+| `minimax()` liefert                 | **−99.654,4** → Maximum |
+
+Konsequenz: mehr Tiefe kann nichts bringen, weil die gegnerischen Züge in der
+Vorhersage die eigene Fraktion _helfen_. Genau das erklärt das tote „KI-Tiefe"-Regler,
+das Plateau bei jeder Suchverbesserung und die flachen Ergebnisse aller bisherigen
+Search-Experimente.
+
+**Gegentest (paranoider Minimax) — gemessen negativ, geparkt.**
+`minimaxAdversarial` / `iterativeDeepeningAdversarial` (js/ai-core.ts, experimentell,
+nicht verdrahtet) setzt Gegner-Knoten auf Minimum. Ergebnis n=20, depth 3, seed 12345,
+Buch aus:
+
+| Gegner | shipped  | adversarial                       |
+| ------ | -------- | --------------------------------- |
+| depth1 | 35,0 %   | **17,5 %** (W0/L13/D7, −269)      |
+| random | ~40–72 % | **12,5–20,0 %** (W1/L16/D3, −338) |
+
+Artefakte: `bench/engine-strength-adversarial-depth3-n20-{depth1,random}.txt`.
+Lehr: In einem 3-Parteien-Kingmaker-Spiel ist die Paranoid-Annahme (beide Gegner
+koordinieren) falsch — sie macht die Engine passiv, und selbst `random` schlägt sie
+klar. (`random` ist wall-clock-abhängig: identische Flags lieferten je nach
+Maschinenlast 12,5 % und 20,0 % — der Abstand zu shipped bleibt davon unberührt.)
+Kontext `--adversarial` im Bench belässt die Experimentier-Funktion abrufbar, ohne sie
+in Produktion zu verdrahten.
+
 ### Warum Suchtiefe sich nicht auszahlt: Minimax lief nie (2026-10-19)
 
 depth 3 gegen depth 1 ergibt 35.0% (n=40) bzw. 33.3% (n=12) — ohne signifikanten
 Abstand zum Fairness-Niveau. Die Ursache ist **nicht** die Eval-Qualität, sondern die
-Routing-Schwelle in `calculateBestMove` (`ai-core.ts`):
+Routing-Schwelle in `calculateBestMove` (`ai-core.ts`) — **und** die Tatsache, dass der
+dann laufende „Minimax" ein Maximax ist (Root-Cause-Sektion oben):
 
     if (pieceCount > 16 || usableActions.length > 30) -> greedyBestMove (1-Ply)
 

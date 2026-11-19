@@ -1,0 +1,3 @@
+Engine strength baseline | engine depth=3 vs random | games=20 seed=12345 budget=engine-default book=off search=adversarial
+Engine W1 | Opp W16 | D3
+Engine score 12.5% | rel-Elo(engine vs random) -338 [95% CI -568..-108]

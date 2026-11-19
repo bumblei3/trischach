@@ -706,9 +706,13 @@ function calculateBestMoveWorker(
     if (!aiWorker || !workerReady) {
       // Single-thread fallback — use parallel root-splitting on the main thread
       // (degrades gracefully to iterativeDeepening for tiny positions).
+      // Argument order matters: (game, faction, workerCount, depth). Passing the
+      // depth as the third argument silently set `workerCount`, so the fallback
+      // searched the wrong number of groups at an unintended depth.
       const move = calculateBestMoveParallel(
         game,
         faction as Faction,
+        2,
         searchDepth,
       );
       if (move) {

@@ -53,6 +53,7 @@ import {
   setAITimeLimit,
   setTieBreakMode,
   getLegalMoves,
+  iterativeDeepeningAdversarial,
 } from "../js/ai-core.ts";
 import { Piece } from "../js/pieces.ts";
 import type { Hex } from "../js/hex.ts";
@@ -169,6 +170,7 @@ function playGame(
   opponent: Opponent,
   rng: () => number,
   maxPlies = 200,
+  adversarial = false,
 ): "engine" | "opp" | "draw" {
   const g = new Game();
   g.init(generateBoard());
@@ -186,7 +188,11 @@ function playGame(
     const faction = TURNS[g.currentFactionIdx]!;
     let mv: { piece: Piece; target: Hex } | null;
     if (faction === engineFaction) {
-      mv = calculateBestMove(g, faction);
+      // `--adversarial` replaces the shipped routing (book + greedy/minimax)
+      // with the paranoid search, so the A/B isolates the search model.
+      mv = adversarial
+        ? iterativeDeepeningAdversarial(g, faction)
+        : calculateBestMove(g, faction);
     } else if (opponent === "random") {
       mv = randomLegalMove(g, faction, rng);
     } else if (opponent === "material") {
@@ -212,6 +218,7 @@ export function runStrength(
   opponent: Opponent,
   seed = 12345,
   maxPlies = 200,
+  adversarial = false,
 ): StrengthSummary {
   let eWins = 0;
   let eLosses = 0;
@@ -220,7 +227,14 @@ export function runStrength(
   const rng = mulberry32(seed);
   for (let i = 0; i < games; i++) {
     const engineFaction = TURNS[i % TURNS.length]!;
-    const r = playGame(engineFaction, depth, opponent, rng, maxPlies);
+    const r = playGame(
+      engineFaction,
+      depth,
+      opponent,
+      rng,
+      maxPlies,
+      adversarial,
+    );
     if (r === "engine") eWins++;
     else if (r === "opp") eLosses++;
     else draws++;
@@ -265,6 +279,7 @@ function parseFlags(argv: string[]): {
   budget: number | null;
   repeats: number;
   noBook: boolean;
+  adversarial: boolean;
 } {
   let games = 40;
   let depth = 3;
@@ -274,6 +289,7 @@ function parseFlags(argv: string[]): {
   let budget: number | null = null;
   let repeats = 1;
   let noBook = false;
+  let adversarial = false;
   for (const a of argv) {
     if (a.startsWith("--games=")) games = Number(a.slice(8));
     else if (a.startsWith("--depth=")) depth = Number(a.slice(8));
@@ -284,8 +300,19 @@ function parseFlags(argv: string[]): {
     else if (a.startsWith("--repeats="))
       repeats = Math.max(1, Number(a.slice(10)));
     else if (a === "--no-book") noBook = true;
+    else if (a === "--adversarial") adversarial = true;
   }
-  return { games, depth, opponent, seed, maxPlies, budget, repeats, noBook };
+  return {
+    games,
+    depth,
+    opponent,
+    seed,
+    maxPlies,
+    budget,
+    repeats,
+    noBook,
+    adversarial,
+  };
 }
 
 function main(): void {
@@ -309,9 +336,16 @@ async function runMain(): Promise<void> {
   }
 
   console.log(
-    `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed} budget=${flags.budget ?? "engine-default"} book=${flags.noBook ? "off" : "on"}`,
+    `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed} budget=${flags.budget ?? "engine-default"} book=${flags.noBook ? "off" : "on"} search=${flags.adversarial ? "adversarial" : "shipped"}`,
   );
-  const s = runStrength(games, depth, opponent, flags.seed, flags.maxPlies);
+  const s = runStrength(
+    games,
+    depth,
+    opponent,
+    flags.seed,
+    flags.maxPlies,
+    flags.adversarial,
+  );
   const scores = [s.score];
 
   if (flags.repeats === 1) {
@@ -329,7 +363,14 @@ async function runMain(): Promise<void> {
     `Run 1/${flags.repeats}: W${s.engineWins} | L${s.engineLosses} | D${s.draws} | score ${(s.score * 100).toFixed(1)}% | rel-Elo ${s.elo} [95% CI ${s.eloLo}..${s.eloHi}]`,
   );
   for (let r = 2; r <= flags.repeats; r++) {
-    const rep = runStrength(games, depth, opponent, flags.seed, flags.maxPlies);
+    const rep = runStrength(
+      games,
+      depth,
+      opponent,
+      flags.seed,
+      flags.maxPlies,
+      flags.adversarial,
+    );
     scores.push(rep.score);
     console.log(
       `Run ${r}/${flags.repeats}: W${rep.engineWins} | L${rep.engineLosses} | D${rep.draws} | score ${(rep.score * 100).toFixed(1)}% | rel-Elo ${rep.elo} [95% CI ${rep.eloLo}..${rep.eloHi}]`,

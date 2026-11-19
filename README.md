@@ -96,7 +96,7 @@ ES-Modul. Nur der Vite-Dev-Server (den auch die E2E-Suite nutzt) und der gebaute
 
 ## 🛠️ Architektur
 
-Die Codebase ist modular aufgebaut (22 Module in `js/`):
+Die Codebase ist modular aufgebaut (31 Module in `js/`):
 
 **Brett & Regeln**
 
@@ -155,8 +155,8 @@ npm run typecheck
 npm run lint
 ```
 
-- **859 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped, 51 Test-Files)
-- **31 E2E Tests** ✅ (Playwright Chromium)
+- **899 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped, 58 Test-Files)
+- **35 E2E Tests** ✅ (Playwright Chromium)
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors)
 - **Coverage Gates:** 80% Thresholds
