@@ -57,6 +57,12 @@ import {
 import { Piece } from "../js/pieces.ts";
 import type { Hex } from "../js/hex.ts";
 import { eloFromScore } from "./elo-common.ts";
+// The deployed app loads the compiled opening book before the first engine move
+// (js/main.ts init() -> loadOpeningBook()). Without it the bench measures a
+// DIFFERENT engine than the shipped site: measured 2026-11-19, same flags
+// (n=20, depth 3, vs depth1, seed 12345) gave 35.0% without the book and 10.0%
+// with it. `--no-book` restores the old measurement for A/B comparisons.
+import { loadOpeningBook } from "../js/opening-book.ts";
 
 const TURNS: Faction[] = [FACTION.FIRE, FACTION.WATER, FACTION.NATURE];
 
@@ -258,6 +264,7 @@ function parseFlags(argv: string[]): {
   maxPlies: number;
   budget: number | null;
   repeats: number;
+  noBook: boolean;
 } {
   let games = 40;
   let depth = 3;
@@ -266,6 +273,7 @@ function parseFlags(argv: string[]): {
   let maxPlies = 200;
   let budget: number | null = null;
   let repeats = 1;
+  let noBook = false;
   for (const a of argv) {
     if (a.startsWith("--games=")) games = Number(a.slice(8));
     else if (a.startsWith("--depth=")) depth = Number(a.slice(8));
@@ -275,11 +283,16 @@ function parseFlags(argv: string[]): {
     else if (a.startsWith("--budget=")) budget = Number(a.slice(9));
     else if (a.startsWith("--repeats="))
       repeats = Math.max(1, Number(a.slice(10)));
+    else if (a === "--no-book") noBook = true;
   }
-  return { games, depth, opponent, seed, maxPlies, budget, repeats };
+  return { games, depth, opponent, seed, maxPlies, budget, repeats, noBook };
 }
 
 function main(): void {
+  void runMain();
+}
+
+async function runMain(): Promise<void> {
   const positional = process.argv.slice(2).filter((x) => !x.startsWith("--"));
   const flags = parseFlags(process.argv);
   // positional overrides: games [depth] [opponent]
@@ -289,8 +302,14 @@ function main(): void {
 
   if (flags.budget !== null) setAITimeLimit(flags.budget);
 
+  // Match the deployed app: the compiled opening book is loaded before the
+  // first engine move. `--no-book` measures the bare engine instead (legacy).
+  if (!flags.noBook) {
+    await loadOpeningBook();
+  }
+
   console.log(
-    `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed} budget=${flags.budget ?? "engine-default"}`,
+    `Engine strength baseline | engine depth=${depth} vs ${opponent} | games=${games} seed=${flags.seed} budget=${flags.budget ?? "engine-default"} book=${flags.noBook ? "off" : "on"}`,
   );
   const s = runStrength(games, depth, opponent, flags.seed, flags.maxPlies);
   const scores = [s.score];
