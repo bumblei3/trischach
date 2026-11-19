@@ -523,13 +523,23 @@ const game = await createGame();
 // Record finished games for the statistics dashboard. Auto-Battle games are
 // tagged "auto"; every other finished game counts as human-played.
 let lastMoveCountAtGameStart = 0;
-game.onGameOver = (winner) => {
+const recordFinishedGame = (winner: Faction | null) => {
   recordGameResult({
     winner,
     mode: (isAutoBattleActive() ? "auto" : "manual") as GameMode,
     moves: Math.max(0, game.moveHistory.length - lastMoveCountAtGameStart),
   });
   lastMoveCountAtGameStart = game.moveHistory.length;
+};
+game.onGameOver = (winner) => {
+  recordFinishedGame(winner);
+};
+// Draws (threefold repetition / 50-move) end the game without a winner and
+// never fire onGameOver. Without this handler a drawn game would never reach
+// recordGameResult: `totalGames` stays short by one and the Remis counter in
+// the dashboard can never move, even though the UI shows that row.
+game.onDraw = () => {
+  recordFinishedGame(null);
 };
 
 // Expose the game + renderer instances for E2E tests / debugging (read-only
