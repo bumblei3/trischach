@@ -1176,6 +1176,10 @@ function init(): void {
     }
 
     updateUI();
+
+    // PWA-Shortcuts: erst nach dem Laden der Einstellungen, damit
+    // ?autobattle=true nicht von applySettings wieder überschrieben wird.
+    applyShortcutParams();
   })();
 }
 
@@ -2120,6 +2124,81 @@ function handlePromotionResult(result: GameResult | null, piece: Piece): void {
   sounds.playPromotion();
 }
 
+// ─── PWA-Shortcuts ──────────────────────────────────────────────────
+
+/**
+ * Das Manifest verspricht zwei Shortcuts: einen für eine neue Partie
+ * (`?new=true`) und einen für den Automatik-Modus (`?autobattle=true`).
+ * Ohne diese Zeilen landete der Besucher in der App, ohne dass sich etwas
+ * tat — die Shortcuts hätten gelogen.
+ */
+function restartGame(): void {
+  cancelSoloSearch();
+  const combatOverlay = document.getElementById(
+    "combat-overlay",
+  ) as HTMLElement;
+  const promotionOverlay = document.getElementById(
+    "promotion-overlay",
+  ) as HTMLElement;
+  combatOverlay.classList.remove("visible");
+  promotionOverlay.classList.remove("visible");
+  const boardGroup = document.getElementById("board-group");
+  boardGroup?.querySelectorAll(".piece").forEach((el) => el.remove());
+  renderer.pieceElements.clear();
+  game.init(renderer.cells);
+  game.clearUndoStack();
+  autoBattleBookMoves = []; // Clear learning tracking
+  const moveLogEl = document.getElementById("move-log") as HTMLElement;
+  moveLogEl.innerHTML = "";
+  for (const p of game.getAlivePieces()) renderer.renderPiece(p);
+  for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
+    const el = document.getElementById(`panel-${fac}`);
+    if (el) el.classList.remove("eliminated");
+  }
+
+  autoBattleActive = false;
+  const autoBattleBtn = document.getElementById(
+    "auto-battle-btn",
+  ) as HTMLButtonElement;
+  if (autoBattleBtn) {
+    autoBattleBtn.textContent = "🤖 Automatisch";
+    autoBattleBtn.classList.remove("active");
+  }
+  clearTimeout(autoBattleTimer!);
+  saveSettings({ ...loadSettings(), autoBattle: false });
+  updateUI();
+}
+
+function startAutoBattleFromShortcut(): void {
+  if (game.state === "game_over") return;
+  cancelSoloSearch();
+  autoBattleActive = true;
+  const autoBattleBtn = document.getElementById(
+    "auto-battle-btn",
+  ) as HTMLButtonElement;
+  if (autoBattleBtn) {
+    autoBattleBtn.textContent = "⏹ Automatisch stoppen";
+    autoBattleBtn.classList.add("active");
+  }
+  saveSettings({ ...loadSettings(), autoBattle: true });
+  triggerAutoMove();
+}
+
+/**
+ * Einmal nach dem Init. Nur aktiv, wenn einer der beiden Parameter gesetzt
+ * ist — sonst bleibt der Start identisch zu vorher.
+ */
+function applyShortcutParams(): void {
+  let params: URLSearchParams;
+  try {
+    params = new URLSearchParams(location.search);
+  } catch {
+    return;
+  }
+  if (params.get("new") === "true") restartGame();
+  if (params.get("autobattle") === "true") startAutoBattleFromShortcut();
+}
+
 // ─── Auto-Battle Button ────────────────────────────────────────────
 
 function initEventListeners(): void {
@@ -2205,43 +2284,7 @@ function initEventListeners(): void {
   const restartBtn = document.getElementById(
     "restart-btn",
   ) as HTMLButtonElement;
-  restartBtn?.addEventListener("click", () => {
-    cancelSoloSearch();
-    const combatOverlay = document.getElementById(
-      "combat-overlay",
-    ) as HTMLElement;
-    const promotionOverlay = document.getElementById(
-      "promotion-overlay",
-    ) as HTMLElement;
-    combatOverlay.classList.remove("visible");
-    promotionOverlay.classList.remove("visible");
-    const boardGroup = document.getElementById("board-group");
-    boardGroup?.querySelectorAll(".piece").forEach((el) => el.remove());
-    renderer.pieceElements.clear();
-    game.init(renderer.cells);
-    game.clearUndoStack();
-    autoBattleBookMoves = []; // Clear learning tracking
-    const moveLogEl = document.getElementById("move-log") as HTMLElement;
-    moveLogEl.innerHTML = "";
-    for (const p of game.getAlivePieces()) renderer.renderPiece(p);
-    for (const fac of [FACTION.FIRE, FACTION.WATER, FACTION.NATURE]) {
-      const el = document.getElementById(`panel-${fac}`);
-      if (el) el.classList.remove("eliminated");
-    }
-
-    autoBattleActive = false;
-    const autoBattleBtn = document.getElementById(
-      "auto-battle-btn",
-    ) as HTMLButtonElement;
-    if (autoBattleBtn) {
-      autoBattleBtn.textContent = "🤖 Automatisch";
-      autoBattleBtn.classList.remove("active");
-    }
-    clearTimeout(autoBattleTimer!);
-
-    saveSettings({ ...loadSettings(), autoBattle: false });
-    updateUI();
-  });
+  restartBtn?.addEventListener("click", restartGame);
 
   const playAs = document.getElementById("play-as") as HTMLSelectElement | null;
   playAs?.addEventListener("change", () => {
