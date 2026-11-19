@@ -29,18 +29,26 @@ das Feld ist also nicht mehr offen.
 
 ## Engine-Stärke (gemessen 2026-10-20, depth 3, seed 12345)
 
-**Kernzahl: die Engine ist so stark wie _ein_ Gegner, nicht stärker.** Gegen depth1
-(n=20) ergibt jeder Lauf **35,0 % (W7/L13, −108 Elo)** — bei Routing 16/30 wie 24/45, bei
-Budget 400 ms, 800 ms und Default, und in fünf Wiederholungen mit **Spread 0,0 pp**
-(`bench/engine-strength-depth3-n20-depth1-repeats5.txt`,
+**Vorab (2026-11-19): der Bench maß eine andere Engine als die App.** Der Bench startete
+ohne `loadOpeningBook()`, die App lädt das kompilierte Eröffnungsbuch (88 Positionen)
+vor dem ersten Zug. Gleiche Flags (n=20, depth 3, vs depth1, seed 12345): **35,0 %**
+ohne Buch, **10,0 %** mit Buch. Der Buchzweig entscheidet also über Sieg/Niederlage.
+Seither lädt der Bench das Buch wie die App (`--no-book` stellt die alte Messung her);
+neues Artefakt `bench/engine-strength-book-on-depth3-n20-depth1-repeats5.txt`
+(Mittel 27,0 %, **Spread 20,0 pp** → Aussage weiterhin nicht möglich).
+
+**Kernzahl (Buch aus, 35,0 %): die Engine ist so stark wie _ein_ Gegner, nicht stärker.**
+Gegen depth1 (n=20) ergibt jeder Lauf **35,0 % (W7/L13, −108 Elo)** — bei Routing 16/30 wie
+24/45, bei Budget 400 ms, 800 ms und Default, und in fünf Wiederholungen mit
+**Spread 0,0 pp** (`bench/engine-strength-depth3-n20-depth1-repeats5.txt`,
 `bench/engine-strength-routing-16-30-vs-24-45.txt`). Fairness-Niveau bei drei Fraktionen
 ist 33 % → **kein Vorteil gegen depth1**.
 
-| Gegner   | n=20, aktuelle Engine                       | Anmerkung                                        |
-| -------- | ------------------------------------------- | ------------------------------------------------ |
-| depth1   | 35,0 % / −108 [−268..52]                    | stabil, 5 Wiederholungen identisch               |
-| random   | 59,0 % Mittel (Spread 52,5–65,0 %, 12,5 pp) | Einzelläufe 40–72,5 % → **nicht reproduzierbar** |
-| material | 36,3 % / −98 [−210..14]                     | alter Stand (n=40), nicht neu gemessen           |
+| Gegner   | n=20, Buch aus                                   | n=20, Buch an (App)                         |
+| -------- | ------------------------------------------------ | ------------------------------------------- |
+| depth1   | 35,0 % / −108 [−268..52] (stabil, Spread 0,0 pp) | 10,0–45,0 %, Mittel 27,0 % (Spread 20,0 pp) |
+| random   | 59,0 % Mittel (Spread 52,5–65,0 %, 12,5 pp)      | nicht gemessen                              |
+| material | 36,3 % / −98 [−210..14] (alter Stand n=40)       | nicht gemessen                              |
 
 **Der Bench ist nicht reproduzierbar, solange die Zeit-Deadline greift.** Die Suche ist
 wall-clock-budgetiert (`searchDeadline`), die erreichte Tiefe hängt also von der

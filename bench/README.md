@@ -10,7 +10,9 @@ npx tsx scripts/engine-strength.ts --games=20 --depth=3 --opponent=depth1 --repe
 
 Flags: `--games=N`, `--depth=N`, `--opponent=random|depth1|material`, `--seed=N`
 (default 12345), `--max-plies=N` (default 200), `--budget=N` (Zug-Budget in ms,
-setzt `setAITimeLimit`), `--repeats=N`.
+setzt `setAITimeLimit`), `--repeats=N`, `--no-book` (Eröffnungsbuch NICHT laden —
+nur für A/B gegen die alte Messung; die App lädt das Buch immer, deshalb ist
+das der Default).
 
 ## Regel: Einzelläufe sind keine Evidenz
 
