@@ -155,13 +155,13 @@ npm run typecheck
 npm run lint
 ```
 
-- **899 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped, 58 Test-Files)
+- **903 Unit Tests** ✅ (Vitest + Happy-DOM, 0 skipped, 59 Test-Files)
 - **35 E2E Tests** ✅ (Playwright Chromium)
 - **TypeScript Strict Mode** ✅ (0 Errors)
 - **ESLint** ✅ (0 Errors)
 - **Coverage Gates:** 80% Thresholds
-  - Overall: **94.4%** Statements / **84.7%** Branches / **96.3%** Functions / **96.1%** Lines
-  - `ai-core.ts`: 92.6% Lines · `game.ts`: 99.7% Lines · `game-check.ts`: 100% · `board.ts`: 100%
+  - Overall: **92.8%** Statements / **82.3%** Branches / **95.5%** Functions / **94.5%** Lines
+  - `ai-core.ts`: 87.0% Lines · `game.ts`: 97.9% Lines · `game-check.ts`: 100% · `board.ts`: 96.2%
   - `js/main.ts`, `js/puzzle.ts`, `js/sounds.ts`, `js/types.ts`, `js/ai-worker.ts` sind von der
     Unit-Coverage ausgenommen (UI/Event-Code bzw. engine-getrieben) und werden über E2E abgedeckt.
   - Opening Book Learning: integriert (auto-battle self-play)
