@@ -17,10 +17,10 @@ Alle Gates grün (Node 24, CI-Version):
 | ---------- | ------------------------ | -------------------------- |
 | Typecheck  | `npm run typecheck`      | grün                       |
 | Lint       | `npm run lint`           | grün                       |
-| Unit-Tests | `npm test`               | 899/899 (58 Files)         |
+| Unit-Tests | `npm test`               | 903/903 (59 Files)         |
 | E2E        | `npm run test:e2e`       | 35/35                      |
-| Coverage   | `npm test -- --coverage` | 94.8% Stmts / 84.9% Branch |
-| Build      | `npm run build`          | grün, main ≈ 23.7 KB gzip  |
+| Coverage   | `npm test -- --coverage` | 92.8% Stmts / 82.3% Branch |
+| Build      | `npm run build`          | grün, main ≈ 23.6 KB gzip  |
 
 **Node-Version:** CI pinnt Node 24. Lokal **nicht** Node 26 verwenden — die
 happy-dom-Umgebung stellt dort kein `localStorage` bereit, was 90 Unit-Tests
