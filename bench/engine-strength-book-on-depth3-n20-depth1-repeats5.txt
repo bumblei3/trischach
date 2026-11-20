@@ -1,0 +1,9 @@
+Opening book loaded: 88 positions from 2026-06-15T18:49:34.496Z
+Engine strength baseline | engine depth=3 vs depth1 | games=20 seed=12345 budget=engine-default book=on
+Run 1/5: W6 | L14 | D0 | score 30.0% | rel-Elo -147 [95% CI -313..19]
+Run 2/5: W3 | L17 | D0 | score 15.0% | rel-Elo -301 [95% CI -514..-88]
+Run 3/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Run 4/5: W4 | L16 | D0 | score 20.0% | rel-Elo -241 [95% CI -431..-51]
+Run 5/5: W7 | L13 | D0 | score 35.0% | rel-Elo -108 [95% CI -268..52]
+Repeats=5: Mittel 27.0% | Spread 15.0%..35.0% (20.0 pp)
+WARNUNG: Die Läufe weichen ab. Die Suche ist zeitbudgetiert (Wall-Clock), das Ergebnis hängt von der Maschinenlast ab — Einzelläufe sind keine Evidenz.

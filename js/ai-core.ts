@@ -2376,6 +2376,160 @@ export function iterativeDeepening(
   return bestResult.action ?? null;
 }
 
+// ─── Adversarial search (paranoid minimax) ────────────────────────
+//
+// `minimax` above is *maximax*: every node — including the two opponents' —
+// maximises `maximizingFaction`'s score, because no node ever flips sign.
+// Measured proof (2026-11-19, /tmp-style probe): with WATER to move and a free
+// queen capture on FIRE's queen, `minimax(depth=1)` returned -99654.4 — the
+// cooperative maximum — while the adversarial value was -109883.8. Opponents
+// are therefore modelled as helping, which is why extra depth never paid off.
+//
+// This variant implements the paranoid model instead: our nodes maximise, both
+// opponents' nodes minimise our score. No TT / pruning heuristics yet —
+// correctness first; the existing `searchDeadline` budget still bounds it.
+
+/** Cheap move ordering for the adversarial search (captures first). */
+function orderActionsAdversarial(
+  game: IGame,
+  faction: Faction,
+  actions: AIAction[],
+): AIAction[] {
+  const inCheck = isKingdomCheck(game, faction);
+  return [...actions].sort((a, b) => {
+    if (inCheck) {
+      const da = getCheckEscapeType(game, faction, a);
+      const db = getCheckEscapeType(game, faction, b);
+      if (da !== db) return db - da;
+    }
+    const sa = a.type === "attack" ? quickSee(game, a) : 0;
+    const sb = b.type === "attack" ? quickSee(game, b) : 0;
+    if (sa !== sb) return sb - sa;
+    if (a.type !== b.type) return a.type === "attack" ? -1 : 1;
+    return 0;
+  });
+}
+
+/**
+ * Paranoid alpha-beta: `currentFaction === maximizingFaction` maximises our
+ * score, every other faction minimises it. Alpha/beta stay in "our score"
+ * space; a min node narrows beta downwards and cuts on `alpha >= beta`.
+ */
+export function minimaxAdversarial(
+  game: IGame,
+  depth: number,
+  alpha: number,
+  beta: number,
+  maximizingFaction: Faction,
+  currentFaction: Faction,
+  deadline: number | null = null,
+): SearchResult {
+  nodesSearched++;
+  const effectiveDeadline = deadline !== null ? deadline : searchDeadline;
+  if (
+    (nodesSearched % 256 === 0 && Date.now() > effectiveDeadline) ||
+    Date.now() - searchStart > MAX_SEARCH_MS
+  ) {
+    return {
+      score: evaluateLeaf(game, maximizingFaction),
+      action: null,
+      timeout: true,
+    };
+  }
+
+  if (game.state === "game_over") {
+    return { score: evaluateLeaf(game, maximizingFaction), action: null };
+  }
+  const actions = getAllActions(game, currentFaction);
+  if (actions.length === 0) {
+    return { score: evaluateLeaf(game, maximizingFaction), action: null };
+  }
+  if (depth <= 0) {
+    return quiesce(game, alpha, beta, maximizingFaction, currentFaction);
+  }
+
+  const isMax = currentFaction === maximizingFaction;
+  let bestScore = isMax ? -Infinity : Infinity;
+  let bestAction: AIAction | null = null;
+
+  for (const action of orderActionsAdversarial(game, currentFaction, actions)) {
+    const undo = simulateMove(game, action.piece, action.target);
+    const nextFaction = game.currentFaction;
+    const child = minimaxAdversarial(
+      game,
+      depth - 1,
+      alpha,
+      beta,
+      maximizingFaction,
+      nextFaction,
+      effectiveDeadline,
+    );
+    undoMove(game, undo);
+
+    if (child.timeout) {
+      // Fail soft: keep the best complete result from this node, but tell the
+      // caller the iteration was cut short so iterative deepening discards it.
+      return {
+        score: bestScore,
+        action: bestAction,
+        timeout: true,
+      };
+    }
+
+    if (isMax) {
+      if (child.score > bestScore) {
+        bestScore = child.score;
+        bestAction = action;
+      }
+      if (bestScore > alpha) alpha = bestScore;
+    } else {
+      if (child.score < bestScore) {
+        bestScore = child.score;
+        bestAction = action;
+      }
+      if (bestScore < beta) beta = bestScore;
+    }
+    if (alpha >= beta) break;
+  }
+
+  return { score: bestScore, action: bestAction };
+}
+
+/**
+ * Iterative-deepening wrapper around `minimaxAdversarial`. Same time-budget
+ * machinery as `iterativeDeepening` (adaptive budget + hard ceiling), so an
+ * A/B against the shipped engine compares search *quality*, not just time.
+ */
+export function iterativeDeepeningAdversarial(
+  game: IGame,
+  faction: Faction,
+): AIAction | null {
+  beginSearch(calculateTimeBudget(game));
+  const actions = getAllActions(game, faction);
+  if (actions.length === 0) return null;
+  if (actions.length === 1) return actions[0] ?? null;
+
+  let bestResult: SearchResult = {
+    score: -Infinity,
+    action: actions[0] ?? null,
+  };
+  for (let depth = 1; depth <= getAIDepth(); depth++) {
+    if (Date.now() > searchDeadline - calculateTimeBudget(game) * 0.2) break;
+    const result = minimaxAdversarial(
+      game,
+      depth,
+      -Infinity,
+      Infinity,
+      faction,
+      faction,
+      searchDeadline,
+    );
+    if (result.timeout) break;
+    bestResult = result;
+  }
+  return bestResult.action ?? null;
+}
+
 /**
  * Search only the given subset of root moves (root-move splitting for parallel
  * search). Returns the best (score, action) within the subset, using a single
@@ -2704,13 +2858,13 @@ export function calculateBestMove(
   const usableActions = nonSuicide.length > 0 ? nonSuicide : actions;
   const pieceCount = game.pieces.filter((p) => p.alive).length;
 
-  // Search routing: deep force (single-ply greedy, with kingmaker and
-  // capture-reply penalties) for large material counts / many moves, full
-  // iterative deepening (TT, LMR, Probcut) for the midgame. Tighten slightly
-  // so the full engine is reachable during the opening phase — at the start of
-  // a game there are typically 20-60 legal moves and 45 pieces, and the
-  // current threshold (30 moves / 16 pieces) makes greedy the *only* path,
-  // which is also why the "AI depth" UI control has been a dead knob.
+  // Search routing: single-ply greedy (with kingmaker and capture-reply
+  // penalties) while there is a lot of material on the board, full iterative
+  // deepening (TT, LMR, Probcut) once the board thins out. Measured
+  // 2026-11-19 over 104 self-play plies: 100 % greedy, 0 % minimax — the
+  // threshold is only crossed at ~ply 126, so in practice every real game is
+  // decided by greedy. The "AI depth" slider therefore only applies to the
+  // late phase; the UI hint in index.html says exactly that.
   if (pieceCount > 24 || usableActions.length > 45) {
     return greedyBestMove(game, faction, usableActions);
   }

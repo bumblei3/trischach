@@ -1,0 +1,8 @@
+Opening book loaded: 88 positions from 2026-06-15T18:49:34.496Z
+Engine strength baseline | engine depth=3 vs depth1 | games=20 seed=12345 budget=engine-default book=on search=adversarial
+Run 1/5: W0 | L20 | D0 | score 0.0% | rel-Elo -800 [95% CI -800..-800]
+Run 2/5: W0 | L20 | D0 | score 0.0% | rel-Elo -800 [95% CI -800..-800]
+Run 3/5: W0 | L20 | D0 | score 0.0% | rel-Elo -800 [95% CI -800..-800]
+Run 4/5: W0 | L20 | D0 | score 0.0% | rel-Elo -800 [95% CI -800..-800]
+Run 5/5: W0 | L20 | D0 | score 0.0% | rel-Elo -800 [95% CI -800..-800]
+Repeats=5: Mittel 0.0% | Spread 0.0%..0.0% (0.0 pp)
