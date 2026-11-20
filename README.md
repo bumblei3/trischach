@@ -185,7 +185,7 @@ Dieses Projekt nutzt **GitHub Actions** (Node 24) mit parallelen Jobs:
 
 - **Bundle Size Check** (im `e2e-tests`-Job, läuft _vor_ den E2E-Tests):
   `main.js ≤ 33000 B` gzip, `ai.js ≤ 18000 B`, `ai-worker.js ≤ 2000 B`.
-  Aktueller Stand: main ≈ 31.9 KB, ai ≈ 9.3 KB, ai-worker ≈ 0.8 KB.
+  Aktueller Stand: main ≈ 23.6 KB, ai-core ≈ 8.5 KB, ai-worker ≈ 0.9 KB.
 - **Coverage enforcement** ≥80% auf PRs
 - **Lint + Typecheck** blocking (fail on errors)
 - **Deploy** hängt an `typecheck`, `lint`, `unit-tests`, `e2e-tests` und `codeql` —
@@ -244,10 +244,10 @@ WTFPL – Do What The F*** You Want To Public License. Erstellt von [bumblei3](h
 - [ ] **Tastatur- & Screenreader-Bedienung** – Das SVG-Brett ist derzeit Maus/Touch-only
       (kein `tabindex`, kein `focus()`; Modals setzen keinen Fokus). Brettspiele sind
       traditionell gute Kandidaten für Tastatur-Bedienung via algebraischer Notation.
-- [ ] **Code-Splitting** – `js/puzzle.ts` (~30 KB raw) und `js/replay.ts` (~30 KB raw)
-      liegen statisch im Initial-Bundle, obwohl sie erst beim Öffnen des jeweiligen
-      Modus gebraucht werden. `js/game.ts` und `js/opening-book.ts` werden doppelt
-      gebundelt (statisch + dynamisch).
+- [x] **Code-Splitting** – `js/puzzle.ts`, `js/replay.ts` (sowie `analysis.ts`,
+      `rps-puzzle.ts`, `coach.ts`) liegen in eigenen Chunks und werden lazy geladen
+      (`puzzle.js` 4.0 KB, `replay.js` 3.5 KB gzip). `js/game.ts`/`js/opening-book.ts`
+      sind weiterhin doppelt gebundelt (statisch + dynamisch).
 - [ ] **i18n** – Die UI ist konsistent deutsch; Englisch wäre der größte Reichweiten-Hebel.
 
 **Bewusst nicht geplant:** Online Multiplayer (WebRTC), Distributed Match Runner.
