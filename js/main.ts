@@ -2809,9 +2809,10 @@ function initEventListeners(): void {
     "replay-analyze",
   ) as HTMLButtonElement | null;
   replayAnalyze?.addEventListener("click", () => {
-    // Die Analyse bewertet die aktuelle Stellung (`game`), nicht den
-    // Replay-Controller. Sie darf auch ohne geladene Partie laufen — genau
-    // dann ist sie für den Spieler interessant (die gerade beendete Partie).
+    if (!window.replayController) {
+      showHintToast("Zuerst eine Partie laden");
+      return;
+    }
     renderReplayAnalysis();
   });
 
