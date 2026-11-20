@@ -290,8 +290,31 @@ game state is not SELECT_PIECE` lief in CI in den Timeout (gemessen 621 s statt 
   PWA-Bootstrap (SW-Registrierung, Update-Zyklus, Install-Prompt-Flow).
   pwa.ts jetzt bei 100% Line-Coverage.
 
-## Einziger unversuchter Pfad
+## NNUE-Distillation — versucht, negativ (2026-11-19)
 
-schach9x9-Style Datengen-NNUE (deterministische Selbstspiel-Positionen mit
-Engine-Zielen statt TD-on-outcome) — großes Projekt, Ertrag unsicher.
-Energie stattdessen in schach9x9 (M1.1 gemergt +230 Elo, NNUE-Datengen läuft).
+Der Plan (`docs/plans/2026-11-19-nnue-datengen.md`) ist umgesetzt: Phasen 1–3
+(Datengenerator, Netz aus `6eb6533^` gerettet, Distillations-Trainer) laufen;
+Phase 4 (Einbindung + Bench-A/B) wurde nicht angegangen, weil die
+Ausgangslage negativ ist.
+
+Auswertung (`scripts/nnue-eval.ts`, 653 frische Stellungen): **Korrelation
+0,601** zum Engine-Ziel, MAE 5,6 (Ziel-Skala ±10), 0,104 ms/Eval. Weder
+Qualität noch Durchsatz belegen einen Ertrag.
+
+Zwei Ursachen, die der Plan nicht kannte:
+
+1. **Label-Konstanz durch König-Basis-Offset.** `getMaterialValue` bewertet
+   Könige mit `baseValue * 100` (~1e5); da jede Fraktion zwei fremde Könige
+   sieht, ist `evaluateBoard` in der Anfangsstellung für **alle** Fraktionen
+   ~−100 000. Die Ziele sind praktisch konstant (32/53 gesättigt), die
+   Information steckt im Rest (~±1e3) — die erste tanh-Kompression zerstörte
+   sie. Erst die Relativierung auf die Ausgangsstellung brachte den Loss von
+   99,99 auf 32,6.
+2. **Kein Ertrag trotz Korrelation.** 0,6 ist zu unscharf für eine
+   Bewertungsersetzung, und 0,104 ms/Eval ist nicht günstiger als die
+   bestehende statische Eval.
+
+Artefakte: `scripts/gen-nnue-data.ts`, `scripts/nnue-train.ts`,
+`scripts/nnue-eval.ts`, `js/nnue.ts` (wiederhergestellt, ungenutzt),
+`data/nnue/` (ignoriert). Energie gehört nach schach9x9 (M1.1 +230 Elo,
+NNUE-Datengen läuft dort).

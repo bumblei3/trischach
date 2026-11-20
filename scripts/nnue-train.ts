@@ -78,16 +78,22 @@ async function main(): Promise<void> {
     setPersonality(PROFILES[i % PROFILES.length]!);
     const g = new Game();
     g.init(generateBoard());
+    // Referenz aus der Ausgangsstellung: evaluateBoard enthält den
+    // König-Basis-Offset (~-1e5, denn jede Fraktion sieht zwei fremde Könige).
+    // Ohne Abzug ist das Ziel praktisch konstant und die Information im
+    // kleinen Rest (~±1e3) geht in der Kompression verloren.
+    const refEval = evaluateLeaf(g as never, TURNS[g.currentFactionIdx]!);
     let ply = 0;
     while (ply < maxPlies) {
       const alive = TURNS.filter((f) => !g.eliminatedFactions.has(f));
       if (alive.length <= 1) break;
       const faction = TURNS[g.currentFactionIdx]!;
-      // Ziel aus der Engine, aber in den Ausgabebereich des Netzes gebracht:
-      // `evaluateLeaf` liefert Werte bis ±1e5 (GAME_WIN_SCORE), die Netz-Ausgabe
-      // ist tanh × 1000/T (T=80) → ±12,5. Ohne Kompression divergiert SGD.
+      // Ziel aus der Engine, aber relativ zur Ausgangsstellung und in den
+      // Ausgabebereich des Netzes gebracht: `evaluateLeaf` liefert Werte bis
+      // ±1e5 (GAME_WIN_SCORE), die Netz-Ausgabe ist tanh × 1000/T (T=80)
+      // → ±12,5.
       const raw = evaluateLeaf(g as never, faction);
-      const label = Math.tanh(raw / 1000) * 10;
+      const label = Math.tanh((raw - refEval) / 1000) * 10;
       buf.push({
         vec: encodePosition(g as never, faction),
         label,
