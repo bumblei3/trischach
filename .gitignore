@@ -4,6 +4,9 @@ dist/
 playwright-report/
 test-results/
 
+# NNUE training data (Binärdaten, nicht im Repo)
+data/
+
 # Dependencies
 node_modules/
 
