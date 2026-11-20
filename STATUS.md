@@ -174,14 +174,16 @@ prüfen, nie gegen Prosa — Doku driftet, Logs nicht.
 
 Alle nach dem Kingmaker-Stand getesteten Hebel sind gemessen negativ/flach:
 
-| Hebel                                 | Ergebnis                                                                                                                                                              |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Maxⁿ / Maxⁿ-TT (d3, n40)              | flach (32.5%), ~20x langsamer — geparkt                                                                                                                               |
-| MGD2 depth2-Minimax                   | vs random 22.5%/−215; vs depth1 31.3%/−137 — negativ                                                                                                                  |
-| Tablebase-Coverage                    | ≤4-Stein-Zone wird in echten Partien NIE erreicht: erste Eliminierung bei 19–30 Steinen (20-Spiele-Inventur, seed 12345). Vorhandene TBs werden praktisch nie probed. |
-| Post-Elim-Minimax                     | **10.0% / −382 vs random** (Kingmaker-Baseline 62.5%) — klar negativ; iterativeDeepening kollabiert bei großem Branching                                              |
-| NNUE inkl. RPS-Features (Encoding v2) | Elo −26 (d2) / −17 (d3), CI überlappt 0 — geparkt                                                                                                                     |
-| TD(λ)-Training                        | 0% Gradient in 3P-Selbstspiel (Spiele enden fast nie durch Eliminierung)                                                                                              |
+| Hebel                                            | Ergebnis                                                                                                                                                                                                                                 |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maxⁿ / Maxⁿ-TT (d3, n40)                         | flach (32.5%), ~20x langsamer — geparkt                                                                                                                                                                                                  |
+| MGD2 depth2-Minimax                              | vs random 22.5%/−215; vs depth1 31.3%/−137 — negativ                                                                                                                                                                                     |
+| Tablebase-Coverage                               | ≤4-Stein-Zone wird in echten Partien NIE erreicht: erste Eliminierung bei 19–30 Steinen (20-Spiele-Inventur, seed 12345). Vorhandene TBs werden praktisch nie probed.                                                                    |
+| Post-Elim-Minimax                                | **10.0% / −382 vs random** (Kingmaker-Baseline 62.5%) — klar negativ; iterativeDeepening kollabiert bei großem Branching                                                                                                                 |
+| NNUE inkl. RPS-Features (Encoding v2)            | Elo −26 (d2) / −17 (d3), CI überlappt 0 — geparkt                                                                                                                                                                                        |
+| TD(λ)-Training                                   | 0% Gradient in 3P-Selbstspiel (Spiele enden fast nie durch Eliminierung)                                                                                                                                                                 |
+| Matt/Patt-Parität in `simulateMove` (2026-11-19) | Korrekt gebaut (904/904 Unit, 35/35 E2E, illegaler-Zug-Test sauber) — 32 % vs. 37 % Baseline (60/Arm, 2,46× Suchzeit, CIs überlappend) → revertiert; Ursache: `calculateBestMove` routet bei >24 Figuren zu Greedy, die Suche trägt kaum |
+| KI-Persönlichkeits-Profile (2026-11-19)          | balanced 35 % (Default) / tactical 35 % / aggressive 25 % / defensive 25 % (20 Partien gegen depth1) — Default bleibt                                                                                                                    |
 
 Single-Game-Trace (`scripts/analyze-one-game.ts`, inkl. Bugfix: Engine-Zug
 muss angewendet werden): Such-Qualität sauber — 37/38 Turns diff=0 → die
